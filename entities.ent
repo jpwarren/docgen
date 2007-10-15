@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Some helpful shortcuts for commonly used text -->
+<!ENTITY netapp "<trademark class='trade'>Network Appliance</trademark>">
+<!ENTITY ontap "<trademark class='trade'>Data ONTAP</trademark>">
+<!ENTITY nearstore "NearStore">
+<!ENTITY flexvol "<trademark class='trade'>FlexVol</trademark>">
+<!ENTITY snapvault "<trademark class='trade'>SnapVault</trademark>">
+<!ENTITY snapmirror "SnapMirror">
+<!ENTITY microsoft "<trademark class='registered'>Microsoft</trademark>">
