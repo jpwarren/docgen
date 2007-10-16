@@ -4,11 +4,11 @@
     xmlns:fo="http://www.w3.org/1999/XSL/Format"
     version="1.0">
 
-<xsl:import href="base_styles.xsl"/>
-<xsl:import href="admon_graphics.xsl" />
-<xsl:import href="titlepage.xsl"/>
+<xsl:import href="http://docbook.sensis.com.au/sensis-docgen/base_styles.xsl"/>
+<xsl:import href="http://docbook.sensis.com.au/sensis-docgen/admon_graphics.xsl" />
+<xsl:import href="http://docbook.sensis.com.au/sensis-docgen/titlepage.xsl"/>
 
-<xsl:param name="corp.logo.top.right" select="'sensis-logo-doco.png'"/>
+<xsl:param name="corp.logo.top.right" select="'/usr/local/docgen/sensis-logo-doco.png'"/>
 
 <xsl:param name="sensis.color.sand">#f2e8bb</xsl:param>
 <xsl:param name="sensis.color.aqua">#26bcd6</xsl:param>

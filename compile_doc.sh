@@ -2,11 +2,19 @@
 #
 # Script to compile a docbook source document into outputs, mainly PDF.
 #
-DEFAULT_STYLESHEET=fo_styles.xsl
+
+# Directory that docgen is installed in
+DOCGEN_BASEDIR=/usr/local/docgen
+
+DEFAULT_STYLESHEET=$DOCGEN_BASEDIR/fo_styles.xsl
+
+LD_LIBRARY_PATH=/usr/local/lib:/usr/lib
+export LD_LIBRARY_PATH
 
 #FOP="/home/daedalus/src/fop-0.90alpha1/fop"
 #FOP="/home/daedalus/unicity/docbook/fop-0.92beta/fop"
-FOP="/home/daedalus/src/fop-0.93/fop"
+#FOP="/home/daedalus/src/fop-0.93/fop"
+FOP="/usr/local/fop-0.93/fop"
 
 XML_CATALOG_FILES="/usr/share/xml/docbook/stylesheet/nwalsh/catalog.xml"
 
@@ -38,11 +46,11 @@ if [ "$4" != "rtf" ]; then
 fi
 
 # Build the titlepage xsl from the spec file
-xsltproc --nonet --novalid --output titlepage.xsl /usr/share/xml/docbook/stylesheet/nwalsh/template/titlepage.xsl titlepage.templates.xml
-if [ $? -ne 0 ]; then
-	echo "Failed to generate custom titlepages."
-	exit 1
-fi
+#xsltproc --nonet --novalid --output titlepage.xsl /usr/share/xml/docbook/stylesheet/nwalsh/template/titlepage.xsl titlepage.templates.xml
+#if [ $? -ne 0 ]; then
+#	echo "Failed to generate custom titlepages."
+#	exit 1
+#fi
 
 echo "Compiling $infile to $fofile with $stylesheet..."
 

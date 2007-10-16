@@ -660,7 +660,6 @@ class ProjectConfig:
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
-                            mountoptions = ['forcedirectio', 'noac' ]
                             qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', hostlist=hostlist)
                             qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
@@ -700,12 +699,15 @@ class ProjectConfig:
         Figure out the automatically defined mount options for a qtree
         """
         mountoptions = []
+
+        osname = qtree.hostlist[0].xpath("operatingsystem")[0].text
+        
         if qtree.volume.type in ['oracm', ]:
             log.debug("Oracle quorum qtree detected.")
             if qtree.name == 'ora_cm':
-                if qtree.hostlist[0].xpath("operatingsystem")[0].text.startswith('Solaris'):
+                if osname.startswith('Solaris'):
                     log.debug("NOAC mount option added.")
-                    mountoptions = [ 'forcedirectio', 'noac' ]
+                    mountoptions = [ 'forcedirectio', 'noac', 'nointr' ]
                     pass
                 pass
             pass
@@ -713,11 +715,11 @@ class ProjectConfig:
 
         if qtree.volume.type in [ 'oradata', 'oraindx', 'oratemp', 'oraarch', 'oraredo' ]:
 
-            if qtree.hostlist[0].xpath("operatingsystem")[0].text.startswith('Solaris'):
+            if osname.startswith('Solaris'):
                 #log.debug("Solaris mount option required")
-                mountoptions = [ 'forcedirectio', ]
+                mountoptions = [ 'forcedirectio', 'noac', 'nointr' ]
                 
-            elif qtree.hostlist[0].xpath("operatingsystem")[0].text.startswith('Linux'):
+            elif osname.startswith('Linux'):
                 #log.debug("Linux mount option required")
                 mountoptions = [ 'actimeo=0', ]
                 pass
@@ -725,6 +727,15 @@ class ProjectConfig:
             else:
                 log.error("Unknown operating system")
                 mountoptions = []
+                pass
+            pass
+
+        # Non Oracle volume options for Solaris
+        elif osname.startswith('Solaris'):
+            mountoptions = [ 'intr', ]
+
+        elif osname.startswith('Linux'):
+            mountoptions = [ 'intr', ]
 
         return mountoptions
 

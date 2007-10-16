@@ -34,7 +34,7 @@ class DocumentGenerator:
 [
 <!-- include standard entities -->
 
-<!ENTITY % entities SYSTEM "file:///home/daedalus/src/sensis-docgen/entities.ent">
+<!ENTITY % entities SYSTEM "http://docbook.sensis.com.au/sensis-docgen/entities.ent">
 %entities;
 
 <!-- The name of the project that will appear on the front page -->
@@ -85,7 +85,7 @@ $book_content
     <author>
       <firstname>Storage</firstname>
       <surname>Design</surname>
-      <email>storagemanagement@sensis.com</email>
+      <email>storagemanagement@sensis.com.au</email>
     </author>
     <authorinitials>JPW</authorinitials>
     <corpauthor>Sensis</corpauthor>
@@ -145,7 +145,7 @@ ${abstract}
               </entry>
               <entry>
                 <para>Justin Warren</para>
-                <para>justin.warren@sensis.com</para>
+                <para>justin.warren@sensis.com.au</para>
               </entry>
            </row>
            <row>
@@ -154,7 +154,7 @@ ${abstract}
               </entry>
               <entry>
                 <para>Storage Design Team</para>
-                <para>storagemanagement@sensis.com</para>
+                <para>storagemanagement@sensis.com.au</para>
               </entry>
             </row>
 
@@ -1916,10 +1916,10 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
             <title>Default NFS Mount Options</title>
 
             <para>All Linux hosts must use the following mount options when mounting NFS storage:</para>
-            <screen>rw,bg,hard,intr,tcp,vers=3,rsize=65535,wsize=65535,timeo=600</screen>
+            <screen>rw,bg,hard,tcp,vers=3,rsize=65535,wsize=65535,timeo=600</screen>
 
             <para>All Solaris hosts must use the following mount options when mounting NFS storage:</para>
-            <screen>rw,bg,hard,intr,proto=tcp,vers=3,rsize=65535,wsize=65535</screen>
+            <screen>rw,bg,hard,proto=tcp,vers=3,rsize=65535,wsize=65535</screen>
 
             <para>Mount options for ESX NFS datastores will be handled and managed by the ESX server storage configuration subsystem.</para>
           </section>
