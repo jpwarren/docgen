@@ -72,7 +72,7 @@ class DocumentGenerator:
 
 ]>
 
-<book xmlns:xi="http://www.w3.org/2001/XInclude">
+<book>
 $book_content
 </book>
 ''')
@@ -1134,10 +1134,12 @@ the host activation guides.
               </tgroup>
             </table>
           </para>
+          </section>
             ''')
 
         primary_interface_section = Template('''
-          <para>
+        <section>
+          <title>Primary vFiler Interfaces</title>
             <table tabstyle="techtable-01">
               <title>Primary vFiler Interface Configuration</title>
               <tgroup cols="3">
@@ -1173,11 +1175,12 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
-          </para>
+          </section>
         ''')
 
         dr_interface_section = Template("""
-          <para>
+        <section>
+          <title>DR vFiler Interfaces</title>
             <table tabstyle="techtable-01">
               <title>DR vFiler Interface Configuration</title>
               <tgroup cols="3">
@@ -1213,7 +1216,6 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
-          </para>
           """)
 
         vfiler_routes = Template("""
@@ -1247,6 +1249,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
 
         ns['primary_site_vfiler_section'] = primary_section.safe_substitute(ns)
         ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
+
         
         if len(self.conf.get_volumes('secondary', 'primary')) > 0:
             ns['dr_site_vfiler_section'] = dr_section.safe_substitute(ns)
@@ -1930,7 +1933,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
 
             <para>
             <informaltable tabstyle="techtable-01">
-              <title>NFS Configurations</title>
+
               <tgroup cols="3">
                 <colspec colnum="1" align="left" colwidth="2*"/>
                 <colspec colnum="2" align="center" colwidth="0.75*"/>
@@ -1988,7 +1991,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
                 entries = """
                     <entry><para>%s:/vol/%s/%s</para></entry>
                     <entry><para>%s</para></entry>
-                    <entry><para>%s</para></entry>
+                    <entry>%s</entry>
                     """ % ( filerip, qtree.volume.name, qtree.name, hostname, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)

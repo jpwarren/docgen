@@ -767,15 +767,23 @@ class ProjectConfig:
             volname = node.xpath("@name")[0]
         except IndexError:
 
+            # otherwise, invent one
+
+            # Try to find a volume prefix
             try:
-                # or, attempt to use a different prefix, if one is set
                 volprefix = node.xpath("@prefix")[0]
-                volname = '%s_vol%02d' % (volprefix, volnum)
             except IndexError:
-                # otherwise, invent one
-                volname = '%s_vol%02d' % (self.shortname, volnum)
+                volprefix = self.shortname
                 pass
-            pass
+
+            # Try to find a volume suffix
+            try:
+                volsuffix = node.xpath("@suffix")[0]
+            except IndexError:
+                volsuffix = ''
+                pass
+
+            volname = '%s_vol%02d%s' % (volprefix, volnum, volsuffix)
 
         # aggregate is this one, or the same as the previous volume
         aggr = node.xpath("ancestor::aggregate/@name | preceding-sibling/ancestor::aggregate/@name")[0]
@@ -805,7 +813,7 @@ class ProjectConfig:
 
         # Default snap reserve to 20 unless specified otherwise
         try:
-            snapreserve = node.xpath("snapreserve")[0]
+            snapreserve = node.xpath("@snapreserve")[0]
         except IndexError:
             #log.debug("No snapreserve specified.")
             if voltype == 'iscsi':
