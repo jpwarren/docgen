@@ -345,9 +345,9 @@ ${abstract}
             ns['dr_primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
             ns['dr_nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
 
-        except IndexError:
-            log.debug("dr filer details not supplied")
-            pass
+        except IndexError, e:
+            log.error("DR filer details not supplied.")
+            raise
 
         ns['primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
         ns['nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
@@ -1216,6 +1216,7 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
+          </section>
           """)
 
         vfiler_routes = Template("""
@@ -1251,7 +1252,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
 
         
-        if len(self.conf.get_volumes('secondary', 'primary')) > 0:
+        if self.conf.has_dr:
             ns['dr_site_vfiler_section'] = dr_section.safe_substitute(ns)
             ns['dr_vfiler_interface_section'] = dr_interface_section.safe_substitute(ns)
         else:
@@ -1556,6 +1557,9 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
 
         else:
             log.info("DR not defined.")
+            if self.conf.has_dr:
+                log.error("Weird. DR is defined, but has no primary volumes.")
+
             ns['dr_filer_volume_allocation'] = ''
             pass
 
@@ -1883,8 +1887,10 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         ns['primary_qtree_rows'] = self.get_filer_qtree_rows(ns)
         ns['filer_qtrees'] = filer_qtrees.safe_substitute(ns)
 
-        #ns['dr_filer_qtrees'] = dr_filer_qtrees.safe_substitute(ns)
-        ns['dr_filer_qtrees'] = ''
+        if self.conf.has_dr:
+            ns['dr_filer_qtrees'] = dr_filer_qtrees.safe_substitute(ns)
+        else:
+            ns['dr_filer_qtrees'] = ''
         
         return section.safe_substitute(ns)
 
@@ -2222,12 +2228,12 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         rows = []
         for sv in snapvaults:
             entries = ''
-            entries += "<entry><para>%s</para></entry>" % sv.sourcevol.namepath()
-            entries += "<entry><para>%s</para></entry>" % sv.targetvol.namepath()
-            entries += "<entry><para>%s</para></entry>" % sv.basename
-            entries += "<entry><para>%s</para></entry>" % sv.src_schedule
-            entries += "<entry><para>%s</para></entry>" % sv.dst_schedule
-            row = "<row>%s</row>" % entries
+            entries += "<entry><para>%s</para></entry>\n" % sv.sourcevol.namepath()
+            entries += "<entry><para>%s</para></entry>\n" % sv.targetvol.namepath()
+            entries += "<entry><para>%s</para></entry>\n" % sv.basename
+            entries += "<entry><para>%s</para></entry>\n" % sv.src_schedule
+            entries += "<entry><para>%s</para></entry>\n" % sv.dst_schedule
+            row = "<row>%s</row>\n" % entries
             rows.append(row)
             pass
 

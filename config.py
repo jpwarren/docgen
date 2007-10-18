@@ -370,6 +370,8 @@ class ProjectConfig:
         self.snapmirrors = []
         self.allowed_protocols = []
 
+        self.has_dr = False
+
         #self.verify_doc()
 
         self.load_project_details()
@@ -416,6 +418,9 @@ class ProjectConfig:
         for node in filernodes:
             filername = node.attrib['name']
             sitetype = node.xpath("parent::*/@type")[0]
+
+            if sitetype == 'secondary':
+                self.has_dr = True
 
             filer = Filer(filername, node.attrib['type'], sitetype)
             filers[filername] = filer
@@ -476,12 +481,13 @@ class ProjectConfig:
         # Always have a root volume on the primary filers
         for filer in [ x for x in self.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
 
-            # FIXME: SnapMirror of the root volume doesn't work yet.
-            # Should dynamically decide if a snap needs to be done.
-            log.warn("SnapMirror of Primary root volume doesn't work yet.")
             snapref = []
             snapvaultref = ['default']
-            snapmirrorref = []
+
+            if self.has_dr:
+                snapmirrorref = ['default']
+            else:
+                snapmirrorref = []
 
             #log.debug("Adding a root volume to %s", filer)
             self.volumes.insert(0, Volume('%s_root' % self.shortname,
@@ -506,12 +512,12 @@ class ProjectConfig:
         # Always have a root volume on the nearstores
         for filer in [ x for x in self.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
 
-            # figure out what the root volume's snap references should be
-            # FIXME: Doesn't work yet.
-            log.warn("SnapVault/SnapMirror of NearStore root volume doesn't work yet.")
             snapref = []
             snapvaultref = []
-            snapmirrorref = []
+            if self.has_dr:
+                snapmirrorref = ['default']
+            else:
+                snapmirrorref = []
 
             #log.debug("Adding a root volume to %s", filer)
             vol = Volume('%s_root' % self.shortname,
@@ -1209,24 +1215,27 @@ class ProjectConfig:
         """
         Create snapmirror volumes for a source volume.
         """
-        #log.debug("Adding snapmirrors for %s", srcvol)
+        log.debug("Adding snapmirrors for %s", srcvol)
 
         # If the volume is of certain types, don't back them up
         if srcvol.type in ['oraredo', 'oratemp', 'oracm' ]:
             log.info("Not snapmirroring volume '%s' of type '%s'", srcvol.name, srcvol.type)
             return
 
-        # get the snapvaultset for the volume
-        for ref in srcvol.snapvaultref:
-
+        # get the snapmirrorset for the volume
+        for ref in srcvol.snapmirrorref:
+            log.debug("reference: %s", ref)
             try:
                 set_node = self.tree.xpath("snapmirrorset[@id = '%s']" % ref)[0]
+                log.debug("Found snapmirrorset node: %s", set_node)
             except IndexError:
                 log.error("Cannot find snapmirrorset definition '%s'" % ref)
                 raise ValueError("snapmirrorset not defined: '%s'" % ref)
 
             try:
                 target_filername = set_node.attrib['targetfiler']
+                log.debug("SnapMirror target is: %s", target_filername)
+                
             except KeyError:
                 # No target filer specified, so use the first primary at a site other than the source
                 # This auto-created DR snapmirrors, but may not be what you mean.
@@ -1236,6 +1245,11 @@ class ProjectConfig:
 
             try:
                 target_filer = self.filers[target_filername]
+                
+                # Make sure the snapmirror target is a filer, not a nearstore
+                if target_filer.type not in ['primary', 'secondary']:
+                    log.error("Target filer '%s' for SnapMirror is not a Filer!", target_filer)
+                    
             except KeyError:
                 log.error("Snapmirror target is an unknown filer name: '%s'", target_filername)
                 raise
@@ -1260,6 +1274,7 @@ class ProjectConfig:
                                 type='snapmirrordst',
                                 proto='',
                                 )
+            log.debug("Adding SnapMirror target volume: %s", targetvol)
             self.volumes.append(targetvol)
             
             for svnode in set_node.findall("snapmirror"):
