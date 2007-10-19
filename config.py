@@ -154,9 +154,15 @@ class Volume:
         self.proto = proto
         self.aggregate = aggr
         self.usable = float(usable)
+
         if raw is None:
-            raw = self.usable * (1+( float(snapreserve) / 100 ))
+            log.debug("snapreserve: %s, usable: %s", snapreserve, usable)
+            log.debug("snapres: %s", (100 - float(snapreserve) )/100 )
+            raw = self.usable / ( (100 - float(snapreserve) )/100 )
         self.raw = raw
+
+        log.debug("raw value: %s", self.raw)
+        
         self.snapreserve = snapreserve
 
         self.snapref = snapref
@@ -205,6 +211,7 @@ class Volume:
             # It should be base 2, not base 10, == 1024, but most humans prefer base 10.
             size = round(self.raw * 1000)
             if size == 0:
+                log.error("Volume size error: %s", self)
                 raise ValueError("Attempting to create volume of size 0!")
             return '%dm' % size
         
