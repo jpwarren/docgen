@@ -2322,8 +2322,9 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
     
     def build_activation_commands(self, ns):
 
-        # Build the commands for all primary filers
         activation_commands = ''
+
+        # Build the commands for all primary filers
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
             vfiler = filer.vfilers[ns['vfiler_name']]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
@@ -2336,6 +2337,21 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers[ns['vfiler_name']]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        # Build the commands for all secondary filers
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'primary' ]:
+            vfiler = filer.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'secondary' ]:
+            # My vfiler is the vfiler from the primary
+            vfiler = filer.secondary_for.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
+            vfiler = filer.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
 
         return activation_commands
 
@@ -2439,8 +2455,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
             </section>""" % cmds
 
         # Careful! Quotas file is the verbatim file contents, not a list!
-        # Quotas are only used on primary filers
-        if filer.type == 'primary':
+        if filer.type in ['primary', 'nearstore'] and filer.site == 'primary':
             cmds = '\n'.join( self.conf.vfiler_quotas_add_commands(filer, vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Quota File Contents</title>

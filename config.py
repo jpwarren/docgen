@@ -125,9 +125,10 @@ class Filer:
 
 class VFiler:
     
-    def __init__(self, filer, name, vlan, ipaddress, netmask, gateway):
+    def __init__(self, filer, name, rootaggr, vlan, ipaddress, netmask, gateway):
         self.filer = filer
         self.name = name
+        self.rootaggr = rootaggr
         self.vlan = vlan
         self.ipaddress = ipaddress
         self.netmask = netmask
@@ -146,7 +147,7 @@ class VFiler:
 
 class Volume:
 
-    def __init__(self, name, filer, aggr, usable, snapreserve=20, raw=None, type="fs", proto="nfs", voloptions=[], volnode=None, snapref=[], snapvaultref=[], snapmirrorref=[]):
+    def __init__(self, name, filer, aggr, usable, snapreserve=20, raw=None, type="fs", proto="nfs", voloptions=[], volnode=None, snapref=[], snapvaultref=[], snapmirrorref=[], snapvaultmirrorref=[]):
         self.name = name
         self.filer = filer
         self.type = type
@@ -161,6 +162,7 @@ class Volume:
         self.snapref = snapref
         self.snapvaultref = snapvaultref
         self.snapmirrorref = snapmirrorref
+        self.snapvaultmirrorref = snapvaultmirrorref
 
         # Lists of the actual snapX objects, added when they're created
         self.snaps = []
@@ -444,6 +446,8 @@ class ProjectConfig:
                 name = node.attrib['name']
             except KeyError:
                 name = self.shortname
+
+            rootaggr = node.attrib['rootaggr']
                 
             filername = node.xpath("parent::*/@name")[0]
             filer = self.filers[filername]
@@ -457,7 +461,7 @@ class ProjectConfig:
 
             gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
-            vfilers[name] = VFiler(filer, name, vlan, ipaddress, netmask, gateway)
+            vfilers[name] = VFiler(filer, name, rootaggr, vlan, ipaddress, netmask, gateway)
             
         return vfilers
 
@@ -468,6 +472,9 @@ class ProjectConfig:
 
         volnodes = self.tree.xpath("nas/site/filer/vfiler/aggregate/volume | nas/site/filer/vfiler/aggregate/volumeset")
 
+        # Add root volumes to the filers/vfilers
+        self.add_root_volumes()
+
         # number volumes from 0
         volnum = 0
         for node in volnodes:
@@ -477,88 +484,78 @@ class ProjectConfig:
             else:
                 vol, volnum = self.create_volume(node, volnum)
                 self.volumes.append(vol)
-
-        # Always have a root volume on the primary filers
-        for filer in [ x for x in self.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
-
-            snapref = []
-            snapvaultref = ['default']
-
-            if self.has_dr:
-                snapmirrorref = ['default']
-            else:
-                snapmirrorref = []
-
-            #log.debug("Adding a root volume to %s", filer)
-            self.volumes.insert(0, Volume('%s_root' % self.shortname,
-                                          filer,
-                                          filer.volumes[0].aggregate,
-                                          usable=0.02,
-                                          raw=0.02,
-                                          snapreserve=20,
-                                          snapref=snapref,
-                                          snapvaultref=snapvaultref,
-                                          snapmirrorref=snapmirrorref,
-                                          ))
-
+                
         # Add snapshots for those source volumes with snaprefs
         for vol in self.volumes:
             self.create_snapshot_for(vol)
-
-        # Add snapvault volumes for those source volumes with snapvaultrefs
-        for vol in [ x for x in self.volumes if len(x.snapvaultref) > 0 ]:
-            self.create_snapvault_for(vol)
-
-        # Always have a root volume on the nearstores
-        for filer in [ x for x in self.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
-
-            snapref = []
-            snapvaultref = []
-            if self.has_dr:
-                snapmirrorref = ['default']
-            else:
-                snapmirrorref = []
-
-            #log.debug("Adding a root volume to %s", filer)
-            vol = Volume('%s_root' % self.shortname,
-                                          filer,
-                                          filer.volumes[0].aggregate,
-                                          usable=0.02,
-                                          raw=0.02,
-                                          snapreserve=20,
-                                          snapref=snapref,
-                                          snapvaultref=snapvaultref,
-                                          snapmirrorref=snapmirrorref,
-                                          )
-
-            self.create_snapshot_for(vol)
-            self.volumes.insert(0, vol)
 
         # Add snapmirror volumes for those source volumes with snapmirrorrefs
         for vol in [ x for x in self.volumes if len(x.snapmirrorref) > 0 ]:
             self.create_snapmirror_for(vol)
 
-        # Always have a root volume on the remote primaries and nearstores
-        for filer in [ x for x in self.filers.values() if x.site == 'secondary']:
-            try:
-                vol = Volume('%s_root' % self.shortname,
-                                              filer,
-                                              filer.volumes[0].aggregate,
-                                              usable=0.02,
-                                              raw=0.02,
-                                              snapreserve=0,
-                                              snapref=filer.volumes[0].snapref,
-                                              snapvaultref=filer.volumes[0].snapvaultref,
-                                              snapmirrorref=filer.volumes[0].snapmirrorref,
-                                              )
-                self.volumes.insert(0, vol)
-                self.create_snapshot_for(vol)
-
-            except IndexError:
-                pass
+        # Add snapvault volumes for those source volumes with snapvaultrefs
+        # This will snapvault the secondary root volumes to the secondary nearstore
+        for vol in [ x for x in self.volumes if len(x.snapvaultref) > 0 ]:
+            log.debug("Adding snapvault for: %s", vol)
+            self.create_snapvault_for(vol)
 
         return self.volumes
 
+    def add_root_volumes(self):
+        """
+        Create root volumes for all filers.
+        """
+        # Create root volumes for defined vfilers
+
+        # Always have a root volume on the primary filers
+        for filer in [ x for x in self.filers.values() if x.type == 'primary' ]:
+            for vfiler in filer.vfilers.values():
+                log.debug("Adding root volume for vfiler '%s' on '%s'...", vfiler.name, filer.name)
+                snapref = []
+                # The expected name of the snapvault schedule for root volumes
+                # is default_primary or default_secondary
+                snapvaultref = ['default_%s' % filer.site]
+
+                # We don't snapmirror root volumes
+                snapmirrorref = []
+
+                vol = Volume('%s_root' % self.shortname,
+                             filer,
+                             vfiler.rootaggr,
+                             usable=0.02,
+                             raw=0.02,
+                             snapreserve=20,
+                             snapref=snapref,
+                             snapvaultref=snapvaultref,
+                             snapmirrorref=snapmirrorref,
+                             )
+                self.volumes.append(vol)
+                pass
+        
+        # Always have a root volume on the nearstores
+        for filer in [ x for x in self.filers.values() if x.type == 'nearstore' ]:
+            for vfiler in filer.vfilers.values():
+                log.debug("Adding root volume for vfiler '%s' on '%s'...", vfiler.name, filer.name)
+
+                snapref = []
+                snapvaultref = []
+                snapmirrorref = []
+
+                vol = Volume('%s_root' % self.shortname,
+                             filer,
+                             vfiler.rootaggr,
+                             usable=0.02,
+                             raw=0.02,
+                             snapreserve=20,
+                             snapref=snapref,
+                             snapvaultref=snapvaultref,
+                             snapmirrorref=snapmirrorref,
+                             )
+                self.volumes.append(vol)
+                pass
+            pass
+        pass
+    
     def load_qtrees(self, site='primary'):
         """
         Build the qtrees for the configuration.
@@ -797,6 +794,7 @@ class ProjectConfig:
         snapref = node.xpath("snapsetref/@name")
         snapvaultref = node.xpath("snapvaultsetref/@name")
         snapmirrorref = node.xpath("snapmirrorsetref/@name")
+        snapvaultmirrorref = node.xpath("snapvaultmirrorsetref/@name")
 
         try:
             usable = node.xpath("usablestorage")[0].text
@@ -831,7 +829,7 @@ class ProjectConfig:
                 pass
             pass
             
-        vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref)
+        vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
         volnum += 1
         return vol, volnum
     
@@ -849,6 +847,7 @@ class ProjectConfig:
         snapref = node.xpath("snapsetref[not(@archivelogs)]/@name")
         snapvaultref = node.xpath("snapvaultsetref[not(@archivelogs)]/@name")
         snapmirrorref = node.xpath("snapmirrorsetref[not(@archivelogs)]/@name")
+        snapvaultmirrorref = node.xpath("snapvaultmirrorsetref[not(@archivelogs)]/@name")
 
         if node.attrib.has_key('oracle'):
 
@@ -912,31 +911,31 @@ class ProjectConfig:
 
             # data volume, 40% of total
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.4, 20, type='oradata', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.4, 20, type='oradata', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
             # index volume, 20% of total
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.2, 20, type='oraindx', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.2, 20, type='oraindx', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
             # redo volume, constant size, no snapreserve
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, 20, 0, type='oraredo', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref)
+            vol = Volume( volname, vol_filer, aggr, 20, 0, type='oraredo', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
             # temp volume, 5% of total, no snapreserve
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.05, 0, type='oratemp', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.05, 0, type='oratemp', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
             # archive volume, 35% of total
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.35, 50, type='oraarch', volnode=node, snapref=snapref, snapvaultref=arch_snapvaultref, snapmirrorref=snapmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.35, 50, type='oraarch', volnode=node, snapref=snapref, snapvaultref=arch_snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
@@ -1198,6 +1197,7 @@ class ProjectConfig:
                                 snapreserve=0,
                                 type='snapvaultdst',
                                 proto=None,
+                                snapmirrorref=srcvol.snapvaultmirrorref,
                                 )
             self.volumes.append(targetvol)
             #log.debug("target volume filer type: %s", targetvol.filer.type)
@@ -1209,14 +1209,15 @@ class ProjectConfig:
 
                 sv = SnapVault(srcvol, targetvol, basename, snapsched.text, svsched.text)
                 self.snapvaults.append(sv)
-                #log.debug("Added snapvault: %s", sv)
+                log.debug("Added snapvault: %s", sv)
+
+            # Add snapmirrors of the snapvaults if the source volume has snapvaultmirrorrefs set
+            self.create_snapmirror_for(targetvol)
 
     def create_snapmirror_for(self, srcvol):
         """
         Create snapmirror volumes for a source volume.
         """
-        log.debug("Adding snapmirrors for %s", srcvol)
-
         # If the volume is of certain types, don't back them up
         if srcvol.type in ['oraredo', 'oratemp', 'oracm' ]:
             log.info("Not snapmirroring volume '%s' of type '%s'", srcvol.name, srcvol.type)
@@ -1246,10 +1247,6 @@ class ProjectConfig:
             try:
                 target_filer = self.filers[target_filername]
                 
-                # Make sure the snapmirror target is a filer, not a nearstore
-                if target_filer.type not in ['primary', 'secondary']:
-                    log.error("Target filer '%s' for SnapMirror is not a Filer!", target_filer)
-                    
             except KeyError:
                 log.error("Snapmirror target is an unknown filer name: '%s'", target_filername)
                 raise
@@ -1283,7 +1280,7 @@ class ProjectConfig:
 
                 sm = SnapMirror(srcvol, targetvol, basename, snapsched.text)
                 self.snapmirrors.append(sm)
-                #log.debug("Added snapmirror: %s", sm)
+                log.debug("Added snapmirror: %s", sm)
 
     def get_snapvaults(self, ns):
         """
