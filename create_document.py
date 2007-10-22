@@ -2250,17 +2250,17 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
 
             <table tabstyle="techtable-01">
               <title>SnapMirror Schedules</title>
-              <tgroup cols="4">
+              <tgroup cols="3">
                 <colspec colnum="1" align="left" colwidth="1*"/>
                 <colspec colnum="2" align="left" colwidth="1*"/>
                 <colspec colnum="3" align="left" colwidth="1*"/>
-                <colspec colnum="4" align="left" colwidth="1*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Source</para></entry>
                     <entry><para>Destination</para></entry>
-                    <entry><para>Snapshot Basename</para></entry>
-                    <entry><para>Schedule<footnoteref linkend="netapp.schedule.format"/></para></entry>
+                    <entry><para>Schedule<footnote id="netapp.snapmirror.schedule.format">
+                        <para>Format is: minute hour dayofmonth dayofweek</para>
+                      </footnote></para></entry>
                   </row>
                 </thead>
 
@@ -2291,8 +2291,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
             entries = ''
             entries += "<entry><para>%s</para></entry>" % sm.sourcevol.namepath()
             entries += "<entry><para>%s</para></entry>" % sm.targetvol.namepath()
-            entries += "<entry><para>%s</para></entry>" % sm.basename
-            entries += "<entry><para>%s</para></entry>" % sm.schedule
+            entries += "<entry><para>%s</para></entry>" % sm.etc_snapmirror_conf_schedule()
             row = "<row>%s</row>" % entries
             rows.append(row)
             pass
@@ -2509,6 +2508,28 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
             <title>SnapVault Configuration</title>
             <screen>%s</screen>
             </section>""" % cmds
+
+        # initialise the snapmirrors to the DR site
+        if self.conf.has_dr:
+            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+                log.debug("initialising snapmirror on %s", filer.name)
+
+                cmds = '\n'.join( self.conf.filer_snapmirror_init_commands(filer) )
+                cmd_ns['commands'] += """<section>
+                <title>SnapMirror Initialisation</title>
+                <screen><?db-font-size 60%% ?>%s</screen>
+                </section>""" % cmds
+
+        # /etc/snapmirror additions
+        if self.conf.has_dr:
+            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+
+                cmds = self.conf.filer_etc_snapmirror_conf_commands(filer)
+                cmd_ns['commands'] += """<section>
+                <title>Filer <filename>/etc/snapmirror.conf</filename></title>
+                <para>Use these commands to append to the Filer's /etc/snapmirror.conf file:</para>
+                <screen><?db-font-size 60%% ?>%s</screen>
+                </section>""" % '\n'.join(cmds)
 
         # /etc/hosts additions
         cmds = self.conf.vfiler_etc_hosts_commands(filer, vfiler)

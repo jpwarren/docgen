@@ -336,22 +336,29 @@ class SnapVault:
 
 class SnapMirror:
 
-    def __init__(self, sourcevol, targetvol, basename, schedule):
+    def __init__(self, sourcevol, targetvol, minute='*', hour='*', dayofmonth='*', dayofweek='*'):
 
         self.sourcevol = sourcevol
         self.targetvol = targetvol
-        self.basename = basename
-        self.schedule = schedule
+        self.minute = minute
+        self.hour = hour
+        self.dayofmonth = dayofmonth
+        self.dayofweek = dayofweek
 
         self.sourcevol.snapmirrors.append(self)
         self.targetvol.snapmirrors.append(self)
 
     def __str__(self):
-        return '<SnapMirror: %s -> %s, %s, %s>' % (self.sourcevol.namepath(),
+        return '<SnapMirror: %s -> %s, %s>' % (self.sourcevol.namepath(),
                                                   self.targetvol.namepath(),
-                                                  self.basename,
-                                                  self.schedule,
+                                                  self.etc_snapmirror_conf_schedule(),
                                                   )
+    def etc_snapmirror_conf_schedule(self):
+        """
+        Returns a string of the schedule part of the /etc/snapmirror.conf
+        entry for this SnapMirror.
+        """
+        return '%s %s %s %s' % (self.minute, self.hour, self.dayofmonth, self.dayofweek)
         
 class ProjectConfig:
 
@@ -1281,11 +1288,25 @@ class ProjectConfig:
             log.debug("Adding SnapMirror target volume: %s", targetvol)
             self.volumes.append(targetvol)
             
+            snapmirror_schedule = {}
             for svnode in set_node.findall("snapmirror"):
-                basename = svnode.attrib['basename']
-                snapsched = svnode.find('snapschedule')
 
-                sm = SnapMirror(srcvol, targetvol, basename, snapsched.text)
+                # Find the parameters for snapmirror schedules, defaulting to '*'
+                # if a parameter is not set.
+                for nodename in ['minute', 'hour', 'dayofmonth', 'dayofweek']:
+                    node = svnode.find(nodename)
+                    try:
+                        snapmirror_schedule[nodename] = node.text
+                    except AttributeError, e:
+                        snapmirror_schedule[nodename] = '*'
+                    
+                sm = SnapMirror(srcvol, targetvol,
+                                snapmirror_schedule['minute'],
+                                snapmirror_schedule['hour'],
+                                snapmirror_schedule['dayofmonth'],
+                                snapmirror_schedule['dayofweek'],
+                                )
+                
                 self.snapmirrors.append(sm)
                 log.debug("Added snapmirror: %s", sm)
 
@@ -1623,6 +1644,82 @@ class ProjectConfig:
             pass
         
         #log.debug('\n'.join(cmdset))
+        return cmdset
+
+    def filer_snapmirror_init_commands(self, filer):
+        """
+        Commands used to initialise the snapmirrors.
+        We need to make sure we only attempt to initilise each
+        snapmirror once: One snapmirror relationship per volume, regardless
+        of how many schedules it may have.
+        """
+        cmdset = []
+        donelist = []
+        for vol in filer.volumes:
+            if len(vol.snapmirrors) > 0:
+                for snap in vol.snapmirrors:
+                    # If the sourcevol == the volume, this is a source snapmirror schedule
+                    if snap.sourcevol == vol:
+                        log.error("You cannot initialise the snapmirror from the source filer.")
+                        
+                    elif snap.targetvol == vol:
+                        if (snap.sourcevol, snap.targetvol) not in donelist:
+                            cmdset.append("vol restrict %s" % snap.targetvol.name)
+                            cmdset.append("snapmirror initialize -S %s-svif0-2000:%s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.name))
+                                
+                            donelist.append( (snap.sourcevol, snap.targetvol) )
+                    else:
+                        log.error("snapmirror target and source are not for '%s'" % vol.name)
+                        pass
+                    pass
+                pass
+            pass
+        
+        #log.debug('\n'.join(cmdset))
+        return cmdset
+
+    def filer_etc_snapmirror_contents(self, filer):
+        """
+        Returns the lines to append to the /etc/snapmirror file
+        on the filer for this project.
+        """
+        cmdset = []
+        cmdset.append("#")
+        for vol in filer.volumes:
+            if len(vol.snapmirrors) > 0:
+                for snap in vol.snapmirrors:
+                    # If the sourcevol == the volume, this is the source side, so ignore it
+                    if snap.sourcevol == vol:
+                        log.warn("/etc/snapmirror not used on the source filer.")
+                        
+                    elif snap.targetvol == vol:
+                        # Use a transfer schedule
+                        cmdset.append("%s-svif0-2000:%s %s:%s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.filer.name, snap.targetvol.name, snap.etc_snapmirror_conf_schedule()))
+                    else:
+                        log.error("snapmirror target and source are not for '%s'" % vol.name)
+                        pass
+                    pass
+                pass
+            pass
+        
+        #log.debug('\n'.join(cmdset))
+        return cmdset
+
+    def filer_etc_snapmirror_conf_commands(self, filer):
+        """
+        Returns a list of commands that can be used to append to
+        the /etc/snapmirror file on the filer for this project.
+        """
+        cmdset = []
+        file_contents = self.filer_etc_snapmirror_contents(filer)
+        for line in file_contents:
+            if len(line) == 0:
+                continue
+            line = line.replace('#', '##')
+
+            cmdset.append('wrfile -a /etc/snapmirror.conf "%s"' % (line))
+            pass
+
         return cmdset
 
     def vfiler_etc_hosts_contents(self, filer, vfiler):

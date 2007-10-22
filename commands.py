@@ -45,6 +45,8 @@ class IPSANCommandsGenerator(CommandGenerator):
         """
 
         activation_commands = []
+
+        # Build the commands for all primary filers
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
             vfiler = filer.vfilers[self.conf.shortname]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
@@ -55,6 +57,20 @@ class IPSANCommandsGenerator(CommandGenerator):
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
+            vfiler = filer.vfilers[self.conf.shortname]
+            activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
+
+        # Build the commands for all secondary filers
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'primary' ]:
+            vfiler = filer.vfilers[self.conf.shortname]
+            activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'secondary' ]:
+            # My vfiler is the vfiler from the primary
+            vfiler = filer.secondary_for.vfilers[self.conf.shortname]
+            activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers[self.conf.shortname]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
@@ -148,12 +164,25 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # initialise the snapvaults to the nearstore
         if filer.type == 'nearstore':
-            commands.append("\n# SnapVault Configuration\n")
+            commands.append("\n# SnapVault Initialisation\n")
             commands.extend( self.conf.filer_snapvault_init_commands(filer, ns) )
 
         if not filer.type == 'secondary':
             commands.append("\n# SnapVault Configuration\n")
             commands.extend( self.conf.filer_snapvault_commands(filer, ns) )
+
+        # initialise the snapmirrors to the DR site
+        if self.conf.has_dr:
+            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+                log.debug("Adding snapmirror config for '%s'", filer.name)
+                commands.append("\n# SnapMirror Initialisation")
+                commands.extend( self.conf.filer_snapmirror_init_commands(filer) )
+
+        # /etc/snapmirror.conf additions
+        if self.conf.has_dr:
+            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+                commands.append("\n# Filer /etc/snapmirror.conf\n")
+                commands.extend( self.conf.filer_etc_snapmirror_conf_commands(filer) )
 
         # /etc/hosts additions
         if not filer.type == 'secondary':
