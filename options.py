@@ -45,6 +45,7 @@ class BaseOptions(optparse.OptionParser):
                                                                                        'ipsan-activation-advice',
                                                                                        'ipsan-modipy-config',
                                                                                        'ipsan-commands',
+                                                                                       'vol-sizes',
                                                                                        ], default='ipsan-storage-design', help=help_doctype)
         
         self.addOptions()

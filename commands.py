@@ -23,7 +23,7 @@ class CommandGenerator:
 
 class IPSANCommandsGenerator(CommandGenerator):
     """
-    A generator for creating ModiPY templates to implement an IPSAN design.
+    A generator for creating the commandlines required to activate a project.
     """
 
     def emit(self, outfile=None, ns={}):
@@ -198,5 +198,25 @@ class IPSANCommandsGenerator(CommandGenerator):
         commands.append("\n# Filer /etc/rc Additions\n")
         commands.extend(cmds)
 
+        return commands
+    
+class IPSANVolumeSizeCommandsGenerator(IPSANCommandsGenerator):
+    """
+    A generator to provide just the volume size commands for a project.
+    Useful if the volume sizes have changed.
+    """
+
+    def build_filer_activation_commands(self, filer, vfiler, ns):
+        """
+        Build the various command sections for a specific filer.
+        """
+        log.debug("Adding volume size commands for %s", filer.name)
+        commands = []
+
+        commands.append( "\n#\n# Volume size commands for %s\n#" % filer.name)
+
+        # Volumes are not created on secondary filers
+        if not filer.type == 'secondary':
+            commands.extend( self.conf.filer_vol_size_commands(filer) )
         return commands
         

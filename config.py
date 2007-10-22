@@ -1347,6 +1347,20 @@ class ProjectConfig:
             pass
         return cmdset
 
+    def filer_vol_size_commands(self, filer):
+        """
+        The volume size commands. Useful for doing volume resizing.
+        """
+        cmdset = []
+
+        for vol in filer.volumes:
+            
+            # volume creation
+            cmd = "vol size %s %s" % (vol.name, vol.get_create_size())
+            cmdset.append(cmd)
+
+        return cmdset
+
     def filer_qtree_create_commands(self, filer):
         """
         Build the qtree creation commands for qtrees on volumes on filers at site and type.

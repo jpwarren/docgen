@@ -11,7 +11,7 @@ from lxml import etree
 
 from config import ProjectConfig
 from modipy import IPSANModiPYGenerator
-from commands import IPSANCommandsGenerator
+from commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
 from activation_advice import IPSANActivationAdvice
 
 import options
@@ -338,16 +338,17 @@ ${abstract}
         ns['secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'secondary']/@name")[0]
         ns['nearstore_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'nearstore']/@name")[0]
 
-        try:
-            ns['dr_primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/@name")[0]
-            ns['dr_secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'secondary']/@name")[0]
-            ns['dr_nearstore_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/@name")[0]
-            ns['dr_primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
-            ns['dr_nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
+        if self.conf.has_dr:
+            try:
+                ns['dr_primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/@name")[0]
+                ns['dr_secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'secondary']/@name")[0]
+                ns['dr_nearstore_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/@name")[0]
+                ns['dr_primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
+                ns['dr_nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
 
-        except IndexError, e:
-            log.error("DR filer details not supplied.")
-            raise
+            except IndexError, e:
+                log.error("DR filer details not supplied.")
+                raise
 
         ns['primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
         ns['nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
@@ -2580,6 +2581,9 @@ if __name__ == '__main__':
 
     elif optparser.options.doctype == 'ipsan-commands':
         docgen = IPSANCommandsGenerator(proj)
+
+    elif optparser.options.doctype == 'vol-sizes':
+        docgen = IPSANVolumeSizeCommandsGenerator(proj)
 
     elif optparser.options.doctype == 'ipsan-activation-advice':
         docgen = IPSANActivationAdvice(proj)
