@@ -47,12 +47,19 @@ class Host:
     """
     A host definition
     """
-    def __init__(self, name, platform, os, location):
+    def __init__(self, name, platform, os, location, description='', drhosts=[]):
 
         self.name = name
         self.platform = platform
         self.os = os
         self.location = location
+        self.description = description
+
+        # drhosts is a reference to other hosts that will take on
+        # this host's role in the event of a DR, and so they should
+        # inherit the exports configuration for this host, but for the
+        # DR targetvol of the snapmirrors for this host's volumes.
+        self.drhosts = []
 
         self.filesystems = []
         self.interfaces = []
@@ -395,7 +402,8 @@ class ProjectConfig:
     def load_project_details(self):
 
         self.revlist = self.load_revisions()
-        #self.hosts = self.load_hosts()
+
+        self.hosts = self.load_hosts()
 
         self.filers = self.load_filers()
         self.vfilers = self.load_vfilers()
@@ -424,6 +432,40 @@ class ProjectConfig:
             revlist.append(rev)
 
         return revlist
+
+    def load_hosts(self):
+        """
+        Load all the hosts
+        """
+        hosts = []
+        hostnodes = self.tree.xpath('host')
+        for node in hostnodes:
+
+            # find some mandatory attributes
+            hostname = node.attrib['name']
+            
+            host_attribs = {}
+            for attrib in ['platform', 'operatingsystem', 'location']:
+                try:
+                    host_attribs[attrib] = node.find(attrib).text
+                except AttributeError:
+                    log.error("Cannot find host attribute '%s' for host '%s'", attrib, hostname)
+                    raise
+
+            try:
+                description = node.find('description')[0].text
+            except IndexError:
+                description = ''
+
+            drhostnodes = node.findall('drhost')
+            drhosts = [ host.attrib['name'] for host in drhostnodes ]
+            log.debug("drhosts is: %s", drhosts)
+
+        hosts.append( Host(hostname, platform=host_attribs['platform'],
+                           os=host_attribs['operatingsystem'],
+                           location=host_attribs['location'],
+                           description=description, drhosts=drhosts) )
+        return hosts
 
     def load_filers(self):
         """
@@ -691,10 +733,10 @@ class ProjectConfig:
                             qtree_list.append(qtree)
 
                             #
-                            # If this is an oraredo volume, it contains both an ora_redo qtree
+                            # If this is an oratemp volume, it contains both an ora_temp qtree
                             # and an ora_undo area to hold the undo (rollback) segment.
                             #
-                            if vol.type == 'oraredo':
+                            if vol.type == 'oratemp':
                                 qtree_name = 'ora_%s_undo%02d' % ( sid, sid_id )
                                 comment = 'Oracle undo (rollback) qtree'
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, hostlist=hostlist)
@@ -702,11 +744,17 @@ class ProjectConfig:
                                 qtree_list.append(qtree)
 
                     else:
+                        # Figure out the hostlist by checking for volume based export definitions
+                        
                         qtree = Qtree(vol, hostlist=self.tree.xpath("host"))
                         qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
                 pass
+
+            # Check to see if we need to export the DR copy of the qtree to the
+            # dr hosts.
+            
             pass
 
         return qtree_list
@@ -813,7 +861,7 @@ class ProjectConfig:
         try:
             usable = node.xpath("usablestorage")[0].text
         except IndexError:
-            log.warn("No usable size specified for volume. Assuming minimum of 100 GiB usable.")
+            log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
             usable = 100
             pass
         
@@ -937,13 +985,13 @@ class ProjectConfig:
 
             # redo volume, constant size, no snapreserve
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, 20, 0, type='oraredo', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.05, 0, type='oraredo', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
             # temp volume, 5% of total, no snapreserve
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.05, 0, type='oratemp', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.20, 0, type='oratemp', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
