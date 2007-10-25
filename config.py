@@ -1453,9 +1453,11 @@ class ProjectConfig:
                                 self.filers[target_filername],
                                 targetaggr,
                                 srcvol.usable,
-                                snapreserve=0,
+                                snapreserve=srcvol.snapreserve,
+                                raw=srcvol.raw,
                                 type='snapmirrordst',
                                 proto=srcvol.proto,
+                                voloptions=srcvol.voloptions,
                                 )
             self.volumes.append(targetvol)
             
