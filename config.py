@@ -1408,7 +1408,7 @@ class ProjectConfig:
         Create snapmirror volumes for a source volume.
         """
         # If the volume is of certain types, don't back them up
-        if srcvol.type in ['oraredo', 'oratemp', 'oracm' ]:
+        if srcvol.type in [ 'oracm' ]:
             log.info("Not snapmirroring volume '%s' of type '%s'", srcvol.name, srcvol.type)
             return
 
