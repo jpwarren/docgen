@@ -855,7 +855,8 @@ the host activation guides.
         </section>
  ''')
 
-        if len(self.conf.tree.xpath("nas/site[@type = 'primary']/vlan[@type = 'services']")) > 0:
+        if len(self.conf.get_services_vlans()) > 0:
+            log.info("Services VLANs are defined.")
             services_vlan = '''
               <listitem>
                 <para><emphasis role="bold">Project IP-SAN Services VLANs</emphasis> - Services
@@ -1227,8 +1228,6 @@ the host activation guides.
           on &primary.filer_name; and &nearstore.filer_name; by placing the following commands
           in the startup file <filename>/etc/rc</filename>:
           </para>
-          <screen># For inter-VLAN access
-vfiler run &vfiler.name; route add default $project_gateway 1</screen>
 
           $services_vlan_routes
 
@@ -1247,7 +1246,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
 
         ns['project_gateway'] = self.conf.tree.xpath("nas/site[@type = 'primary']/vlan[@type = 'project']/@gateway")[0]
 
-        ns['services_vlan_routes'] = self.get_services_vlan_routes(ns)
+        ns['services_vlan_routes'] = self.build_services_vlan_routes(ns)
 
         ns['primary_site_vfiler_section'] = primary_section.safe_substitute(ns)
         ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
@@ -1262,61 +1261,39 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
             pass
 
         # FIXME: Only include vfiler routes if inter-project routing is required.
-        #ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
-        ns['vfiler_routes_section'] = ''
+        if len(self.conf.get_services_vlans('primary')) > 0:
+            ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
+        else:
+            ns['vfiler_routes_section'] = ''
         
         return section.safe_substitute(ns)
-
-    def get_services_vlan_routes(self, ns):
-        """
-        Build the services VLAN <screen/> output.
-        """
-        service_nodes = self.conf.tree.xpath("nas/site/vlan[@type = 'services']")
-        service_str = []
-
-        if not len(service_nodes) > 0:
-            return ''
-        else:
-            for node in service_nodes:
-                network_number = node.xpath("networknumber")[0].text
-                netmask = node.xpath("netmask")[0].text
-                gateway = node.xpath("@gateway")[0]
-                service_str.append("vfiler run &vfiler.name; route add net %s/%s %s 1" % (network_number, netmask, gateway) )
-                pass
-
-            retstr = "<screen># For Services VLAN access\n"
-            retstr += '\n'.join(service_str)
-            retstr += '</screen>'
-        
-            blah = """
-            <screen># For Services VLAN access
-            vfiler run &vfiler.name; route add net $services_network_number/$services_network_mask $services_network_gateway 1</screen>
-            """
-
-            return retstr
 
     def get_services_rows(self, ns, type='primary'):
         # add services vlans
         services_rows = []
         log.debug("finding services vlans...")
-        for vlan in self.conf.tree.xpath("nas/site[@type = '%s']/vlan[@type = 'services']" % type):
+        for vlan in self.conf.get_services_vlans(type):
             log.debug("Adding a services VLAN...")
-            try:
-                description = vlan.xpath("description")[0].text
-            except IndexError:
-                description = ''
-                pass
-
             services_rows.append("""
                   <row>
                     <entry><para>Services VLAN</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
                   </row>
-                  """ % (vlan.xpath("@number")[0], description ) )
+                  """ % (vlan.number, vlan.description ) )
             pass
         return ''.join(services_rows)
 
+    def build_services_vlan_routes(self, ns):
+        """
+        Fetch the services vlan additions that we need.
+        """
+        retstr = "<screen># For Services VLAN access\n"
+        retstr += '\n'.join(self.conf.services_vlan_route_commands('primary', self.conf.vfilers[self.conf.shortname]) )
+        retstr += '</screen>'
+
+        return retstr
+    
     def storage_protocol_cell(self, ns):
         """
         Build the <para/> entries for the storage protocols cell
@@ -1825,6 +1802,8 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         </section>
         """)
 
+        # FIXME: Add $dr_filer_qtrees
+
         filer_qtrees = Template("""
         <table tabstyle="techtable-01">
           <title>Qtree Configuration For &primary.filer_name;</title>
@@ -1879,9 +1858,9 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
           </tgroup>
         </table>
 
-        <para>Qtrees on &dr.nearstore.filer_name; will be created automatically
+        <para>Qtrees on &dr.primary.filer_name; and &dr.nearstore.filer_name; will be created automatically
 	as part of the SnapMirror replication; this will produce the
-	same qtree structure on &dr.nearstore.filer_name; as exists on the source volumes.
+	same qtree structure as exists on the source volumes.
       </para>
       """)
         
@@ -1991,18 +1970,37 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         for qtree in qtree_list:
             #log.debug("Adding NFS export definition for %s", qtree)
             # For each qtree, add a row for each host that needs to mount it
-            for hostnode in qtree.hostlist:
+
+            # Read/Write mounts
+            for host in qtree.rwhostlist:
                 filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                hostname = hostnode.xpath("@name")[0]
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in qtree.mountoptions ])
                 entries = """
                     <entry><para>%s:/vol/%s/%s</para></entry>
                     <entry><para>%s</para></entry>
                     <entry>%s</entry>
-                    """ % ( filerip, qtree.volume.name, qtree.name, hostname, mountoptions )
+                    """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)
                 pass
+
+            # Read Only mounts
+            for host in qtree.rohostlist:
+                filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
+                mountopts = [ x for x in qtree.mountoptions ]
+
+                # Add a 'ro' mount option to make this obvious
+                mountopts.append('ro')
+                mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
+                entries = """
+                    <entry><para>%s:/vol/%s/%s</para></entry>
+                    <entry><para>%s</para></entry>
+                    <entry>%s</entry>
+                    """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
+                row = "<row valign='middle'>%s</row>" % entries
+                rows.append(row)
+                pass
+
             pass
         return '\n'.join(rows)
 
@@ -2474,7 +2472,7 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
             </section>""" % cmds
 
         # NFS exports are only configured on primary filers
-        if filer.site == 'primary' and filer.type == 'primary':
+        if filer.type == 'primary':
             cmds = '\n'.join( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>NFS Exports Configuration</title>
@@ -2553,6 +2551,19 @@ vfiler run &vfiler.name; route add default $project_gateway 1</screen>
         <screen>%s</screen>
         </section>""" % '\n'.join( cmds )
 
+        # Add services vlan routes if required
+        if filer.type in ['primary', 'nearstore']:
+            services_vlans = self.conf.get_services_vlans(filer.site)
+            if len(services_vlans) > 0:
+                cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
+                cmd_ns['commands'] += """<section>
+                <title>Services VLAN routes</title>
+                <para>Use these commands to add routes into Services VLANs (aka VRFs):</para>
+                <screen>%s</screen>
+                </section>""" % '\n'.join( cmds )
+                pass
+            pass
+        
         return section.safe_substitute(cmd_ns)
         
 if __name__ == '__main__':

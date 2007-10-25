@@ -47,24 +47,25 @@ class Host:
     """
     A host definition
     """
-    def __init__(self, name, platform, os, location, description='', drhosts=[]):
+    def __init__(self, name, platform, os, location, storageip, description='', drhosts=[]):
 
         self.name = name
         self.platform = platform
         self.os = os
         self.location = location
+        self.storageip = storageip
         self.description = description
 
         # drhosts is a reference to other hosts that will take on
         # this host's role in the event of a DR, and so they should
         # inherit the exports configuration for this host, but for the
         # DR targetvol of the snapmirrors for this host's volumes.
-        self.drhosts = []
+        self.drhosts = drhosts
 
         self.filesystems = []
         self.interfaces = []
 
-        log.debug("Created host: %s, %s", name, location)
+        log.debug("Created host: %s, %s, %s", self.name, self.location, self.drhosts)
 
 class Filesystem:
 
@@ -163,13 +164,9 @@ class Volume:
         self.usable = float(usable)
 
         if raw is None:
-            log.debug("snapreserve: %s, usable: %s", snapreserve, usable)
-            log.debug("snapres: %s", (100 - float(snapreserve) )/100 )
             raw = self.usable / ( (100 - float(snapreserve) )/100 )
         self.raw = raw
 
-        log.debug("raw value: %s", self.raw)
-        
         self.snapreserve = snapreserve
 
         self.snapref = snapref
@@ -244,8 +241,12 @@ class Volume:
     
 class Qtree:
 
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', hostlist=[], mountoptions=[]):
-        
+    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], mountoptions=[]):
+        """
+        NOTE: when creating the exportfs line, check to see if the host is in the rohostlist, and
+        add a mountoption of 'ro' to its mountoptions list. Similar to the 'noac' specific thing
+        for the Linux operating system, vs. Solaris.
+        """
         self.volume = volume
         if qtree_name is None:
             qtree_name = 'data'
@@ -253,15 +254,16 @@ class Qtree:
         self.name = qtree_name
         self.security = security
         self.comment = comment
-        self.hostlist = hostlist
-
+        self.rwhostlist = rwhostlist
+        self.rohostlist = rohostlist
+        
         # Any additional mount options that may be required, over the base ones
         self.mountoptions = mountoptions
 
         self.volume.qtrees.append(self)
-        
+
     def __str__(self):
-        return '<Qtree: type: %s, %s, sec: %s>' % (self.name, self.volume.proto, self.security)
+        return '<Qtree: type: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.name, self.volume.proto, self.security, self.rwhostlist, self.rohostlist)
 
 class LUN:
     """
@@ -282,6 +284,23 @@ class LUN:
         self.igroup = None
 
         log.debug("Created lun: %s", self.name)
+
+class Vlan:
+    """
+    A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
+    """
+
+    def __init__(self, number, gateway, type='project', network='', netmask='', description='', site='primary', node=None):
+
+        self.type = type
+        self.number = number
+        self.gateway = gateway
+        self.network = network
+        self.netmask = netmask
+        self.description = description
+        self.site = site
+
+        self.node = node
 
 class iGroup:
     """
@@ -405,6 +424,11 @@ class ProjectConfig:
 
         self.hosts = self.load_hosts()
 
+        self.drhosts = []
+        for host in self.hosts.values():
+            for drhostname in host.drhosts:
+                self.drhosts.append(self.hosts[drhostname])
+                
         self.filers = self.load_filers()
         self.vfilers = self.load_vfilers()
         
@@ -415,6 +439,8 @@ class ProjectConfig:
                 self.allowed_protocols.append(vol.proto)
 
         self.qtrees = self.load_qtrees()
+
+        self.vlans = self.load_vlans()
 
     def load_revisions(self):
         """
@@ -437,7 +463,7 @@ class ProjectConfig:
         """
         Load all the hosts
         """
-        hosts = []
+        hosts = {}
         hostnodes = self.tree.xpath('host')
         for node in hostnodes:
 
@@ -453,18 +479,24 @@ class ProjectConfig:
                     raise
 
             try:
+                storageip = node.find('storageip/ipaddr').text
+            except AttributeError:
+                log.error("Host has no defined storageip: %s", hostname)
+                raise
+
+            try:
                 description = node.find('description')[0].text
             except IndexError:
                 description = ''
 
             drhostnodes = node.findall('drhost')
             drhosts = [ host.attrib['name'] for host in drhostnodes ]
-            log.debug("drhosts is: %s", drhosts)
-
-        hosts.append( Host(hostname, platform=host_attribs['platform'],
-                           os=host_attribs['operatingsystem'],
-                           location=host_attribs['location'],
-                           description=description, drhosts=drhosts) )
+        
+            hosts[hostname] = Host(hostname, platform=host_attribs['platform'],
+                               os=host_attribs['operatingsystem'],
+                               location=host_attribs['location'],
+                               storageip=storageip,
+                               description=description, drhosts=drhosts)
         return hosts
 
     def load_filers(self):
@@ -552,7 +584,7 @@ class ProjectConfig:
         # Add snapvault volumes for those source volumes with snapvaultrefs
         # This will snapvault the secondary root volumes to the secondary nearstore
         for vol in [ x for x in self.volumes if len(x.snapvaultref) > 0 ]:
-            log.debug("Adding snapvault for: %s", vol)
+            #log.debug("Adding snapvault for: %s", vol)
             self.create_snapvault_for(vol)
 
         return self.volumes
@@ -618,7 +650,10 @@ class ProjectConfig:
         """
         qtree_list = []
         vols = [ vol for vol in self.volumes if vol.filer.site == site and vol.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
+
         for vol in vols:
+
+            # If no volnode exists for the volume, this is an automatically generated volume
             if vol.volnode is None:
                 # If this is the root volume, don't create qtrees
                 if vol.name.endswith('root'):
@@ -628,7 +663,7 @@ class ProjectConfig:
                 # FIXME: include determination of qtree name due to databases
                 else:
                     log.warn("No volume node available for: %s", vol)
-                    qtree = Qtree(vol, hostlist=self.tree.xpath("host") )
+                    qtree = Qtree(vol, rwhostlist=self.hosts.values() )
                     qtree_list.append(qtree)
                     pass
                 pass
@@ -640,6 +675,7 @@ class ProjectConfig:
                 # This allows for more than one qtree per volume, if required.
                 qtree_nodes = vol.volnode.xpath("qtree")
                 if len(qtree_nodes) > 0:
+                    #log.debug("Processing qtree nodes: %s", qtree_nodes)
                     for qtree_node in qtree_nodes:
                         try:
                             name = qtree_node.xpath("@name")[0]
@@ -662,28 +698,18 @@ class ProjectConfig:
 
                         # Find any mount options we need
                         mountoptions = qtree_node.xpath("mountoption")
-                        log.debug("qtree mount options: %s", mountoptions)
 
-                        # if the qtree has specific export requirements, find them
-                        export_hostnames = qtree_node.xpath("export/@to")
-                        hostlist = []
-                        for hostname in export_hostnames:
-                            try:
-                                hostnode = self.tree.xpath("host[@name = '%s']" % hostname)[0]
-                                hostlist.append(hostnode)
-                            except IndexError:
-                                log.error("Host named '%s' not defined" % hostname)
-                                raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
+                        rwhostlist, rohostlist = self.get_export_hostlists(qtree_node)
+                        
+##                         log.error("Host named '%s' not defined" % hostname)
+##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
 
-                        # If the host list is empty, assume it will be exported to all hosts
-                        if len(hostlist) == 0:
-                            hostlist=self.tree.xpath("host")
-                            pass
-
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, hostlist)
+                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist)
                         qtree_list.append(qtree)
 
                 else:
+                    log.debug("No qtrees defined. Inventing them for this volume.")
+                    
                     # If no qtrees are defined, invent one
                     if vol.type.startswith('ora'):
                         #log.info("Oracle volume type detected.")
@@ -699,27 +725,28 @@ class ProjectConfig:
 
                             # Then find the list of hosts the database is on
                             onhost_nodes = self.tree.xpath("database[@id = '%s']/onhost" % sid)
-                            hostlist = []
+                            rwhostlist = []
+                            rohostlist = []
                             for hostname in [ x.text for x in onhost_nodes ]:
-                                hostlist.extend( self.tree.xpath("host[@name = '%s']" % hostname) )
+                                rwhostlist.append(self.hosts[hostname])
                                 pass
 
                         except IndexError:
-                            hostlist = []
+                            rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
 
                         # If the hostlist is empty, assume qtrees are available to all hosts
-                        if len(hostlist) == 0:
-                            hostlist = self.tree.xpath("host")
+                        if len(rwhostlist) == 0 and len(rohostlist) == 0:
+                            rwhostlist = self.hosts.values()
                             
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
-                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle configuration qtree', hostlist=hostlist)
+                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle configuration qtree', rwhostlist=rwhostlist, rohostlist=rohostlist)
                             qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
-                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', hostlist=hostlist)
+                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', rwhostlist=rwhostlist, rohostlist=rohostlist)
                             qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
@@ -728,7 +755,7 @@ class ProjectConfig:
                             qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
                             comment = 'Oracle %s qtree' % vol.type[3:]
 
-                            qtree = Qtree(vol, qtree_name, 'unix', comment, hostlist=hostlist)
+                            qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                             qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
@@ -739,22 +766,62 @@ class ProjectConfig:
                             if vol.type == 'oratemp':
                                 qtree_name = 'ora_%s_undo%02d' % ( sid, sid_id )
                                 comment = 'Oracle undo (rollback) qtree'
-                                qtree = Qtree(vol, qtree_name, 'unix', comment, hostlist=hostlist)
+                                qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlistn)
                                 qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
 
                     else:
                         # Figure out the hostlist by checking for volume based export definitions
-                        
-                        qtree = Qtree(vol, hostlist=self.tree.xpath("host"))
+                        rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
+
+                        qtree = Qtree(vol, rwhostlist=rwhostlist, rohostlist=rohostlist)
                         qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
                 pass
 
-            # Check to see if we need to export the DR copy of the qtree to the
+            # Check to see if we need to export the DR copy of the qtrees to the
             # dr hosts.
-            
+            # If this volume is snapmirrored, give any drhosts the same export
+            # permissions at the remote side as they do on the local side
+            if len(vol.snapmirrors) > 0:
+
+                for qtree in vol.qtrees:
+                    dr_rwhostlist = []
+                    dr_rohostlist = []
+
+                    # Add rw drhosts for the qtree
+                    for host in qtree.rwhostlist:
+                        dr_rwhostlist.extend([ self.hosts[hostname] for hostname in host.drhosts ])
+                        pass
+
+                    for host in qtree.rohostlist:
+                        dr_rohostlist.extend([ self.hosts[hostname] for hostname in host.drhosts ])
+                        pass
+
+                    # If either list is not empty, we need to create a Qtree on the
+                    # snapmirror target volume with appropriate exports
+                    if len(dr_rwhostlist) > 0 or len(dr_rohostlist) > 0:
+                        log.debug("qtree '%s:%s' needs to be exported at DR", qtree.volume.name, qtree.name)
+
+                        # Create one remote qtree for each snapmirror relationship
+                        for snapmirror in vol.snapmirrors:
+                            log.debug("Adding remote exported qtree on targetvol: %s", snapmirror.targetvol.name)
+                            mirrored_qtree = Qtree( snapmirror.targetvol,
+                                                    qtree.name,
+                                                    qtree.security,
+                                                    qtree.comment,
+                                                    dr_rwhostlist,
+                                                    dr_rohostlist,
+                                                    qtree.mountoptions,
+                                                    )
+                            qtree_list.append(mirrored_qtree)
+                            pass
+                        pass
+                    else:
+                        log.debug("No hosts for qtree '%s' have corresponding DR hosts. Not exporting at DR.", qtree.name)
+                    pass
+                pass
             pass
 
         return qtree_list
@@ -765,7 +832,7 @@ class ProjectConfig:
         """
         mountoptions = []
 
-        osname = qtree.hostlist[0].xpath("operatingsystem")[0].text
+        osname = qtree.rwhostlist[0].os
         
         if qtree.volume.type in ['oracm', ]:
             log.debug("Oracle quorum qtree detected.")
@@ -803,6 +870,46 @@ class ProjectConfig:
             mountoptions = [ 'intr', ]
 
         return mountoptions
+
+    def load_vlans(self):
+        """
+        Load all the vlan definitions
+        """
+        vlans = {}
+        vlan_nodes = self.tree.xpath("nas/site/vlan")
+        for node in vlan_nodes:
+            type = node.xpath("@type")[0]
+            
+            number = node.xpath("@number")[0]
+            gateway = node.xpath("@gateway")[0]
+            try:
+                network = node.xpath("@network")[0]
+            except IndexError:
+                if type == 'project':
+                    network = ''
+                else:
+                    log.error("Non project VLANs must have a network number defined.")
+                    raise
+                pass
+            
+            try:
+                netmask = node.xpath("@netmask")[0]
+            except IndexError:
+                if type == 'project':
+                    netmask = ''
+                else:
+                    log.error("Non project VLANs must have a netmask defined.")
+                    raise
+                pass
+
+            # FIXME: Add the ability to add a description
+            description = ''
+            site = 'primary'
+            
+            vlan = Vlan(number, gateway, type, network, netmask, description, site, node)
+            vlans[number] = vlan
+
+        return vlans
 
     def verify_doc(self, configdoc):
         """
@@ -1181,12 +1288,32 @@ class ProjectConfig:
         """
         exports = node.xpath("export")
         if len(exports) == 0:
-            #log.info("No export definitions for this node %s. Using parent exports.", node)
-            parent_node = node.xpath("parent::*")[0]
+            log.info("No export definitions for this node %s. Using parent exports.", node)
+            try:
+                parent_node = node.xpath("parent::*")[0]
+            except IndexError:
+                return []
             return self.get_export_nodes(parent_node)
         else:
-            #log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
+            log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
             return exports
+
+    def get_export_hostlists(self, node):
+        """
+        Find the list of hosts for read/write and readonly mode based
+        on the particular qtree or volume node supplied.
+        """
+        rohostnames = node.xpath("export[@ro = 'yes']/@to")
+        rwhostnames = node.xpath("export[@ro != 'yes']/@to | export[not(@ro)]/@to")
+
+        rwhostlist = [ self.hosts[hostname] for hostname in rwhostnames ]
+        rohostlist = [ self.hosts[hostname] for hostname in rohostnames ]
+
+        # If both lists are empty, default to exporting read/write to all hosts
+        if len(rwhostlist) == 0 and len(rohostlist) == 0:
+            rwhostlist = self.hosts.values()
+        
+        return rwhostlist, rohostlist
 
     def get_cifs_exports(self):
         """
@@ -1271,7 +1398,7 @@ class ProjectConfig:
 
                 sv = SnapVault(srcvol, targetvol, basename, snapsched.text, svsched.text)
                 self.snapvaults.append(sv)
-                log.debug("Added snapvault: %s", sv)
+                #log.debug("Added snapvault: %s", sv)
 
             # Add snapmirrors of the snapvaults if the source volume has snapvaultmirrorrefs set
             self.create_snapmirror_for(targetvol)
@@ -1287,17 +1414,14 @@ class ProjectConfig:
 
         # get the snapmirrorset for the volume
         for ref in srcvol.snapmirrorref:
-            log.debug("reference: %s", ref)
             try:
                 set_node = self.tree.xpath("snapmirrorset[@id = '%s']" % ref)[0]
-                log.debug("Found snapmirrorset node: %s", set_node)
             except IndexError:
                 log.error("Cannot find snapmirrorset definition '%s'" % ref)
                 raise ValueError("snapmirrorset not defined: '%s'" % ref)
 
             try:
                 target_filername = set_node.attrib['targetfiler']
-                log.debug("SnapMirror target is: %s", target_filername)
                 
             except KeyError:
                 # No target filer specified, so use the first primary at a site other than the source
@@ -1331,9 +1455,8 @@ class ProjectConfig:
                                 srcvol.usable,
                                 snapreserve=0,
                                 type='snapmirrordst',
-                                proto='',
+                                proto=srcvol.proto,
                                 )
-            log.debug("Adding SnapMirror target volume: %s", targetvol)
             self.volumes.append(targetvol)
             
             snapmirror_schedule = {}
@@ -1356,7 +1479,6 @@ class ProjectConfig:
                                 )
                 
                 self.snapmirrors.append(sm)
-                log.debug("Added snapmirror: %s", sm)
 
     def get_snapvaults(self, ns):
         """
@@ -1488,6 +1610,24 @@ class ProjectConfig:
                                                                 vfiler.gateway) )
 
         return cmdset
+
+    def get_services_vlans(self, site='primary'):
+        """
+        Return a list of all vlans of type 'services'
+        """
+        return [ vlan for vlan in self.vlans.values() if vlan.type == 'services' and vlan.site == site ]
+            
+    def services_vlan_route_commands(self, site, vfiler):
+        """
+        Return commands for configuring the services vlan routes
+        """
+        cmdset = []
+
+        for vlan in self.get_services_vlans(site):
+            cmdset.append("vfiler run %s route add net %s/%s %s 1" % (vfiler.name, vlan.network, vlan.netmask, vlan.gateway) )
+            pass
+        
+        return cmdset
     
     def vfiler_set_allowed_protocols_commands(self, vfiler, ns):
         cmdset = []
@@ -1586,23 +1726,46 @@ class ProjectConfig:
         """
         cmdset = []
         #cmdset.append("vfiler context %s" % vfiler.name)
-
-        for vol in [ x for x in filer.volumes if x.proto == 'nfs' ] :
+        #log.debug("Finding NFS exports for filer: %s", filer.name)
+        for vol in [ x for x in filer.volumes if x.proto == 'nfs' ]:
+            #log.debug("Found volume: %s", vol)
             for qtree in vol.qtrees:
                 #log.debug("exporting qtree: %s", qtree)
-                export_to = []
-                for hostnode in qtree.hostlist:
+
+                # Find read/write exports
+                rw_export_to = []
+                for host in qtree.rwhostlist:
                     try:
-                        export_to.append('%s' % hostnode.xpath("storageip/ipaddr")[0].text)
+                        rw_export_to.append('%s' % host.storageip)
                     except IndexError:
                         log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
                         raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
                     pass
+
+                # Find read-only exports
+                ro_export_to = []
+                for host in qtree.rohostlist:
+                    try:
+                        ro_export_to.append('%s' % host.storageip)
+                    except IndexError:
+                        log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
+                        raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
+                    pass
+
+                if len(ro_export_to) > 0:
+                    log.debug("Read only exports required!")
+                    ro_export_str = "ro=%s," % ':'.join(ro_export_to)
+                else:
+                    ro_export_str = ''
+
+                # allow root mount of both rw and ro hosts
+                root_exports = rw_export_to + ro_export_to
                 
-                cmdset.append("vfiler run %s exportfs -p rw=%s,root=%s /vol/%s/%s" % (
+                cmdset.append("vfiler run %s exportfs -p rw=%s,%sroot=%s /vol/%s/%s" % (
                     vfiler.name,
-                    ':'.join(export_to),
-                    ':'.join(export_to),
+                    ':'.join(rw_export_to),
+                    ro_export_str,
+                    ':'.join(root_exports),
                     vol.name, qtree.name,
                     ))
                 pass
@@ -1823,6 +1986,9 @@ class ProjectConfig:
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
         cmds += self.vlan_create_commands(filer)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
+        if filer.type in ['primary', 'nearstore']:
+            cmds += self.services_vlan_route_commands(filer.site, vfiler)
+
         for line in cmds:
             if len(line) == 0:
                 continue

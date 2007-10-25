@@ -149,8 +149,9 @@ class IPSANCommandsGenerator(CommandGenerator):
             commands.append("\n# Quota Enablement Commands\n")
             commands.extend(self.conf.vfiler_quota_enable_commands(filer, vfiler))
 
-        # NFS exports are only configured on primary filers
-        if filer.site == 'primary' and filer.type == 'primary':
+        # NFS exports are only configured on primary filers.
+        # NearStores are only exported temporarily for restore purposes.
+        if filer.type == 'primary':
             commands.append("\n# NFS Exports Configuration\n")
             commands.extend( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
 
@@ -178,6 +179,17 @@ class IPSANCommandsGenerator(CommandGenerator):
                 commands.append("\n# SnapMirror Initialisation")
                 commands.extend( self.conf.filer_snapmirror_init_commands(filer) )
 
+        # Add services vlan routes if required
+        if filer.type in ['primary', 'nearstore']:
+            services_vlans = self.conf.get_services_vlans(filer.site)
+            if len(services_vlans) > 0:
+                cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
+                commands.append("\n# VLAN routes\n")
+                commands.extend(cmds)
+
+                pass
+            pass
+
         # /etc/snapmirror.conf additions
         if self.conf.has_dr:
             if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
@@ -197,6 +209,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         commands.append("\n# Filer /etc/rc Additions\n")
         commands.extend(cmds)
+
 
         return commands
     
