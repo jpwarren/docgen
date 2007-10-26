@@ -47,8 +47,9 @@ class DocumentGenerator:
 <!-- The IPspace name -->
 <!ENTITY ipspace.name "ips-$vfiler_name">
 
-<!-- The IPspace name -->
-<!ENTITY project.vlan "$project_vlan">
+<!-- The VLANs name -->
+<!ENTITY primary.project.vlan "$primary_project_vlan">
+<!ENTITY secondary.project.vlan "$secondary_project_vlan">
 
 <!-- The storage IP for the project -->
 <!ENTITY primary.storage_ip "$primary_storage_ip">
@@ -332,7 +333,8 @@ ${abstract}
         ns['project_name'] = self.conf.longname
         ns['pmo_number'] = self.conf.code
         ns['vfiler_name'] = self.conf.shortname
-        ns['project_vlan'] = self.conf.project_vlan
+        ns['primary_project_vlan'] = self.conf.primary_project_vlan
+        ns['secondary_project_vlan'] = self.conf.secondary_project_vlan
 
         ns['primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/@name")[0]
         ns['secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'secondary']/@name")[0]
@@ -1027,7 +1029,7 @@ the host activation guides.
 
                   <row>
                     <entry><para>Project VLAN</para></entry>
-                    <entry><para>&project.vlan;</para></entry>
+                    <entry><para>&primary.project.vlan;</para></entry>
                     <entry/>
                   </row>
 
@@ -1115,7 +1117,7 @@ the host activation guides.
 
                   <row>
                     <entry><para>Project VLAN</para></entry>
-                    <entry><para>3503</para></entry>
+                    <entry><para>&secondary.project.vlan;</para></entry>
                     <entry/>
                   </row>
 
@@ -1158,19 +1160,19 @@ the host activation guides.
                 <tbody>
                   <row>
                     <entry><para>&primary.filer_name;</para></entry>
-                    <entry><para>svif0-&project.vlan;</para></entry>
+                    <entry><para>svif0-&primary.project.vlan;</para></entry>
                     <entry><para>Primary Filer project VLAN interface.</para></entry>
                   </row>
 
                   <row>
                     <entry><para>&secondary.filer_name;</para></entry>
-                    <entry><para>svif0-&project.vlan;</para></entry>
+                    <entry><para>svif0-&primary.project.vlan;</para></entry>
                     <entry><para>Secondary Filer project VLAN interface.</para></entry>
                   </row>
 
                   <row>
                     <entry><para>&nearstore.filer_name;</para></entry>
-                    <entry><para>svif0-&project.vlan;</para></entry>
+                    <entry><para>svif0-&primary.project.vlan;</para></entry>
                     <entry><para>&nearstore; project VLAN interface.</para></entry>
                   </row>
 
@@ -1199,19 +1201,19 @@ the host activation guides.
                 <tbody>
                   <row>
                     <entry><para>&dr.primary.filer_name;</para></entry>
-                    <entry><para>svif0-&project.vlan;</para></entry>
+                    <entry><para>svif0-&secondary.project.vlan;</para></entry>
                     <entry><para>DR Primary Filer project VLAN interface.</para></entry>
                   </row>
 
                   <row>
                     <entry><para>&dr.secondary.filer_name;</para></entry>
-                    <entry><para>svif0-&project.vlan;</para></entry>
+                    <entry><para>svif0-&secondary.project.vlan;</para></entry>
                     <entry><para>DR Secondary Filer project VLAN interface.</para></entry>
                   </row>
 
                   <row>
                     <entry><para>&dr.nearstore.filer_name;</para></entry>
-                    <entry><para>svif0-&project.vlan;</para></entry>
+                    <entry><para>svif0-&secondary.project.vlan;</para></entry>
                     <entry><para>DR &nearstore; project VLAN interface.</para></entry>
                   </row>
 

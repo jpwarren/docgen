@@ -290,15 +290,16 @@ class Vlan:
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, gateway, type='project', network='', netmask='', description='', site='primary', node=None):
+    def __init__(self, number, gateway, site='primary', type='project', network='', netmask='', description='', node=None):
 
+        self.site = site
         self.type = type
         self.number = number
         self.gateway = gateway
         self.network = network
         self.netmask = netmask
         self.description = description
-        self.site = site
+
 
         self.node = node
 
@@ -396,14 +397,7 @@ class ProjectConfig:
         rather than an XML document.
         """
         self.tree = etree.parse(configfile)
-        # Define a series of attributes that a ProjectConfig can have.
-        # These are all the things that are used by the documentation templates.
-        
-        self.prefix = self.tree.xpath('//project/prefix')[0].text
-        self.code = self.tree.xpath('//project/code')[0].text
-        self.shortname = self.tree.xpath('//project/shortname')[0].text
-        self.longname = self.tree.xpath('//project/longname')[0].text
-        self.project_vlan = self.tree.xpath("nas/site[@type = 'primary']/vlan[@type = 'project']/@number")[0]
+
         self.filers = {}
         self.volumes = []
 
@@ -418,7 +412,19 @@ class ProjectConfig:
 
         self.load_project_details()
 
+        # Define a series of attributes that a ProjectConfig can have.
+        # These are all the things that are used by the documentation templates.
+
+        self.primary_project_vlan = self.get_project_vlan('primary').number
+        self.secondary_project_vlan = self.get_project_vlan('secondary').number
+
+
     def load_project_details(self):
+
+        self.prefix = self.tree.xpath('//project/prefix')[0].text
+        self.code = self.tree.xpath('//project/code')[0].text
+        self.shortname = self.tree.xpath('//project/shortname')[0].text
+        self.longname = self.tree.xpath('//project/longname')[0].text
 
         self.revlist = self.load_revisions()
 
@@ -428,6 +434,8 @@ class ProjectConfig:
         for host in self.hosts.values():
             for drhostname in host.drhosts:
                 self.drhosts.append(self.hosts[drhostname])
+
+        self.vlans = self.load_vlans()
                 
         self.filers = self.load_filers()
         self.vfilers = self.load_vfilers()
@@ -440,7 +448,7 @@ class ProjectConfig:
 
         self.qtrees = self.load_qtrees()
 
-        self.vlans = self.load_vlans()
+
 
     def load_revisions(self):
         """
@@ -540,7 +548,8 @@ class ProjectConfig:
             filername = node.xpath("parent::*/@name")[0]
             filer = self.filers[filername]
             try:
-                vlan = node.xpath("ancestor::site/vlan/@number")[0]
+                vlan_num = node.xpath("ancestor::site/vlan/@number")[0]
+                vlan = self.vlans[vlan_num]
             except IndexError:
                 log.error("Cannot find vlan number for %s" % filername )
                 raise
@@ -766,7 +775,7 @@ class ProjectConfig:
                             if vol.type == 'oratemp':
                                 qtree_name = 'ora_%s_undo%02d' % ( sid, sid_id )
                                 comment = 'Oracle undo (rollback) qtree'
-                                qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlistn)
+                                qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                                 qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
 
@@ -878,8 +887,11 @@ class ProjectConfig:
         vlans = {}
         vlan_nodes = self.tree.xpath("nas/site/vlan")
         for node in vlan_nodes:
-            type = node.xpath("@type")[0]
+
+            site = node.xpath("ancestor::site/@type")[0]
             
+            type = node.xpath("@type")[0]
+
             number = node.xpath("@number")[0]
             gateway = node.xpath("@gateway")[0]
             try:
@@ -903,10 +915,10 @@ class ProjectConfig:
                 pass
 
             # FIXME: Add the ability to add a description
-            description = ''
-            site = 'primary'
+            description = node.text
+            #site = 'primary'
             
-            vlan = Vlan(number, gateway, type, network, netmask, description, site, node)
+            vlan = Vlan(number, gateway, site, type, network, netmask, description, node)
             vlans[number] = vlan
 
         return vlans
@@ -1547,14 +1559,23 @@ class ProjectConfig:
         return cmdset
 
     def vlan_create_commands(self, filer):
+        """
+        Find the project VLAN for the filer's site,
+        and return the command for how to create it.
+        """
         cmdset = []
-        cmdset.append("vlan add svif0 %s" % self.project_vlan)
+        vlan = self.get_project_vlan(filer.site)
+        cmdset.append("vlan add svif0 %s" % vlan.number)
         return cmdset
 
     def ipspace_create_commands(self, filer, ns):
+        """
+        Determine how to create the ipspace for the filer.
+        """
         cmdset = []
+        vlan = self.get_project_vlan(filer.site)
         cmdset.append("ipspace create ips-%s" % self.shortname)
-        cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, self.project_vlan) )
+        cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
         return cmdset
 
     def vfiler_create_commands(self, filer, vfiler, ns):
@@ -1585,16 +1606,16 @@ class ProjectConfig:
         cmdset = []
 
         if filer.type == 'secondary':
-            cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan, vfiler.netmask)
+            cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan.number, vfiler.netmask)
 
         else:
-            cmd = "ifconfig svif0-%s %s netmask %s mtusize 9000 up" % (vfiler.vlan,
+            cmd = "ifconfig svif0-%s %s netmask %s mtusize 9000 up" % (vfiler.vlan.number,
                                                                    vfiler.ipaddress,
                                                                    vfiler.netmask)
 
         # Add partner clause if this is a primary or secondary filer
         if filer.type in [ 'primary', 'secondary' ]:
-            cmd += " partner svif0-%s" % self.project_vlan
+            cmd += " partner svif0-%s" % self.get_project_vlan(filer.site).number
         cmdset.append(cmd)
 
         #log.debug( '\n'.join(cmdset) )
@@ -1608,10 +1629,18 @@ class ProjectConfig:
         cmdset = []        
 
         # Add inter-project route if required?
-        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.vlan,
+        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.vlan.number,
                                                                 vfiler.gateway) )
 
         return cmdset
+
+    def get_project_vlan(self, site='primary'):
+        """
+        Find the project vlan for the site
+        """
+        for vlan in self.vlans.values():
+            if vlan.site == site:
+                return vlan
 
     def get_services_vlans(self, site='primary'):
         """
@@ -1958,7 +1987,7 @@ class ProjectConfig:
 # %s
 #
 %s %s-svif0-%s
-""" % (vfiler.name, vfiler.ipaddress, filer.name, vfiler.vlan )
+""" % (vfiler.name, vfiler.ipaddress, filer.name, vfiler.vlan.number )
 
         return file
 
