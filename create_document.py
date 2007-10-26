@@ -334,7 +334,6 @@ ${abstract}
         ns['pmo_number'] = self.conf.code
         ns['vfiler_name'] = self.conf.shortname
         ns['primary_project_vlan'] = self.conf.primary_project_vlan
-        ns['secondary_project_vlan'] = self.conf.secondary_project_vlan
 
         ns['primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/@name")[0]
         ns['secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'secondary']/@name")[0]
@@ -342,6 +341,8 @@ ${abstract}
 
         if self.conf.has_dr:
             try:
+                ns['secondary_project_vlan'] = self.conf.secondary_project_vlan
+
                 ns['dr_primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/@name")[0]
                 ns['dr_secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'secondary']/@name")[0]
                 ns['dr_nearstore_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/@name")[0]

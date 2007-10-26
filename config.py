@@ -416,8 +416,8 @@ class ProjectConfig:
         # These are all the things that are used by the documentation templates.
 
         self.primary_project_vlan = self.get_project_vlan('primary').number
-        self.secondary_project_vlan = self.get_project_vlan('secondary').number
-
+        if self.has_dr:
+            self.secondary_project_vlan = self.get_project_vlan('secondary').number
 
     def load_project_details(self):
 
