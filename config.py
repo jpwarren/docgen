@@ -6,6 +6,7 @@ Configuration of the Document Generator
 import re
 import sys
 import os
+import textwrap
 
 from lxml import etree
 
@@ -259,6 +260,8 @@ class Qtree:
         
         # Any additional mount options that may be required, over the base ones
         self.mountoptions = mountoptions
+
+        log.debug("Created qtree: %s", self)
 
         self.volume.qtrees.append(self)
 
@@ -549,7 +552,9 @@ class ProjectConfig:
             filer = self.filers[filername]
             try:
                 vlan_num = node.xpath("ancestor::site/vlan/@number")[0]
-                vlan = self.vlans[vlan_num]
+                for v in self.vlans:
+                    if v.type == 'project' and v.number == vlan_num and filer.site == v.site:
+                        vlan = v
             except IndexError:
                 log.error("Cannot find vlan number for %s" % filername )
                 raise
@@ -884,7 +889,7 @@ class ProjectConfig:
         """
         Load all the vlan definitions
         """
-        vlans = {}
+        vlans = []
         vlan_nodes = self.tree.xpath("nas/site/vlan")
         for node in vlan_nodes:
 
@@ -916,10 +921,13 @@ class ProjectConfig:
 
             # FIXME: Add the ability to add a description
             description = node.text
+            if description is None:
+                description = ''
             #site = 'primary'
             
             vlan = Vlan(number, gateway, site, type, network, netmask, description, node)
-            vlans[number] = vlan
+            vlans.append(vlan)
+            pass
 
         return vlans
 
@@ -1315,8 +1323,11 @@ class ProjectConfig:
         Find the list of hosts for read/write and readonly mode based
         on the particular qtree or volume node supplied.
         """
-        rohostnames = node.xpath("export[@ro = 'yes']/@to")
-        rwhostnames = node.xpath("export[@ro != 'yes']/@to | export[not(@ro)]/@to")
+        rohostnames = node.xpath("ancestor-or-self::*/export[@ro = 'yes']/@to")
+        log.debug("rohostnames for %s: %s", node, rohostnames)
+
+        rwhostnames = node.xpath("ancestor-or-self::*/export[@ro != 'yes']/@to | ancestor-or-self::*/export[not(@ro)]/@to")
+        log.debug("rwhostnames for %s: %s", node, rwhostnames)
 
         rwhostlist = [ self.hosts[hostname] for hostname in rwhostnames ]
         rohostlist = [ self.hosts[hostname] for hostname in rohostnames ]
@@ -1638,15 +1649,15 @@ class ProjectConfig:
         """
         Find the project vlan for the site
         """
-        for vlan in self.vlans.values():
-            if vlan.site == site:
+        for vlan in self.vlans:
+            if vlan.site == site and vlan.type == 'project':
                 return vlan
 
     def get_services_vlans(self, site='primary'):
         """
         Return a list of all vlans of type 'services'
         """
-        return [ vlan for vlan in self.vlans.values() if vlan.type == 'services' and vlan.site == site ]
+        return [ vlan for vlan in self.vlans if vlan.type == 'services' and vlan.site == site ]
             
     def services_vlan_route_commands(self, site, vfiler):
         """
@@ -1789,17 +1800,26 @@ class ProjectConfig:
                 else:
                     ro_export_str = ''
 
+                if len(rw_export_to) > 0:
+                    rw_export_str = "rw=%s," % ':'.join(rw_export_to)
+                else:
+                    rw_export_str = ''
+
                 # allow root mount of both rw and ro hosts
                 root_exports = rw_export_to + ro_export_to
                 
-                cmdset.append("vfiler run %s exportfs -p rw=%s,%sroot=%s /vol/%s/%s" % (
+                export_line = "vfiler run %s exportfs -p %s%sroot=%s /vol/%s/%s" % (
                     vfiler.name,
-                    ':'.join(rw_export_to),
+                    rw_export_str,
                     ro_export_str,
                     ':'.join(root_exports),
                     vol.name, qtree.name,
-                    ))
-                pass
+                    )
+
+                # Manual linewrap setup
+                if len(export_line) > 90:
+                    wraplines = textwrap.wrap(export_line, 90)
+                    cmdset.append( '\\\n'.join(wraplines))
             pass
         #log.debug('\n'.join(cmdset))
         #cmdset.append("vfiler context vfiler0")

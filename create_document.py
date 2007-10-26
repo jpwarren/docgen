@@ -1866,9 +1866,18 @@ the host activation guides.
 	same qtree structure as exists on the source volumes.
       </para>
       """)
-        
-        ns['primary_qtree_rows'] = self.get_filer_qtree_rows(ns)
-        ns['filer_qtrees'] = filer_qtrees.safe_substitute(ns)
+
+        filer_qtree_rows = self.get_filer_qtree_rows(ns)
+        if len(filer_qtree_rows) > 0:
+            ns['primary_qtree_rows'] = filer_qtree_rows
+            ns['filer_qtrees'] = filer_qtrees.safe_substitute(ns)
+        else:
+            # No qtrees, so return an empty section
+            return ''
+
+        # FIXME: It is possible that you might have no qtrees at
+        # the primary site, but have qtrees at the DR site. That would
+        # be odd, but I guess it's theoretically possible.
 
         if self.conf.has_dr:
             ns['dr_filer_qtrees'] = dr_filer_qtrees.safe_substitute(ns)
