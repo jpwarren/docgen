@@ -3,12 +3,14 @@
 # Create a document for the IP-SAN
 #
 import sys
+import textwrap
 
 from datetime import datetime
 from zope.interface import Interface
 from string import Template
 from lxml import etree
 
+from docgen import FileOutputMixin
 from config import ProjectConfig
 from modipy import IPSANModiPYGenerator
 from commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
@@ -20,7 +22,7 @@ import debug
 
 log = logging.getLogger('docgen')
 
-class DocumentGenerator:
+class DocumentGenerator(FileOutputMixin):
     """
     A Document Generator builds a standard DocBook XML format document.
 
@@ -312,7 +314,7 @@ ${abstract}
     def __init__(self, conf):
         self.conf = conf
 
-    def emit(self, outfile=None, ns={}):
+    def emit(self, outfile=None, versioned=True, ns={}):
         """
         Write out the book XML to a File, defaulting to STDOUT.
         """
@@ -321,6 +323,9 @@ ${abstract}
             sys.stdout.write(book)
             pass
         else:
+            if versioned:
+                outfile = self.version_filename(outfile, self.conf)
+                pass
             outf = open(outfile, "w")
             outf.write(book)
             outf.close()
@@ -2476,7 +2481,7 @@ the host activation guides.
             <screen>%s</screen>
             </section>""" % ( ns['vfiler_name'], cmds )
 
-        if filer.type == 'primary':
+            # Quota enablement
             cmds = '\n'.join(self.conf.vfiler_quota_enable_commands(filer, vfiler))
             cmd_ns['commands'] += """<section>
             <title>Quota Enablement Commands</title>
@@ -2487,7 +2492,17 @@ the host activation guides.
 
         # NFS exports are only configured on primary filers
         if filer.type == 'primary':
-            cmds = '\n'.join( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
+            cmdlist = self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns)
+
+            wrapped_lines = []
+            for line in cmdlist:
+                if len(line) > 90:
+                    wraplines = textwrap.wrap(line, 90)
+                    wrapped_lines.append('\\\n'.join(wraplines))
+                    pass
+                pass
+            
+            cmds = '\n'.join( wrapped_lines )
             cmd_ns['commands'] += """<section>
             <title>NFS Exports Configuration</title>
             <screen><?db-font-size 60%% ?>%s</screen>

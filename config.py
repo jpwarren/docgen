@@ -6,7 +6,6 @@ Configuration of the Document Generator
 import re
 import sys
 import os
-import textwrap
 
 from lxml import etree
 
@@ -40,7 +39,6 @@ class Revision:
         self.date = date
         self.authorinitials = authorinitials
         self.revremark = revremark
-
         pass
     pass
 
@@ -200,7 +198,7 @@ class Volume:
             self.filer.volumes.append(self)
             pass
         
-        #log.debug("Created: %s", self)
+        log.debug("Created: %s", self)
 
     def __str__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw)
@@ -454,8 +452,6 @@ class ProjectConfig:
 
         self.qtrees = self.load_qtrees()
 
-
-
     def load_revisions(self):
         """
         Load all the document revisions into a list
@@ -472,6 +468,18 @@ class ProjectConfig:
             revlist.append(rev)
 
         return revlist
+
+    def get_latest_revision(self):
+        """
+        Sort the revisions and return the latest one.
+        Sorts based on the revision number
+        """
+        # Use the decorate, sort, undecorate idiom
+        
+        revlist = [ ('%s.%s' % (x.majornum, x.minornum), x) for x in self.revlist ]
+        revlist.sort()
+        #log.debug("Last revision is: %s", revlist[-1])
+        return revlist[-1][1]
 
     def load_hosts(self):
         """
@@ -1836,11 +1844,12 @@ class ProjectConfig:
                     ':'.join(root_exports),
                     vol.name, qtree.name,
                     )
-
+                cmdset.append(export_line)
+                
                 # Manual linewrap setup
-                if len(export_line) > 90:
-                    wraplines = textwrap.wrap(export_line, 90)
-                    cmdset.append( '\\\n'.join(wraplines))
+##                 if len(export_line) > 90:
+##                     wraplines = textwrap.wrap(export_line, 90)
+##                     cmdset.append( '\\\n'.join(wraplines))
             pass
         #log.debug('\n'.join(cmdset))
         #cmdset.append("vfiler context vfiler0")

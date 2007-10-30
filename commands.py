@@ -10,9 +10,9 @@ import sys
 
 log = logging.getLogger('docgen')
 
-from docgen import IDocumentGenerator
+from docgen import IDocumentGenerator, FileOutputMixin
 
-class CommandGenerator:
+class CommandGenerator(FileOutputMixin):
     """
     An abstract base class that implements some commonly used functions.
     """
@@ -26,11 +26,14 @@ class IPSANCommandsGenerator(CommandGenerator):
     A generator for creating the commandlines required to activate a project.
     """
 
-    def emit(self, outfile=None, ns={}):
+    def emit(self, outfile=None, versioned=True, ns={}):
 
         if outfile is None:
             outfile = sys.stdout
         else:
+            if versioned:
+                outfile = self.version_filename(outfile, self.conf)
+                pass
             outfile = open(outfile, "w")
 
         cmdlist = []
@@ -141,11 +144,10 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # Careful! Quotas file is the verbatim file contents, not a list!
         # Quotas are only used on primary filers
-        if filer.type == 'primary':
+        if filer.type in ['primary', 'nearstore'] and filer.site == 'primary':
             commands.append("\n# Quota File Contents\n")
             commands.extend( self.conf.vfiler_quotas_add_commands(filer, vfiler, ns) )
 
-        if filer.type == 'primary':
             commands.append("\n# Quota Enablement Commands\n")
             commands.extend(self.conf.vfiler_quota_enable_commands(filer, vfiler))
 
