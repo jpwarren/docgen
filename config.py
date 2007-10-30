@@ -66,7 +66,10 @@ class Host:
         self.filesystems = []
         self.interfaces = []
 
-        log.debug("Created host: %s, %s, %s", self.name, self.location, self.drhosts)
+        log.debug("Created host: %s", self)
+
+    def __str__(self):
+        return "%s [%s] (%s, %s)" % (self.name, self.storageip, self.os, self.location)
 
 class Filesystem:
 
@@ -113,7 +116,7 @@ class Filer:
         self.secondary_for = None
 
     def __str__(self):
-        return '<Filer: %s (%s:%s)>' % (self.name, self.type, self.site)
+        return '<Filer: %s (site:%s/type:%s)>' % (self.name, self.site, self.type)
 
     def as_string(self):
         """
@@ -266,7 +269,7 @@ class Qtree:
         self.volume.qtrees.append(self)
 
     def __str__(self):
-        return '<Qtree: type: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.name, self.volume.proto, self.security, self.rwhostlist, self.rohostlist)
+        return '<Qtree: type: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.name, self.volume.proto, self.security, [ str(x) for x in self.rwhostlist ], [ str(x) for x in self.rohostlist])
 
 class LUN:
     """
@@ -480,6 +483,12 @@ class ProjectConfig:
 
             # find some mandatory attributes
             hostname = node.attrib['name']
+
+            # check to see if the host has already been defined
+            if hostname in hosts.keys():
+                errstr = "Host '%s' is defined more than once. Hostnames must be unique." % hostname
+                log.error(errstr)
+                raise ValueError(errstr)
             
             host_attribs = {}
             for attrib in ['platform', 'operatingsystem', 'location']:
@@ -518,6 +527,12 @@ class ProjectConfig:
         filernodes = self.tree.xpath("nas/site/filer")
         for node in filernodes:
             filername = node.attrib['name']
+
+            # Check to make sure the filer name isn't already defined
+            if filername in filers.keys():
+                log.error("Filer name '%s' is already defined!", filername)
+                raise ValueError("Filer named '%s' is already defined." % filername)
+            
             sitetype = node.xpath("parent::*/@type")[0]
 
             if sitetype == 'secondary':
@@ -530,8 +545,11 @@ class ProjectConfig:
             if filer.type == 'secondary':
                 my_primary = node.xpath("preceding-sibling::filer")[0].attrib['name']
                 filer.secondary_for = filers[my_primary]
-            pass
+                pass
 
+            log.debug("Created filer: %s", filer)
+            pass
+        
         return filers
 
     def load_vfilers(self):
@@ -738,10 +756,11 @@ class ProjectConfig:
                             sid=vol.volnode.xpath("@oracle")[0]
 
                             # Then find the list of hosts the database is on
-                            onhost_nodes = self.tree.xpath("database[@id = '%s']/onhost" % sid)
+                            onhost_names = self.tree.xpath("database[@id = '%s']/onhost/@name" % sid)
                             rwhostlist = []
                             rohostlist = []
-                            for hostname in [ x.text for x in onhost_nodes ]:
+                            for hostname in onhost_names:
+                                log.debug("Database %s is on host %s. Adding to rwhostlist." % (sid, hostname) )
                                 rwhostlist.append(self.hosts[hostname])
                                 pass
 
@@ -943,7 +962,7 @@ class ProjectConfig:
         Build a list of all the primary volumes for the project.
         """
         volumes = [ vol for vol in self.volumes if vol.filer.site == site and vol.filer.type == filertype ]
-        log.debug("Found %d volumes for %s/%s", len(volumes), site, filertype)
+        log.debug("Found %d volumes for site:%s/filer:%s", len(volumes), site, filertype)
         return volumes
 
     def create_volume(self, node, volnum):
@@ -1430,10 +1449,11 @@ class ProjectConfig:
         """
         Create snapmirror volumes for a source volume.
         """
+        log.debug("Creating snapmirror for srcvol: %s", srcvol)
         # If the volume is of certain types, don't back them up
-        if srcvol.type in [ 'oracm' ]:
-            log.info("Not snapmirroring volume '%s' of type '%s'", srcvol.name, srcvol.type)
-            return
+##         if srcvol.type in [ 'oracm' ]:
+##             log.info("Not snapmirroring volume '%s' of type '%s'", srcvol.name, srcvol.type)
+##             return
 
         # get the snapmirrorset for the volume
         for ref in srcvol.snapmirrorref:
@@ -1483,6 +1503,7 @@ class ProjectConfig:
                                 voloptions=srcvol.voloptions,
                                 )
             self.volumes.append(targetvol)
+            log.debug("Created snapmirror targetvol: %s", targetvol)
             
             snapmirror_schedule = {}
             for svnode in set_node.findall("snapmirror"):
@@ -1795,7 +1816,7 @@ class ProjectConfig:
                     pass
 
                 if len(ro_export_to) > 0:
-                    log.debug("Read only exports required!")
+                    #log.debug("Read only exports required!")
                     ro_export_str = "ro=%s," % ':'.join(ro_export_to)
                 else:
                     ro_export_str = ''

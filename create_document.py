@@ -1539,7 +1539,7 @@ the host activation guides.
         else:
             log.info("DR not defined.")
             if self.conf.has_dr:
-                log.error("Weird. DR is defined, but has no primary volumes.")
+                log.warn("Weird. DR is defined, but has no primary volumes.")
 
             ns['dr_filer_volume_allocation'] = ''
             pass
@@ -1994,6 +1994,7 @@ the host activation guides.
                     """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)
+                log.debug("Added rw host/qtree: %s/%s", host.name, qtree.name)
                 pass
 
             # Read Only mounts
@@ -2011,6 +2012,7 @@ the host activation guides.
                     """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)
+                log.debug("Added ro host/qtree: %s/%s", host.name, qtree.name)
                 pass
 
             pass
