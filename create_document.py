@@ -2457,7 +2457,7 @@ the host activation guides.
 ##         <screen>%s</screen>
 ##         </section>""" % cmds
 
-        if filer.type == 'secondary':
+        if filer.type == 'primary':
             cmds = '\n'.join( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Allowed Protocols</title>
@@ -2560,12 +2560,13 @@ the host activation guides.
                 </section>""" % '\n'.join(cmds)
 
         # /etc/hosts additions
-        cmds = self.conf.vfiler_etc_hosts_commands(filer, vfiler)
-        cmd_ns['commands'] += """<section>
-        <title>vFiler <filename>/etc/hosts</filename></title>
-        <para>Use these commands to create the vFiler's /etc/hosts file:</para>
-        <screen>%s</screen>
-        </section>""" % '\n'.join(cmds)
+        if not filer.type == 'secondary':
+            cmds = self.conf.vfiler_etc_hosts_commands(filer, vfiler)
+            cmd_ns['commands'] += """<section>
+            <title>vFiler <filename>/etc/hosts</filename></title>
+            <para>Use these commands to create the vFiler's /etc/hosts file:</para>
+            <screen>%s</screen>
+            </section>""" % '\n'.join(cmds)
 
         #
         # The /etc/rc file needs certain pieces of configuration added to it
