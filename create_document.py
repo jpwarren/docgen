@@ -2632,4 +2632,4 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError("DocType of '%s' is not handled yet." % optparser.options.doctype)
 
-    docgen.emit(optparser.options.outfile)
+    docgen.emit(optparser.options.outfile, optparser.options.versioned)
