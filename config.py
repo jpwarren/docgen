@@ -367,7 +367,7 @@ class SnapVault:
 
 class SnapMirror:
 
-    def __init__(self, sourcevol, targetvol, minute='*', hour='*', dayofmonth='*', dayofweek='*'):
+    def __init__(self, sourcevol, targetvol, minute='*', hour='*', dayofmonth='*', dayofweek='*', arguments='-'):
 
         self.sourcevol = sourcevol
         self.targetvol = targetvol
@@ -375,6 +375,8 @@ class SnapMirror:
         self.hour = hour
         self.dayofmonth = dayofmonth
         self.dayofweek = dayofweek
+
+        self.arguments = arguments
 
         self.sourcevol.snapmirrors.append(self)
         self.targetvol.snapmirrors.append(self)
@@ -390,6 +392,14 @@ class SnapMirror:
         entry for this SnapMirror.
         """
         return '%s %s %s %s' % (self.minute, self.hour, self.dayofmonth, self.dayofweek)
+
+    def etc_snapmirror_conf_arguments(self):
+        """
+        Returns the arguments for the snapmirror in the format expected for
+        /etc/snapmirror.conf.
+        Currently this only supports the default of '-'.
+        """
+        return self.arguments
         
 class ProjectConfig:
 
@@ -769,7 +779,11 @@ class ProjectConfig:
                             rohostlist = []
                             for hostname in onhost_names:
                                 log.debug("Database %s is on host %s. Adding to rwhostlist." % (sid, hostname) )
-                                rwhostlist.append(self.hosts[hostname])
+                                try:
+                                    rwhostlist.append(self.hosts[hostname])
+                                except KeyError:
+                                    log.error("Database '%s' is on host '%s', but the host is not defined." % (sid, hostname) )
+                                    raise
                                 pass
 
                         except IndexError:
@@ -1356,8 +1370,11 @@ class ProjectConfig:
         rwhostnames = node.xpath("ancestor-or-self::*/export[@ro != 'yes']/@to | ancestor-or-self::*/export[not(@ro)]/@to")
         log.debug("rwhostnames for %s: %s", node, rwhostnames)
 
-        rwhostlist = [ self.hosts[hostname] for hostname in rwhostnames ]
-        rohostlist = [ self.hosts[hostname] for hostname in rohostnames ]
+        try:
+            rwhostlist = [ self.hosts[hostname] for hostname in rwhostnames ]
+            rohostlist = [ self.hosts[hostname] for hostname in rohostnames ]
+        except KeyError:
+            raise KeyError("Hostname '%s' is not defined." % hostname)
 
         # If both lists are empty, default to exporting read/write to all hosts
         if len(rwhostlist) == 0 and len(rohostlist) == 0:
@@ -2000,7 +2017,7 @@ class ProjectConfig:
                         
                     elif snap.targetvol == vol:
                         # Use a transfer schedule
-                        cmdset.append("%s-svif0-2000:%s %s:%s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.filer.name, snap.targetvol.name, snap.etc_snapmirror_conf_schedule()))
+                        cmdset.append("%s-svif0-2000:%s %s:%s %s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.filer.name, snap.targetvol.name, snap.arguments, snap.etc_snapmirror_conf_schedule()))
                     else:
                         log.error("snapmirror target and source are not for '%s'" % vol.name)
                         pass
