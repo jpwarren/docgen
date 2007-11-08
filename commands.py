@@ -134,7 +134,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 ##         <screen>%s</screen>
 ##         </section>""" % cmds
 
-        if filer.type == 'primary':
+        if filer.type in [ 'primary', 'nearstore' ]:
             commands.append("\n# Allowed Protocols\n")
             commands.extend( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
 

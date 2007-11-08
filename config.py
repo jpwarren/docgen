@@ -2008,6 +2008,7 @@ class ProjectConfig:
         """
         cmdset = []
         cmdset.append("#")
+        cmdset.append("# %s" % self.shortname)
         for vol in filer.volumes:
             if len(vol.snapmirrors) > 0:
                 for snap in vol.snapmirrors:

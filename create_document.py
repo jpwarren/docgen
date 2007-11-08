@@ -2457,7 +2457,7 @@ the host activation guides.
 ##         <screen>%s</screen>
 ##         </section>""" % cmds
 
-        if filer.type == 'primary':
+        if filer.type in [ 'primary', 'nearstore' ]:
             cmds = '\n'.join( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Allowed Protocols</title>
