@@ -1016,6 +1016,12 @@ class ProjectConfig:
                 volsuffix = ''
                 pass
 
+            # Check to see if we want to restart the volume numbering
+            try:
+                volnum = int(node.xpath("@restartnumbering")[0])
+            except IndexError:
+                pass
+
             volname = '%s_vol%02d%s' % (volprefix, volnum, volsuffix)
 
         # aggregate is this one, or the same as the previous volume
@@ -1068,6 +1074,12 @@ class ProjectConfig:
         Given a volumeset node, create a list of volumes from it.
         """
         vols = []
+
+        # Check to see if we want to restart the volume numbering
+        try:
+            volnum = int(node.xpath("@restartnumbering")[0])
+        except IndexError:
+            pass
 
         filername = node.xpath("ancestor::filer/@name")[0]
         vol_filer = self.filers[filername]
