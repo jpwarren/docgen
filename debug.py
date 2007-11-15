@@ -2,7 +2,7 @@
 #
 ##COPYRIGHT##
 
-__version__ = '$Revision: 1.28 $'
+__version__ = '$Revision$'
 
 import os
 import os.path
