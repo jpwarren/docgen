@@ -1991,7 +1991,8 @@ the host activation guides.
             # Read/Write mounts
             for host in qtree.rwhostlist:
                 filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                mountoptions = ''.join([ '<para>%s</para>' % x for x in qtree.mountoptions ])
+                mountopts = self.conf.get_host_qtree_mountoptions(host, qtree)
+                mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
                 entries = """
                     <entry><para>%s:/vol/%s/%s</para></entry>
                     <entry><para>%s</para></entry>
@@ -2005,11 +2006,9 @@ the host activation guides.
             # Read Only mounts
             for host in qtree.rohostlist:
                 filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                mountopts = [ x for x in qtree.mountoptions ]
-
-                # Add a 'ro' mount option to make this obvious
-                mountopts.append('ro')
+                mountopts = self.conf.get_host_qtree_mountoptions(host, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
+
                 entries = """
                     <entry><para>%s:/vol/%s/%s</para></entry>
                     <entry><para>%s</para></entry>

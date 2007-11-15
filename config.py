@@ -243,11 +243,9 @@ class Volume:
     
 class Qtree:
 
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], mountoptions=[]):
+    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[]):
         """
-        NOTE: when creating the exportfs line, check to see if the host is in the rohostlist, and
-        add a mountoption of 'ro' to its mountoptions list. Similar to the 'noac' specific thing
-        for the Linux operating system, vs. Solaris.
+        A Qtree representation
         """
         self.volume = volume
         if qtree_name is None:
@@ -260,7 +258,7 @@ class Qtree:
         self.rohostlist = rohostlist
         
         # Any additional mount options that may be required, over the base ones
-        self.mountoptions = mountoptions
+        #self.mountoptions = mountoptions
 
         log.debug("Created qtree: %s", self)
 
@@ -747,7 +745,7 @@ class ProjectConfig:
                             qtree_comment = qtree_node.text
 
                         # Find any mount options we need
-                        mountoptions = qtree_node.xpath("mountoption")
+                        #mountoptions = qtree_node.xpath("mountoption")
 
                         rwhostlist, rohostlist = self.get_export_hostlists(qtree_node)
                         
@@ -755,6 +753,10 @@ class ProjectConfig:
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
 
                         qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist)
+
+                        # Build mountoptions for the qtree
+##                         mountoptions.extend( self.get_qtree_mountoptions(qtree) )
+##                         qtree.mountoptions = mountoptions
                         qtree_list.append(qtree)
 
                 else:
@@ -796,13 +798,13 @@ class ProjectConfig:
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
                             qtree = Qtree(vol, qtree_name, 'unix', 'Oracle configuration qtree', rwhostlist=rwhostlist, rohostlist=rohostlist)
-                            qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                            #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
                             qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', rwhostlist=rwhostlist, rohostlist=rohostlist)
-                            qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                            #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
                         else:
@@ -811,7 +813,7 @@ class ProjectConfig:
                             comment = 'Oracle %s qtree' % vol.type[3:]
 
                             qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
-                            qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                            #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
                             #
@@ -822,7 +824,7 @@ class ProjectConfig:
                                 qtree_name = 'ora_%s_undo%02d' % ( sid, sid_id )
                                 comment = 'Oracle undo (rollback) qtree'
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
-                                qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                                #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
 
                     else:
@@ -830,7 +832,7 @@ class ProjectConfig:
                         rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
 
                         qtree = Qtree(vol, rwhostlist=rwhostlist, rohostlist=rohostlist)
-                        qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                        #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
                 pass
@@ -868,7 +870,7 @@ class ProjectConfig:
                                                     qtree.comment,
                                                     dr_rwhostlist,
                                                     dr_rohostlist,
-                                                    qtree.mountoptions,
+                                                    #qtree.mountoptions,
                                                     )
                             qtree_list.append(mirrored_qtree)
                             pass
@@ -881,7 +883,55 @@ class ProjectConfig:
 
         return qtree_list
 
-    def get_qtree_mountoptions(self, qtree):
+    def get_host_qtree_mountoptions(self, host, qtree):
+        """
+        Find the mountoptions for a host for a specific qtree.
+        This allows the system to automatically determine the
+        mount options that a given host should use when mounting
+        a qtree.
+        It returns the additional mount options that are special
+        for this qtree. It assumes that standard mount options, such
+        as 'hard', will not be included in this list.
+        """
+        mountoptions = []
+        osname = host.os
+
+        if host in qtree.rwhostlist:
+            log.debug("Read/Write host")
+            mountoptions.append('rw')
+
+        if host in qtree.rohostlist:
+            log.debug("Read-only host")
+            mountoptions.append('ro')
+            pass
+        
+        if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oratemp', 'oraarch', 'oraredo' ]:
+
+            if osname.startswith('Solaris'):
+                #log.debug("Solaris mount option required")
+                mountoptions.extend( [ 'forcedirectio', 'noac', 'nointr' ] )
+                
+            elif osname.startswith('Linux'):
+                #log.debug("Linux mount option required")
+                mountoptions.extend( [ 'actimeo=0', ] )
+                pass
+
+            else:
+                log.error("Unknown operating system")
+                pass
+            pass
+
+        # Non Oracle volume options for Solaris
+        elif osname.startswith('Solaris'):
+            mountoptions.extend([ 'intr', ])
+
+        elif osname.startswith('Linux'):
+            mountoptions.extend([ 'intr', ])
+
+        log.debug("mountoptions are: %s", mountoptions)
+        return mountoptions
+
+    def _get_qtree_mountoptions(self, qtree):
         """
         Figure out the automatically defined mount options for a qtree
         """
