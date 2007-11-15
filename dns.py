@@ -1,6 +1,6 @@
 #
 # $Id$
-# Dump activation commands out as as plain text
+# Provide DNS entries ready for insertion into a DNS update mechanism
 #
 
 import zope.interface
@@ -12,14 +12,28 @@ log = logging.getLogger('docgen')
 
 from docgen import IDocumentGenerator, FileOutputMixin
 
-class CommandGenerator(FileOutputMixin):
+class DNSGenerator(FileOutputMixin):
     """
-    An abstract base class that implements some commonly used functions.
+    A DNSGenerator outputs information about hosts, etc. ready for
+    insertion into a DNS update mechanism of some kind.
     """
     zope.interface.implements(IDocumentGenerator)
 
     def __init__(self, conf):
         self.conf = conf
+
+    def emit(self, outfile=None, versioned=True, ns={}):
+        if outfile is None:
+            outfile = sys.stdout
+        else:
+            if versioned:
+                outfile = self.version_filename(outfile, self.conf)
+                pass
+            outfile = open(outfile, "w")
+            
+        # For each host in the config, add a DNS entry for it
+        for host in self.conf.hosts.values():
+            outfile.write('')
 
 class IPSANCommandsGenerator(CommandGenerator):
     """
@@ -134,7 +148,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 ##         <screen>%s</screen>
 ##         </section>""" % cmds
 
-        if filer.type in [ 'primary', 'nearstore' ]:
+        if filer.type == 'primary':
             commands.append("\n# Allowed Protocols\n")
             commands.extend( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
 
@@ -151,6 +165,11 @@ class IPSANCommandsGenerator(CommandGenerator):
             commands.append("\n# Quota Enablement Commands\n")
             commands.extend(self.conf.vfiler_quota_enable_commands(filer, vfiler))
 
+        # NFS exports are only configured on primary filers.
+        # NearStores are only exported temporarily for restore purposes.
+        if filer.type == 'primary':
+            commands.append("\n# NFS Exports Configuration\n")
+            commands.extend( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
 
         if not filer.type == 'secondary':
             commands.append("\n# Snap Reserve Configuration\n")
@@ -207,11 +226,6 @@ class IPSANCommandsGenerator(CommandGenerator):
         commands.append("\n# Filer /etc/rc Additions\n")
         commands.extend(cmds)
 
-        # NFS exports are only configured on primary filers.
-        # NearStores are only exported temporarily for restore purposes.
-        if filer.type == 'primary':
-            commands.append("\n# NFS Exports Configuration\n")
-            commands.extend( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
 
         return commands
     

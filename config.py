@@ -6,6 +6,8 @@ Configuration of the Document Generator
 import re
 import sys
 import os
+import socket
+import struct
 
 from lxml import etree
 
@@ -135,7 +137,7 @@ class Filer:
 
 class VFiler:
     
-    def __init__(self, filer, name, rootaggr, vlan, ipaddress, netmask, gateway):
+    def __init__(self, filer, name, rootaggr, vlan, ipaddress, gateway, netmask='255.255.255.254'):
         self.filer = filer
         self.name = name
         self.rootaggr = rootaggr
@@ -292,7 +294,7 @@ class Vlan:
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, gateway, site='primary', type='project', network='', netmask='', description='', node=None):
+    def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.254', gateway=None, description='', node=None):
 
         self.site = site
         self.type = type
@@ -593,11 +595,15 @@ class ProjectConfig:
                 log.error("Cannot find vlan number for %s" % filername )
                 raise
             ipaddress = node.xpath("primaryip/ipaddr")[0].text
-            netmask = node.xpath("primaryip/netmask")[0].text
+
+            try:
+                netmask = node.xpath("primaryip/netmask")[0].text
+            except IndexError:
+                netmask = '255.255.255.254'
 
             gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
-            vfilers[name] = VFiler(filer, name, rootaggr, vlan, ipaddress, netmask, gateway)
+            vfilers[name] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
             
         return vfilers
 
@@ -990,25 +996,30 @@ class ProjectConfig:
 
             number = node.xpath("@number")[0]
             gateway = node.xpath("@gateway")[0]
+
+            netmask = None
             try:
                 network = node.xpath("@network")[0]
+
+                # check to see if the network is defined with slash notation for a netmask
+                if network.find('/') > 0:
+                    network, netmask = self.str2net(network)
+                    log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
+                
             except IndexError:
-                if type == 'project':
-                    network = ''
-                else:
-                    log.error("Non project VLANs must have a network number defined.")
-                    raise
+                log.error("VLAN %s does not have a network number", number)
+                raise
                 pass
-            
-            try:
-                netmask = node.xpath("@netmask")[0]
-            except IndexError:
-                if type == 'project':
-                    netmask = ''
-                else:
-                    log.error("Non project VLANs must have a netmask defined.")
+
+            # If a slashmask is used, override any netmask that might be set.
+            if netmask is None:
+                log.debug("netmask is None. Network is: %s", network)
+                try:
+                    netmask = node.xpath("@netmask")[0]
+                except IndexError:
+                    log.error("VLANs must have a netmask defined.")
                     raise
-                pass
+                    pass
 
             # FIXME: Add the ability to add a description
             description = node.text
@@ -1016,7 +1027,7 @@ class ProjectConfig:
                 description = ''
             #site = 'primary'
             
-            vlan = Vlan(number, gateway, site, type, network, netmask, description, node)
+            vlan = Vlan(number, site, type, network, netmask, gateway, description, node)
             vlans.append(vlan)
             pass
 
@@ -1769,12 +1780,15 @@ class ProjectConfig:
             
     def services_vlan_route_commands(self, site, vfiler):
         """
-        Return commands for configuring the services vlan routes
+        Because we use VRFs to route into other services VLANs, we only need
+        a single default route, iff services VLANs are defined. The route will
+        use the gateway address for the project VLAN.
         """
         cmdset = []
 
-        for vlan in self.get_services_vlans(site):
-            cmdset.append("vfiler run %s route add net %s/%s %s 1" % (vfiler.name, vlan.network, vlan.netmask, vlan.gateway) )
+        if len(self.get_services_vlans(site)) > 0:
+            proj_vlan = self.get_project_vlan(site)
+            cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
             pass
         
         return cmdset
@@ -2157,6 +2171,30 @@ class ProjectConfig:
             cmdset.append('wrfile -a /vol/vol0/etc/rc "%s"' % line)
 
         return cmdset
+
+    def str2net(self, netstr):
+        """
+        Convert a network string such as 10.0.0.0/8 to a network
+        integer and a netmask
+        """
+
+        fields = netstr.split('/')
+        addrstr = fields[0]
+        if len(fields) > 1:
+            maskbits = int(fields[1])
+        else:
+            maskbits = 32
+            pass
+
+        hostbits = 32 - maskbits
+        mask = 0xFFFFFFFFL - ((1L << hostbits) - 1)
+        maskstr = socket.inet_ntoa(struct.pack('!L',mask))
+
+        addr = socket.inet_aton(addrstr)
+        addr = long(struct.unpack('!I', addr)[0])
+        addr = addr & mask
+
+        return addrstr, maskstr
 
 if __name__ == '__main__':
 

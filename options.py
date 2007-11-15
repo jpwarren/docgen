@@ -42,6 +42,7 @@ class BaseOptions(optparse.OptionParser):
         self.add_option('-o', '--outfile',     dest='outfile', type='string', help=help_outfile)
         self.add_option('', '--not-versioned', dest='versioned', action='store_false', default=True, help=help_not_versioned)
         self.add_option('-d', '--doctype',     dest='doctype', type='choice', choices=['ipsan-storage-design',
+                                                                                       'ipsan-network-design',
                                                                                        'ipsan-storage-cip',
                                                                                        'ipsan-activation-advice',
                                                                                        'ipsan-modipy-config',
