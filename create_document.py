@@ -41,6 +41,8 @@ class DocumentGenerator(FileOutputMixin):
 <!ENTITY % entities SYSTEM "http://docbook.sensis.com.au/sensis-docgen/entities.ent">
 %entities;
 
+<!ENTITY docgen.revision "$docgen_revision">
+
 <!-- The name of the project that will appear on the front page -->
 <!ENTITY project.name "$project_name">
 <!ENTITY pmo.number "$pmo_number">
@@ -192,10 +194,10 @@ ${abstract}
 
            <row>
               <entry>
-                <para>PMO No.</para>
+                <para>DocGen Revision</para>
               </entry>
               <entry>
-                <para>&pmo.number;</para>
+                <para>&docgen.revision;</para>
               </entry>
             </row>
 
@@ -346,6 +348,7 @@ ${abstract}
         """
         Build up a book from its component elements.
         """
+        ns['docgen_revision'] = __version__
         ns['project_name'] = self.conf.longname
         ns['pmo_number'] = self.conf.code
         ns['vfiler_name'] = self.conf.shortname
