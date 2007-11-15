@@ -2499,7 +2499,8 @@ the host activation guides.
                     wraplines = textwrap.wrap(line, 90)
                     wrapped_lines.append('\\\n'.join(wraplines))
                     pass
-                pass
+                else:
+                    wrapped_lines.append(line)
             
             cmds = '\n'.join( wrapped_lines )
             cmd_ns['commands'] += """<section>

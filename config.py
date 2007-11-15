@@ -1876,11 +1876,11 @@ class ProjectConfig:
         """
         cmdset = []
         #cmdset.append("vfiler context %s" % vfiler.name)
-        #log.debug("Finding NFS exports for filer: %s", filer.name)
+        log.debug("Finding NFS exports for filer: %s", filer.name)
         for vol in [ x for x in filer.volumes if x.proto == 'nfs' ]:
-            #log.debug("Found volume: %s", vol)
+            log.debug("Found volume: %s", vol)
             for qtree in vol.qtrees:
-                #log.debug("exporting qtree: %s", qtree)
+                log.debug("exporting qtree: %s", qtree)
 
                 # Find read/write exports
                 rw_export_to = []
