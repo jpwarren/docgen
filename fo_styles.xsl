@@ -1033,7 +1033,7 @@
 	  <rdf:Description rdf:about=""
 			   xmlns:xmp="http://ns.adobe.com/xap/1.0/">
 	    <!-- XMP properties go here -->
-	    <xmp:CreatorTool>DocGen by Justin Warren &lt;justin@eigenmagic.com&gt;</xmp:CreatorTool>
+	    <xmp:CreatorTool>DocGen $Revision$ by Justin Warren &lt;justin@eigenmagic.com&gt;</xmp:CreatorTool>
 	  </rdf:Description>
 	</rdf:RDF>
       </x:xmpmeta>
