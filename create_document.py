@@ -22,6 +22,8 @@ import debug
 
 log = logging.getLogger('docgen')
 
+__version__ = '$Revision$'
+
 class DocumentGenerator(FileOutputMixin):
     """
     A Document Generator builds a standard DocBook XML format document.
@@ -176,6 +178,15 @@ ${abstract}
               </entry>
               <entry>
                 <para>&project.name;</para>
+              </entry>
+            </row>
+
+           <row>
+              <entry>
+                <para>PMO No.</para>
+              </entry>
+              <entry>
+                <para>&pmo.number;</para>
               </entry>
             </row>
 
@@ -1518,7 +1529,7 @@ the host activation guides.
                     <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
-                  </row>""" % (total_usable, total_raw)
+                  </row>""" % (total_raw, total_usable)
         
         ns['nearstore_volume_allocation'] = nearstore_volumes.safe_substitute(ns)
 
