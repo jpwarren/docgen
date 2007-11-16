@@ -8,6 +8,7 @@ import sys
 import os
 import socket
 import struct
+import csv
 
 from lxml import etree
 
@@ -16,6 +17,8 @@ from lxml import etree
 
 import logging
 import debug
+
+_configdir = '/usr/local/docgen'
 
 log = logging.getLogger('docgen')
 
@@ -48,13 +51,12 @@ class Host:
     """
     A host definition
     """
-    def __init__(self, name, platform, os, location, storageip, description='', drhosts=[]):
+    def __init__(self, name, platform, os, site, location, description='', drhosts=[], interfaces=[], filesystems=[]):
 
         self.name = name
         self.platform = platform
         self.os = os
         self.location = location
-        self.storageip = storageip
         self.description = description
 
         # drhosts is a reference to other hosts that will take on
@@ -63,13 +65,27 @@ class Host:
         # DR targetvol of the snapmirrors for this host's volumes.
         self.drhosts = drhosts
 
-        self.filesystems = []
-        self.interfaces = []
-
+        self.interfaces = interfaces
+        self.filesystems = filesystems
+        
         log.debug("Created host: %s", self)
 
     def __str__(self):
-        return "%s [%s] (%s, %s)" % (self.name, self.storageip, self.os, self.location)
+        return "%s (%s, %s)" % (self.name, self.os, self.location)
+
+    def get_storage_ip(self):
+        """
+        Find the IP address of the active storage interface.
+        """
+        #log.debug("Interfaces on %s: %s", self.name, self.interfaces)
+        # Find the first 'storage' type interface that is 'active'
+        ifacelist = [ x for x in self.interfaces if x.type == 'storage' and x.mode == 'active' ]
+
+        try:
+            return ifacelist[0].ipaddress
+        except IndexError:
+            log.error("Host '%s' has no interfaces defined.", self.name)
+            raise
 
 class Filesystem:
 
@@ -78,17 +94,33 @@ class Filesystem:
         self.type = type
         self.name = name
 
+class Switch:
+
+    def __init__(self, name, type, site, location, connected_switches=[]):
+
+        self.name = name
+        if type not in ['core', 'edge']:
+            raise ValueError("Switch '%s' has unknown type '%s'" % (name, type))
+        self.type = type
+        self.site = site
+        self.location = location
+
+        self.connected_switches = connected_switches
+
 class Interface:
 
-    def __init__(self, switchname, switchport, vlan, ipaddress):
+    def __init__(self, type, mode, switchname, switchport, hostport=None, ipaddress=None):
 
+        self.type = type
+        self.mode = mode
         self.switchname = switchname
         self.switchport = switchport
-        self.vlan = vlan
+        #self.vlan = vlan
+        self.hostport = hostport
         self.ipaddress = ipaddress
 
     def __repr__(self):
-        return '<Interface %s:%s (vlan %s) %s>' % (self.switchname, self.switchport, self.vlan, self.ipaddress)
+        return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
 
 class NAS:
 
@@ -294,7 +326,7 @@ class Vlan:
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.254', gateway=None, description='', node=None):
+    def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.224', maskbits='27', gateway=None, description='', node=None):
 
         self.site = site
         self.type = type
@@ -302,8 +334,8 @@ class Vlan:
         self.gateway = gateway
         self.network = network
         self.netmask = netmask
+        self.maskbits = maskbits
         self.description = description
-
 
         self.node = node
 
@@ -440,6 +472,11 @@ class ProjectConfig:
         self.shortname = self.tree.xpath('//project/shortname')[0].text
         self.longname = self.tree.xpath('//project/longname')[0].text
 
+        self.known_switches = self.load_known_switches()
+
+        # Project switches is populated when loading the hosts.
+        self.project_switches = {}
+
         self.revlist = self.load_revisions()
 
         self.hosts = self.load_hosts()
@@ -491,16 +528,38 @@ class ProjectConfig:
         #log.debug("Last revision is: %s", revlist[-1])
         return revlist[-1][1]
 
+    def load_known_switches(self, config_file=None):
+        """
+        Load known switches from a configuration file.
+        You can thus define site-wide switch configurations for known
+        devices, containing their names, physical locations, connectivity information, etc.
+        """
+        known_switches = {}
+        config_file = os.path.join(_configdir, 'switches.conf')
+        reader = csv.reader( open(config_file, 'rb'))
+        for row in reader:
+            if row[0].startswith('#'):
+                continue
+            (switchname, type, site, location, core01, core02) = row
+            switch = Switch(switchname, type, site, location, [ core01, core02 ])
+
+            known_switches[switchname] = switch
+            pass
+
+        return known_switches
+
     def load_hosts(self):
         """
         Load all the hosts
         """
         hosts = {}
-        hostnodes = self.tree.xpath('host')
+        hostnodes = self.tree.xpath('site/host')
         for node in hostnodes:
 
             # find some mandatory attributes
             hostname = node.attrib['name']
+
+            site = node.xpath('ancestor::*/site')[0].attrib['type']
 
             # check to see if the host has already been defined
             if hostname in hosts.keys():
@@ -517,24 +576,53 @@ class ProjectConfig:
                     raise
 
             try:
-                storageip = node.find('storageip/ipaddr').text
-            except AttributeError:
-                log.error("Host has no defined storageip: %s", hostname)
-                raise
-
-            try:
                 description = node.find('description')[0].text
             except IndexError:
                 description = ''
 
             drhostnodes = node.findall('drhost')
             drhosts = [ host.attrib['name'] for host in drhostnodes ]
+
+            # Load host interfaces
+            ifaces = []
+            interface_nodes = node.findall('interface')
+            for ifnode in interface_nodes:
+                switchname = ifnode.find('switchname').text
+                switchport = ifnode.find('switchport').text
+                hostport = ifnode.find('hostport').text
+
+                try:
+                    ipaddr = ifnode.find('ipaddr').text
+                except AttributeError:
+                    ipaddr = None
+
+                type = ifnode.attrib['type']
+                try:
+                    mode = ifnode.attrib['mode']
+                except KeyError:
+                    mode = 'passive'
+
+                # Add the required switch to the project switches list
+                switch = self.known_switches[switchname]
+                self.project_switches[switchname] = switch
+
+                # If this is an edge, make sure its connected cores are added to the
+                # list of project switches.
+                if switch.type == 'edge':
+                    for coreswitch in switch.connected_switches:
+                        if coreswitch not in self.project_switches:
+                            self.project_switches[coreswitch] = self.known_switches[coreswitch]
+                
+                iface = Interface(type, mode, switchname, switchport, hostport, ipaddr)
+                ifaces.append(iface)
         
             hosts[hostname] = Host(hostname, platform=host_attribs['platform'],
-                               os=host_attribs['operatingsystem'],
-                               location=host_attribs['location'],
-                               storageip=storageip,
-                               description=description, drhosts=drhosts)
+                                   os=host_attribs['operatingsystem'],
+                                   site=site,
+                                   location=host_attribs['location'],
+                                   description=description,
+                                   drhosts=drhosts,
+                                   interfaces=ifaces)
         return hosts
 
     def load_filers(self):
@@ -542,7 +630,7 @@ class ProjectConfig:
         Create filer objects from configuration
         """
         filers = {}
-        filernodes = self.tree.xpath("nas/site/filer")
+        filernodes = self.tree.xpath("site/filer")
         for node in filernodes:
             filername = node.attrib['name']
 
@@ -575,7 +663,7 @@ class ProjectConfig:
         Create vfiler objects from configuration
         """
         vfilers = {}
-        vfilernodes = self.tree.xpath("nas/site/filer/vfiler")
+        vfilernodes = self.tree.xpath("site/filer/vfiler")
         for node in vfilernodes:
             try:
                 name = node.attrib['name']
@@ -612,7 +700,7 @@ class ProjectConfig:
         Create all the volumes in the configuration
         """
 
-        volnodes = self.tree.xpath("nas/site/filer/vfiler/aggregate/volume | nas/site/filer/vfiler/aggregate/volumeset")
+        volnodes = self.tree.xpath("site/filer/vfiler/aggregate/volume | site/filer/vfiler/aggregate/volumeset")
 
         # Add root volumes to the filers/vfilers
         self.add_root_volumes()
@@ -987,7 +1075,7 @@ class ProjectConfig:
         Load all the vlan definitions
         """
         vlans = []
-        vlan_nodes = self.tree.xpath("nas/site/vlan")
+        vlan_nodes = self.tree.xpath("site/vlan")
         for node in vlan_nodes:
 
             site = node.xpath("ancestor::site/@type")[0]
@@ -1003,7 +1091,7 @@ class ProjectConfig:
 
                 # check to see if the network is defined with slash notation for a netmask
                 if network.find('/') > 0:
-                    network, netmask = self.str2net(network)
+                    network, netmask, maskbits = self.str2net(network)
                     log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
                 
             except IndexError:
@@ -1027,7 +1115,7 @@ class ProjectConfig:
                 description = ''
             #site = 'primary'
             
-            vlan = Vlan(number, site, type, network, netmask, gateway, description, node)
+            vlan = Vlan(number, site, type, network, netmask, maskbits, gateway, description, node)
             vlans.append(vlan)
             pass
 
@@ -1039,6 +1127,10 @@ class ProjectConfig:
         """
         # Check that the parent node is a <project> node.
         pass
+
+    def get_filers(self, site, type):
+
+         return [ x for x in self.filers.values() if x.site == site and x.type == type ]
 
     def get_volumes(self, site='primary', filertype='primary'):
         """
@@ -1498,7 +1590,7 @@ class ProjectConfig:
                 target_filername = set_node.attrib['targetfiler']
             except KeyError:
                 # No target filer specified, so use the first nearstore at the same site as the primary
-                target_filername = self.tree.xpath("nas/site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site)[0]
+                target_filername = self.tree.xpath("site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site)[0]
                 pass
 
             try:
@@ -1511,7 +1603,7 @@ class ProjectConfig:
                 targetaggr = set_node.attrib['targetaggregate']
             except:
                 try:
-                    targetaggr = self.tree.xpath("nas/site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
+                    targetaggr = self.tree.xpath("site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
                 except:
                     # No aggregates are specified on the target filer, so use the same one as the source volume
                     targetaggr = srcvol.aggregate
@@ -1567,7 +1659,7 @@ class ProjectConfig:
             except KeyError:
                 # No target filer specified, so use the first primary at a site other than the source
                 # This auto-created DR snapmirrors, but may not be what you mean.
-                target_filername = self.tree.xpath("nas/site[not(@type = '%s')]/filer[@type = 'primary']/@name" % srcvol.filer.site)[0]
+                target_filername = self.tree.xpath("site[not(@type = '%s')]/filer[@type = 'primary']/@name" % srcvol.filer.site)[0]
                 log.warn("No destination for snapmirror provided, using '%s'" % target_filername)
                 pass
 
@@ -1582,7 +1674,7 @@ class ProjectConfig:
                 targetaggr = set_node.attrib['targetaggregate']
             except:
                 try:
-                    targetaggr = self.tree.xpath("nas/site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
+                    targetaggr = self.tree.xpath("site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
                 except:
                     # No aggregates are specified on the target filer, so use the same one as the source volume
                     targetaggr = srcvol.aggregate
@@ -1900,7 +1992,7 @@ class ProjectConfig:
                 rw_export_to = []
                 for host in qtree.rwhostlist:
                     try:
-                        rw_export_to.append('%s' % host.storageip)
+                        rw_export_to.append('%s' % host.get_storage_ip() )
                     except IndexError:
                         log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
                         raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
@@ -1910,7 +2002,7 @@ class ProjectConfig:
                 ro_export_to = []
                 for host in qtree.rohostlist:
                     try:
-                        ro_export_to.append('%s' % host.storageip)
+                        ro_export_to.append('%s' % host.get_storage_ip())
                     except IndexError:
                         log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
                         raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
@@ -2194,7 +2286,83 @@ class ProjectConfig:
         addr = long(struct.unpack('!I', addr)[0])
         addr = addr & mask
 
-        return addrstr, maskstr
+        return addrstr, maskstr, maskbits
+
+    def core_switch_activation_commands(self, switch):
+        """
+        Return a list of commands that can be used to build the switch configuration.
+        """
+        cmdset = []
+
+        cmdset.extend( self.switch_vlan_activation_commands(switch))
+
+        return cmdset
+
+    def switch_vlan_activation_commands(self, switch):
+        """
+        Return activation commands for configuring the VLAN
+        """
+        cmdset = []
+
+        # Add the main project VLAN
+        cmdset.append('Vlan %s' % self.get_project_vlan('primary').number)
+        cmdset.append('  name %s_01' % self.shortname)
+
+        return cmdset
+
+    def edge_switch_activation_commands(self, switch):
+        """
+        Return a list of commands that can be used to build an edge switch configuration.
+        """
+        cmdset = []
+        cmdset.extend( self.switch_vlan_activation_commands )
+        cmdset.append('!')
+        cmdset.extend( self.edge_switch_port_acl_commands )
+        return cmdset
+
+    def edge_switch_port_acl_commands(self, switch):
+        """
+        Return a list of edge port ACL commands used to build an edge switch configuration.
+        """
+        vlan = self.get_project_vlan('primary')
+        cmdset = []
+
+        cmdset.append("mac access-list extended FilterL2")
+        cmdset.append("  deny any any")        
+
+        cmdset.append("!")
+
+        # inbound access list
+        cmdset.append("ip access-list extended %s_in" % self.shortname)
+        cmdset.append("  remark AntiSpoofing For Storage Devices")
+        cmdset.append("  deny ip %s 0.0.0.7 any" % vlan.network)
+        cmdset.append("  remark Permit Hosts To Storage Devices")
+        cmdset.append("  permit ip %s 0.0.0.31 %s 0.0.0.7" % (vlan.network, vlan.network) )
+
+        # outbound access list
+        cmdset.append("ip access-list extended %s_out" % self.shortname)
+        cmdset.append("  remark Permit Storage Devices To Hosts")
+        cmdset.append("  permit ip %s 0.0.0.7 %s 0.0.0.31" % (vlan.network, vlan.network) )
+        
+        return cmdset
+
+    def edge_switch_interfaces_commands(self, switch):
+        """
+        Build the configuration commands required to activation the ports
+        for all hosts that have interfaces connected to this switch.
+        """
+        cmdset = []
+        
+        for host in self.hosts.values():
+            for iface in host.interfaces:
+                if iface.switchname == switch.name:
+                    cmdset.extend(
+                        ["interface %s" % iface.switchport,
+                         "  description %s" % host.name,
+                         ]
+                        )
+
+        return cmdset
 
 if __name__ == '__main__':
 
