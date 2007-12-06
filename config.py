@@ -823,12 +823,12 @@ class ProjectConfig:
                             qtree_list.append(qtree)
 
                             #
-                            # If this is an oratemp volume, it contains both an ora_temp qtree
-                            # and an ora_undo area to hold the undo (rollback) segment.
+                            # If this is an oraredo volume, it contains both an ora_redo qtree
+                            # and an ora_temp area to hold the temporary data
                             #
-                            if vol.type == 'oratemp':
-                                qtree_name = 'ora_%s_undo%02d' % ( sid, sid_id )
-                                comment = 'Oracle undo (rollback) qtree'
+                            if vol.type == 'oraredo':
+                                qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
+                                comment = 'Oracle temp qtree'
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                                 #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
@@ -911,7 +911,7 @@ class ProjectConfig:
             mountoptions.append('ro')
             pass
         
-        if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oratemp', 'oraarch', 'oraredo' ]:
+        if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
 
             if osname.startswith('Solaris'):
                 #log.debug("Solaris mount option required")
@@ -956,7 +956,7 @@ class ProjectConfig:
             pass
         pass
 
-        if qtree.volume.type in [ 'oradata', 'oraindx', 'oratemp', 'oraarch', 'oraredo' ]:
+        if qtree.volume.type in [ 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
 
             if osname.startswith('Solaris'):
                 #log.debug("Solaris mount option required")
@@ -1119,7 +1119,7 @@ class ProjectConfig:
             #log.debug("No snapreserve specified.")
             if voltype == 'iscsi':
                 snapreserve = 0
-            elif voltype in ['oratemp', 'oraarch', ]:
+            elif voltype in ['oraundo', 'oraarch', ]:
                 snapreserve = 50
             else:
                 snapreserve = 20
@@ -1232,7 +1232,7 @@ class ProjectConfig:
 
             # temp volume, 5% of total, no snapreserve
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.20, 0, type='oratemp', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.20, 0, type='oraundo', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
@@ -1483,7 +1483,7 @@ class ProjectConfig:
         # get the snapvaultset for the volume
 
         # If the volume is of certain types, don't back them up
-        if srcvol.type in ['oratemp', 'oraredo', 'oracm' ]:
+        if srcvol.type in ['oraredo', 'oracm' ]:
             log.info("Not backing up volume '%s' of type '%s'", srcvol.name, srcvol.type)
             return
         
