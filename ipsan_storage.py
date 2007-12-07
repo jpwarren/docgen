@@ -925,18 +925,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -963,18 +965,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -1001,18 +1005,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -1039,18 +1045,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -1079,7 +1087,7 @@ the host activation guides.
 
         ns['primary_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
                   </row>""" % (total_raw, total_usable)
@@ -1093,7 +1101,7 @@ the host activation guides.
         total_usable, total_raw = self.conf.get_volume_totals(ns_vol_list)
         ns['nearstore_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
                   </row>""" % (total_raw, total_usable)
@@ -1112,10 +1120,10 @@ the host activation guides.
             total_usable, total_raw = self.conf.get_volume_totals(dr_vols)
             ns['dr_primary_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
-                  </row>""" % (total_usable, total_raw)
+                  </row>""" % (total_raw, total_usable)
 
             ns['dr_filer_volume_allocation'] = dr_filer_volumes.safe_substitute(ns)
 
@@ -1139,10 +1147,10 @@ the host activation guides.
             total_usable, total_raw = self.conf.get_volume_totals(dr_ns_vols)
             ns['dr_nearstore_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
-                  </row>""" % (total_usable, total_raw)
+                  </row>""" % (total_raw, total_usable)
 
             ns['dr_nearstore_volume_allocation'] = dr_nearstore_volumes.safe_substitute(ns)
 
@@ -1165,7 +1173,7 @@ the host activation guides.
         for vol in vol_list:
             entries = ''
             entries += "<entry><para>%s</para></entry>" % vol.filer.name
-            for attr in ['aggregate', 'name', 'snapreserve', 'raw', 'usable']:
+            for attr in ['aggregate', 'name', 'type', 'snapreserve', 'raw', 'usable']:
                 entries += "<entry><para>%s</para></entry>" % getattr(vol, attr)
                 pass
             volume_rows.append("<row>%s</row>" % entries)
