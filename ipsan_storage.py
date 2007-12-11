@@ -290,16 +290,16 @@ the host activation guides.
               <thead>
                 <row valign="middle">
                   <entry>
-                    Hostname
+                    <para>Hostname</para>
                   </entry>
                   <entry>
-                    Operating System
+                    <para>Operating System</para>
                   </entry>
                   <entry>
-                    Location
+                    <para>Location</para>
                   </entry>
                   <entry>
-                    Storage IP Address
+                    <para>Storage IP Address</para>
                   </entry>
                 </row>
               </thead>
@@ -925,18 +925,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -963,18 +965,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -1001,18 +1005,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -1039,18 +1045,20 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Allocation</title>
-              <tgroup cols="6" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="1*"/>
-                <colspec colnum="2" colname="c2" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="1*"/>
-                <colspec colnum="4" colname="c4" colwidth="0.5*"/>
+              <tgroup cols="7" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.5*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.5*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
+                    <entry><para>Type</para></entry>
                     <entry><para>Snap Reserve (%)</para></entry>
                     <entry><para>Raw Storage (GiB)</para></entry>
                     <entry><para>Usable Storage (GiB)</para></entry>
@@ -1079,7 +1087,7 @@ the host activation guides.
 
         ns['primary_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
                   </row>""" % (total_raw, total_usable)
@@ -1093,7 +1101,7 @@ the host activation guides.
         total_usable, total_raw = self.conf.get_volume_totals(ns_vol_list)
         ns['nearstore_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
                   </row>""" % (total_raw, total_usable)
@@ -1112,15 +1120,15 @@ the host activation guides.
             total_usable, total_raw = self.conf.get_volume_totals(dr_vols)
             ns['dr_primary_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
-                  </row>""" % (total_usable, total_raw)
+                  </row>""" % (total_raw, total_usable)
 
             ns['dr_filer_volume_allocation'] = dr_filer_volumes.safe_substitute(ns)
 
         else:
-            log.info("DR not defined.")
+            log.info("No DR copy defined.")
             if self.conf.has_dr:
                 log.warn("Weird. DR is defined, but has no primary volumes.")
 
@@ -1132,17 +1140,17 @@ the host activation guides.
         #
         dr_ns_vols = self.conf.get_volumes('secondary', 'nearstore')
         if len(dr_ns_vols) > 0:
-            log.info("Offsite backup is defined.")
+            log.info("No offsite backup defined.")
 
             ns['dr_nearstore_volume_rows'] = self.build_vol_rows(dr_ns_vols)
             
             total_usable, total_raw = self.conf.get_volume_totals(dr_ns_vols)
             ns['dr_nearstore_volume_totals'] = """
                   <row>
-                    <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
+                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
                     <entry><para>%s</para></entry>
                     <entry><para>%s</para></entry>
-                  </row>""" % (total_usable, total_raw)
+                  </row>""" % (total_raw, total_usable)
 
             ns['dr_nearstore_volume_allocation'] = dr_nearstore_volumes.safe_substitute(ns)
 
@@ -1165,7 +1173,7 @@ the host activation guides.
         for vol in vol_list:
             entries = ''
             entries += "<entry><para>%s</para></entry>" % vol.filer.name
-            for attr in ['aggregate', 'name', 'snapreserve', 'raw', 'usable']:
+            for attr in ['aggregate', 'name', 'type', 'snapreserve', 'raw', 'usable']:
                 entries += "<entry><para>%s</para></entry>" % getattr(vol, attr)
                 pass
             volume_rows.append("<row>%s</row>" % entries)
@@ -1548,9 +1556,11 @@ the host activation guides.
         # Only include the NFS qtree section if there are NFS qtrees
         nfs_qtree_rows = self.get_nfs_qtree_rows(ns)
         if len(nfs_qtree_rows) > 0:
+            log.debug("Found NFS qtrees: '%s'", nfs_qtree_rows)
             ns['nfs_qtree_rows'] = nfs_qtree_rows
             return section.safe_substitute(ns)
         else:
+            log.debug("No NFS qtrees. Skipping NFS export section.")
             return ''
 
     def get_nfs_qtree_rows(self, ns, site='primary'):
@@ -1760,15 +1770,259 @@ the host activation guides.
         <section>
           <title>CIFS Storage Configuration</title>
           <para/>
+
+          $cifs_ad_section
+
+          $cifs_shares_section
+
+          $cifs_hosts_config_section
+          
         </section>
         """)
+        if 'cifs' in self.conf.allowed_protocols:
+            log.debug("Configuring CIFS...")
+            ns['cifs_ad_section'] = self.build_cifs_active_directory_section(ns)
+            
+            ns['cifs_shares_section'] = self.build_cifs_shares_section(ns)
 
-        cifs_exports = self.conf.get_cifs_exports()
-        if len(cifs_exports) > 0:
+            ns['cifs_hosts_config_section'] = self.build_cifs_hosts_config_section(ns)
+            
             return section.safe_substitute(ns)
         else:
             return ''
 
+    def build_cifs_active_directory_section(self, ns):
+        """
+        Set up any CIFS active directory configuration information
+        """
+        # FIXME: This is purely static for now, if CIFS is enabled.
+        log.debug("Setting up AD authentication for CIFS...")
+        section = Template("""
+        <section>
+          <title>CIFS Active Directory Configuration</title>
+          <para>The following table provides the CIFS active directory
+          configuration for the &project.name; project.</para>
+
+          $cifs_ad_filer_tables
+
+        </section>
+        """)
+
+        table_template = Template("""
+        <table tabstyle='techtable-03'>
+          <title>Active Directory Configuration for $filer_name:$vfiler_name</title>
+            <tgroup cols='2'>
+              <colspec colnum="1" align="left" colwidth="1*"/>
+              <colspec colnum="2" align="left" colwidth="2*"/>
+
+            <tbody>
+              <row valign="middle">
+                <entry><para>Filer:</para></entry>
+                <entry><para>$filer_name</para></entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>vFiler:</para></entry>
+                <entry><para>$vfiler_name</para></entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>Authentication Type:</para></entry>
+                <entry><para>Active Directory</para></entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>WINS Servers:</para></entry>
+                <entry>$wins_servers</entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>DNS Servers:</para></entry>
+                <entry>$dns_servers</entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>DNS Domain Name:</para></entry>
+                <entry><para>$dns_domain_name</para></entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>vFiler NetBIOS Name:</para></entry>
+                <entry><para>$vfiler_netbios_name</para></entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>vFiler NetBIOS Aliases:</para></entry>
+                <entry>$vfiler_netbios_aliases</entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>Fully Qualified AD Domain Name:</para></entry>
+                <entry><para>$ad_domain_name</para></entry>
+              </row>
+
+              <row valign="middle">
+                <entry><para>vFiler Computer Account Location in AD:</para></entry>
+                <entry>$vfiler_ad_account_location</entry>
+              </row>
+
+            </tbody>
+          </tgroup>
+        </table>
+        """)
+
+        tables = []
+
+        for filer in [ x for x in self.conf.filers.values() if x.type in ['primary', 'nearstore',] ]:
+            log.debug("Adding AD config for filer: %s", filer.name)
+            for vfiler in filer.vfilers.values():
+                tabns = {}
+                tabns['filer_name'] = filer.name
+                tabns['vfiler_name'] = vfiler.name
+
+                tabns['wins_servers'] = '\n'.join( [ '<para>%s</para>' % x for x in vfiler.winsservers ] )
+
+                tabns['dns_servers'] =  '\n'.join( [ '<para>%s</para>' % x for x in vfiler.nameservers ] )
+
+                tabns['dns_domain_name'] = vfiler.dns_domain_name
+
+                tabns['vfiler_netbios_name'] = vfiler.name.upper()
+                tabns['vfiler_netbios_aliases'] = "<para>%s</para>" % vfiler.name
+                tabns['ad_domain_name'] = vfiler.fqdn()
+                tabns['vfiler_ad_account_location'] = vfiler.ad_account_location
+                
+                tables.append( table_template.safe_substitute(tabns) )
+
+        ns['cifs_ad_filer_tables'] = '\n'.join(tables)
+                
+        return section.safe_substitute(ns)
+
+    def build_cifs_shares_section(self, ns):
+        """
+        Build the CIFS sharing section for the hosts.
+        """
+
+        section = Template("""
+        <section>
+          <title>CIFS Share Configuration</title>
+          <para/>
+
+          $cifs_shares_tables
+          
+        </section>
+        """)
+        
+        cifs_shares_table_template = Template("""
+        <table tabstyle='techtable-01'>
+          <title>CIFS Share Configuration for $filer_name</title>
+          <tgroup cols='3'>
+            <colspec colnum="1" align="left" colwidth="1.5*"/>
+            <colspec colnum="2" align="left" colwidth="1*"/>
+            <colspec colnum="3" align="left" colwidth="1*"/>
+
+            <thead>
+              <row valign='middle'>
+                <entry><para>Qtree</para></entry>
+                <entry><para>Sharename</para></entry>
+                <entry><para>Permissions</para></entry>
+              </row>
+            </thead>
+
+            <tbody>
+              $table_rows
+            </tbody>
+            
+          </tgroup>
+        </table>
+        """)
+
+        tables = []
+
+        for filer in [ x for x in self.conf.filers.values() if x.type == 'primary' ]:
+            log.debug("Findings cifs qtrees on filer %s", filer.name)
+            cifs_qtrees = self.conf.get_cifs_qtrees(filer)
+            if len(cifs_qtrees) > 0:
+                log.debug("Found CIFS exports on filer %s", filer)
+
+                tabns = {}
+                tabns['filer_name'] = filer.name
+
+                rows = []
+                for qtree in cifs_qtrees:
+                    row = []
+
+                    perms = []
+                    if len(qtree.rwhostlist) > 0:
+                        perms.extend( [ "<para>CORP\%s &lt;full&gt;</para>" % x.name for x in qtree.rwhostlist ] )
+                        pass
+                    
+                    if len(qtree.rohostlist) > 0:
+                        perms.extend( [ "<para>CORP\%s &lt;read-only&gt;</para>" % x.name for x in qtree.rohostlist ] )
+                        pass
+                    
+                    # only add rows if there are permissions set for them.
+                    if len(perms) > 0:
+
+                        row.append("<entry><para>%s</para></entry>" % qtree.full_path() )
+                        row.append("<entry><para>%s</para></entry>" % qtree.cifs_share_name() )
+
+                        row.append("<entry>%s</entry>" % ''.join( perms ) )
+
+                        rows.append("<row>%s</row>" % '\n'.join(row) )
+
+                    else:
+                        log.warn("Qtree '%s' is defined, but no CIFS hosts have permission to see it.", qtree.full_path())
+                    pass
+
+                tabns['table_rows'] = '\n'.join(rows)
+                tables.append( cifs_shares_table_template.safe_substitute(tabns) )
+                pass
+            pass
+                
+        ns['cifs_shares_tables'] = '\n'.join(tables)
+        return section.safe_substitute(ns)
+
+    def build_cifs_hosts_config_section(self, ns):
+        """
+        Information how to configure CIFS shares on hosts.
+        """
+        section = Template("""
+        <section>
+          <title>Host Configurations For CIFS Mounts</title>
+          <para>Use the following steps to turn on the 'Client for Microsoft Networks'
+          and 'File and Printer Sharing for Microsoft Networks' options for MS Windows
+          Hosts.</para>
+
+          <note>
+            <para>These steps must be performed on all MS Windows hosts.</para>
+          </note>
+
+          <procedure>
+            <step>
+              <para>Navigate to Control Panel <symbol role="symbolfont">&rarr;</symbol> Network Connections</para>
+            </step>
+
+            <step>
+              <para>Double click on the teamed storage interface</para>
+            </step>
+
+            <step>
+              <para>Click the 'Properties' button</para>
+            </step>
+
+            <step>
+              <para>Tick 'Click for Microsoft Networks' check box.</para>
+            </step>
+
+            <step>
+              <para>Tick 'File and Printer Sharing for Microsoft Networks' check box.</para>
+            </step>
+
+          </procedure>
+        </section>
+        """)
+        return section.safe_substitute(ns)
+    
     def build_snapvault_config_section(self, ns):
 
         section = Template("""
@@ -1945,7 +2199,6 @@ the host activation guides.
         for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers[ns['vfiler_name']]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
-
 
         return activation_commands
 
@@ -2158,19 +2411,53 @@ the host activation guides.
         if filer.type == 'primary':
             cmdlist = self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns)
 
-            wrapped_lines = []
-            for line in cmdlist:
-                if len(line) > 90:
-                    wraplines = textwrap.wrap(line, 90)
-                    wrapped_lines.append('\\\n'.join(wraplines))
-                    pass
-                else:
-                    wrapped_lines.append(line)
+            # Only add the section if NFS commands exist
+            if len(cmdlist) == 0:
+                log.debug("No NFS exports defined.")
+            else:
+                wrapped_lines = []
+                for line in cmdlist:
+                    if len(line) > 90:
+                        wraplines = textwrap.wrap(line, 90)
+                        wrapped_lines.append('\\\n'.join(wraplines))
+                        pass
+                    else:
+                        wrapped_lines.append(line)
+
+                cmds = '\n'.join( wrapped_lines )
+                cmd_ns['commands'] += """<section>
+                <title>NFS Exports Configuration</title>
+                <screen><?db-font-size 60%% ?>%s</screen>
+                </section>""" % cmds
+
+        # CIFS exports are only configured on primary filers
+        if 'cifs' in self.conf.allowed_protocols:
+            if filer.type in ['primary', 'nearstore']:
+                cmds = self.conf.vfiler_cifs_dns_commands(vfiler)
+                cmd_ns['commands'] += """<section>
+                <title>CIFS DNS Configuration</title>
+                <para>Use these commands to configure the vFiler for DNS:</para>
+                <screen>%s</screen>
+                </section>""" % '\n'.join(cmds)
+                pass
             
-            cmds = '\n'.join( wrapped_lines )
-            cmd_ns['commands'] += """<section>
-            <title>NFS Exports Configuration</title>
-            <screen><?db-font-size 60%% ?>%s</screen>
-            </section>""" % cmds
+            # Set up CIFS in the vFiler
+            if filer.type in [ 'primary', 'nearstore']:
+                cmds = ['vfiler run %s cifs setup' % vfiler.name]
+                cmd_ns['commands'] += """<section>
+                <title>Set Up CIFS</title>
+                <para>Set up CIFS for the vFiler. This is an interactive process.</para>
+                <screen>%s</screen>
+                </section>""" % '\n'.join(cmds)
+
+            # Set up CIFS shares
+            if filer.type in [ 'primary', ]:
+                cmds = self.conf.vfiler_cifs_shares_commands(vfiler)
+                cmd_ns['commands'] += """<section>
+                <title>CIFS Share Configuration</title>
+                <para>Set up CIFS for the vFiler. This is an interactive process.</para>
+                <screen>%s</screen>
+                </section>""" % '\n'.join(cmds)
+
 
         return section.safe_substitute(cmd_ns)

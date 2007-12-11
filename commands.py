@@ -210,8 +210,28 @@ class IPSANCommandsGenerator(CommandGenerator):
         # NFS exports are only configured on primary filers.
         # NearStores are only exported temporarily for restore purposes.
         if filer.type == 'primary':
-            commands.append("\n# NFS Exports Configuration\n")
-            commands.extend( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
+            cmdlist = self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns)
+
+            # Only add the section if NFS commands exist
+            if len(cmdlist) == 0:
+                log.debug("No NFS exports defined.")
+            else:
+                commands.append("\n# NFS Exports Configuration\n")
+                commands.extend( self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns) )
+                pass
+            pass
+
+        #
+        # CIFS Commands
+        #
+        if 'cifs' in self.conf.allowed_protocols:
+            
+            # Set up DNS
+            if filer.type in [ 'primary', 'nearstore', ]:
+                log.debug("Added CIFS DNS commands for %s", filer.name)
+
+                commands.append("\n# CIFS DNS Configuration\n")
+                commands.extend( self.conf.vfiler_cifs_dns_commands(vfiler) )
 
         return commands
     

@@ -9,6 +9,7 @@ import os
 import socket
 import struct
 import csv
+from warnings import warn
 
 from lxml import etree
 
@@ -122,6 +123,20 @@ class Interface:
     def __repr__(self):
         return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
 
+class Site:
+    """
+    A site contains Filers, VLANS, etc.
+    """
+    def __init__(self, type):
+
+        self.type = type
+
+        # Filers, keyed by unique name
+        self.filers = {}
+
+        # VLANs, keyed by unique VLAN id
+        self.vlans = {}
+
 class NAS:
 
     def __init__(self, vlan, protocols=['NFS',]):
@@ -179,6 +194,19 @@ class VFiler:
         self.gateway = gateway
         self.volumes = []
 
+        self.nameservers = [ '161.117.245.73',
+                             '161.117.218.175',
+                             ]
+
+        self.winsservers = [ '161.117.245.73',
+                             '161.117.218.175',
+                             ]
+
+        self.dns_domain_name = 'corp.org.local'
+        self.ad_account_location = "OU=Storage,OU=PRD,OU=Server,DC=corp,DC=org,DC=local"
+
+        self.netbios_aliases = []
+
         filer.vfilers[name] = self
 
     def as_string(self):
@@ -188,6 +216,19 @@ class VFiler:
         retstr = '<vFiler: %s, %s %s>' % (self.name, self.ipaddress, self.netmask)
         volume_strings = [ '  %s' % x for x in self.volumes ]
         return retstr
+
+    def netbios_name(self):
+        """
+        Return my NetBIOS name
+        """
+        return self.name.upper()
+
+    def fqdn(self):
+        """
+        Return my fully qualified domain name.
+        """
+
+        return '%s.%s' % ( self.name, self.dns_domain_name )
 
 class Volume:
 
@@ -300,6 +341,18 @@ class Qtree:
 
     def __str__(self):
         return '<Qtree: type: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.name, self.volume.proto, self.security, [ str(x) for x in self.rwhostlist ], [ str(x) for x in self.rohostlist])
+
+    def full_path(self):
+        """
+        The full qtree path, including the volume prefix.
+        """
+        return '/vol/%s/%s' % (self.volume.name, self.name)
+
+    def cifs_share_name(self):
+        """
+        Get the CIFS share name for the qtree.
+        """
+        return '%s_%s$' % (self.volume.name, self.name)
 
 class LUN:
     """
@@ -479,6 +532,8 @@ class ProjectConfig:
 
         self.revlist = self.load_revisions()
 
+        self.sites = self.load_sites()
+
         self.hosts = self.load_hosts()
 
         self.drhosts = []
@@ -547,6 +602,11 @@ class ProjectConfig:
             pass
 
         return known_switches
+
+    def load_sites(self):
+        """
+        Load site specific configuration information
+        """
 
     def load_hosts(self):
         """
@@ -911,12 +971,12 @@ class ProjectConfig:
                             qtree_list.append(qtree)
 
                             #
-                            # If this is an oratemp volume, it contains both an ora_temp qtree
-                            # and an ora_undo area to hold the undo (rollback) segment.
+                            # If this is an oraredo volume, it contains both an ora_redo qtree
+                            # and an ora_temp area to hold the temporary data
                             #
-                            if vol.type == 'oratemp':
-                                qtree_name = 'ora_%s_undo%02d' % ( sid, sid_id )
-                                comment = 'Oracle undo (rollback) qtree'
+                            if vol.type == 'oraredo':
+                                qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
+                                comment = 'Oracle temp qtree'
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                                 #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
@@ -999,7 +1059,7 @@ class ProjectConfig:
             mountoptions.append('ro')
             pass
         
-        if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oratemp', 'oraarch', 'oraredo' ]:
+        if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
 
             if osname.startswith('Solaris'):
                 #log.debug("Solaris mount option required")
@@ -1025,10 +1085,12 @@ class ProjectConfig:
         log.debug("mountoptions are: %s", mountoptions)
         return mountoptions
 
-    def _get_qtree_mountoptions(self, qtree):
+    def __get_qtree_mountoptions(self, qtree):
         """
+        DEPRECATED
         Figure out the automatically defined mount options for a qtree
         """
+        warn("use get_host_qtree_options instead", DeprecationWarning, stacklevel=1)
         mountoptions = []
 
         osname = qtree.rwhostlist[0].os
@@ -1044,7 +1106,7 @@ class ProjectConfig:
             pass
         pass
 
-        if qtree.volume.type in [ 'oradata', 'oraindx', 'oratemp', 'oraarch', 'oraredo' ]:
+        if qtree.volume.type in [ 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
 
             if osname.startswith('Solaris'):
                 #log.debug("Solaris mount option required")
@@ -1147,6 +1209,9 @@ class ProjectConfig:
         # Find out which filer the volume is on
         filername = node.xpath("ancestor::filer/@name")[0]
 
+        # Find out which vfiler the volume is on
+        #vfilername = node.xpath("ancestor::vfiler/@name")[0]
+
         # Work out the volume name
         try:
             # If the volume has an explicit name set, use that
@@ -1194,8 +1259,13 @@ class ProjectConfig:
         
         voloptions = [ x.text for x in node.xpath("option") ]
 
+        # The volume protocol is either a protocol set in the volume definition
+        # using the 'proto' attribute, or it will be the first protocol in
+        # the list of possible protocols for the vfiler.
+        # If neither of these are set, it will default to nfs.
         try:
-            proto = node.xpath("@proto")[0]
+            proto = node.xpath("@proto | ancestor::*/vfiler/protocol/text()")[0].lower()
+            log.debug("Found proto for volume: %s", proto)
         except IndexError:
             proto = 'nfs'
 
@@ -1211,7 +1281,7 @@ class ProjectConfig:
             #log.debug("No snapreserve specified.")
             if voltype == 'iscsi':
                 snapreserve = 0
-            elif voltype in ['oratemp', 'oraarch', ]:
+            elif voltype in ['oraundo', 'oraarch', ]:
                 snapreserve = 50
             else:
                 snapreserve = 20
@@ -1324,7 +1394,7 @@ class ProjectConfig:
 
             # temp volume, 5% of total, no snapreserve
             volname = '%s_vol%02d' % ( self.shortname, volnum )
-            vol = Volume( volname, vol_filer, aggr, usable * 0.20, 0, type='oratemp', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
+            vol = Volume( volname, vol_filer, aggr, usable * 0.20, 0, type='oraundo', volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
             vols.append(vol)
             volnum += 1
 
@@ -1539,7 +1609,7 @@ class ProjectConfig:
             rwhostlist = [ self.hosts[hostname] for hostname in rwhostnames ]
             rohostlist = [ self.hosts[hostname] for hostname in rohostnames ]
         except KeyError:
-            raise KeyError("Hostname '%s' is not defined." % hostname)
+            raise KeyError("Hostname '%s' in <export/> is not defined." % hostname)
 
         # If both lists are empty, default to exporting read/write to all hosts
         if len(rwhostlist) == 0 and len(rohostlist) == 0:
@@ -1547,11 +1617,11 @@ class ProjectConfig:
         
         return rwhostlist, rohostlist
 
-    def get_cifs_exports(self):
+    def get_cifs_qtrees(self, filer):
         """
         Find the CIFS exports for the project.
         """
-        return []
+        return [ x for x in self.qtrees if x.volume.proto == 'cifs' and x.volume.filer == filer ]
 
     def create_snapshot_for(self, srcvol):
         """
@@ -1575,7 +1645,7 @@ class ProjectConfig:
         # get the snapvaultset for the volume
 
         # If the volume is of certain types, don't back them up
-        if srcvol.type in ['oratemp', 'oraredo', 'oracm' ]:
+        if srcvol.type in ['oraredo', 'oracm' ]:
             log.info("Not backing up volume '%s' of type '%s'", srcvol.name, srcvol.type)
             return
         
@@ -1925,6 +1995,11 @@ class ProjectConfig:
                 options.append('snapmirror.enable on')
                 break
 
+        # DNS enablement options for CIFS capable vfilers
+        if 'cifs' in self.allowed_protocols:
+            options.append("dns domainname %s" % vfiler.dns_domain_name)
+            options.append("dns enable on")
+            
         for opt in options:
             cmdset.append("vfiler run %s options %s" % (vfiler.name, opt) )
             pass
@@ -2040,6 +2115,36 @@ class ProjectConfig:
         #cmdset.append("vfiler context vfiler0")
         return cmdset
 
+    def vfiler_cifs_dns_commands(self, vfiler):
+        """
+        Return the commands for configuring DNS for CIFS access
+        """
+        cmds = []
+        for nameserver in vfiler.nameservers:
+            cmds.append("wrfile -a /vol/%s_root/etc/resolv.conf nameserver %s" % (vfiler.name, nameserver))
+
+        return cmds
+
+    def vfiler_cifs_shares_commands(self, vfiler):
+        """
+        For all the CIFS qtrees in the VFiler, return the commands
+        used to configure the shares.
+        """
+        cmds = []
+        volumes = [ x for x in vfiler.filer.volumes if x.proto == 'cifs' ]
+        for vol in volumes:
+            for qtree in vol.qtrees:
+                log.debug("Determining CIFS config commands for %s", qtree)
+                cmds.append("vfiler run %s cifs shares -add %s %s" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
+                cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
+
+                for host in qtree.rwhostlist:
+                    cmds.append("vfiler run %s cifs access %s CORP\%s Full Control" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
+                for host in qtree.rohostlist:
+                    cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
+
+        return cmds
+    
     def filer_snapreserve_commands(self, filer, ns):
         cmdset = []
 
