@@ -112,29 +112,29 @@
   <xsl:variable name="bgcolor">
     <xsl:choose>
 
-      <!-- Make header background yellow for table style 'techtable-01' -->
+      <!-- Make header background coloured for table style 'techtable-01' -->
       <xsl:when test="$tabstyle = 'techtable-01'
                      and ancestor::thead">
         <xsl:value-of select="$sensis.color.sensis.blue.40"/>
       </xsl:when>
 
-      <!-- Make header background yellow for table style 'techtable-02' -->
+      <!-- Make header background coloured for table style 'techtable-02' -->
       <xsl:when test="$tabstyle = 'techtable-02'
                      and ancestor::thead">
         <xsl:value-of select="$sensis.color.sensis.blue.40"/>
       </xsl:when>
 
-      <!-- Make header background yellow for table style 'techtable-03' -->
+      <!-- Make header background coloured for table style 'techtable-03' -->
       <xsl:when test="$tabstyle = 'techtable-03'
                      and ancestor::thead">
         <xsl:value-of select="$sensis.color.sensis.blue.40"/>
       </xsl:when>
 
       <!-- Make left column background yellow for table style 'techtable-03' -->
-<!--
       <xsl:when test="$tabstyle = 'techtable-03'
-                     and $col = 1">#EEEE00</xsl:when>
--->
+                     and $col = 1">
+        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
+      </xsl:when>
 
       <xsl:when test="$bgcolor.pi != ''">
         <xsl:value-of select="$bgcolor.pi"/>
