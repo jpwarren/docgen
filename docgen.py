@@ -5,6 +5,7 @@
 from zope.interface import Interface
 from string import Template
 
+import sys
 import os.path
 
 import logging

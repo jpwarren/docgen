@@ -207,7 +207,8 @@ class VFiler:
 
         self.netbios_aliases = []
 
-        filer.vfilers[name] = self
+        vfiler_key = '%s:%s' % (filer.name, name)
+        filer.vfilers[vfiler_key] = self
 
     def as_string(self):
         """
@@ -536,6 +537,9 @@ class ProjectConfig:
 
         self.hosts = self.load_hosts()
 
+        # Perform some sanity checking on the hosts
+        self.sanity_check_hosts(self.hosts)
+
         self.drhosts = []
         for host in self.hosts.values():
             for drhostname in host.drhosts:
@@ -545,6 +549,8 @@ class ProjectConfig:
                 
         self.filers = self.load_filers()
         self.vfilers = self.load_vfilers()
+
+        self.sanity_check_vfilers(self.vfilers)
         
         self.volumes = self.load_volumes()
 
@@ -593,6 +599,9 @@ class ProjectConfig:
         config_file = os.path.join(_configdir, 'switches.conf')
         reader = csv.reader( open(config_file, 'rb'))
         for row in reader:
+            if len(row) < 1:
+                continue
+            
             if row[0].startswith('#'):
                 continue
             (switchname, type, site, location, core01, core02) = row
@@ -663,7 +672,11 @@ class ProjectConfig:
                     mode = 'passive'
 
                 # Add the required switch to the project switches list
-                switch = self.known_switches[switchname]
+                try:
+                    switch = self.known_switches[switchname]
+                except KeyError:
+                    raise KeyError("Switch '%s' is not defined. Is it in switches.conf?" % switchname)
+                
                 self.project_switches[switchname] = switch
 
                 # If this is an edge, make sure its connected cores are added to the
@@ -684,6 +697,46 @@ class ProjectConfig:
                                    drhosts=drhosts,
                                    interfaces=ifaces)
         return hosts
+
+    def sanity_check_hosts(self, hostdict):
+        """
+        Perform some sanity checking of the hosts configuration to
+        ensure that silly things aren't done, such as duplicating
+        IP addresses, or assigning the same interfaces to 2 hosts.
+        """
+        ifaces = []
+        for host in hostdict.values():
+            for host_iface in host.interfaces:
+                for known_iface in ifaces:
+                    # Check the same switchport isn't allocated to different hosts
+                    if host_iface.switchname == known_iface.switchname and host_iface.switchport == known_iface.switchport:
+                        raise ValueError("Host '%s' is using the same switchport as another host in the project." % host.name)
+
+                    # Check that IP addresses aren't duplicated
+                    if host_iface.ipaddress == known_iface.ipaddress:
+                        raise ValueError("Host '%s' is using the same IP address as another host in the project." % host.name)
+                    pass
+                pass
+
+            # add the checked interfaces to the master list
+            ifaces.extend( host.interfaces )
+            pass
+        pass
+    
+    def sanity_check_vfilers(self, vfiler_dict):
+        """
+        Perform some sanity checking of vFilers.
+        """
+        #log.info("%d vfilers exist.", len(vfiler_dict.values()))
+        known_ips = []
+        for vfiler in vfiler_dict.values():
+            log.debug("checking %s", vfiler.name)
+            log.debug("ipaddress is: %s", vfiler.ipaddress)
+            if vfiler.ipaddress in known_ips:
+                raise ValueError("Duplicate IP address '%s' used on filer '%s'" % ( vfiler.ipaddress, vfiler.filer.name) )
+
+            known_ips.append(vfiler.ipaddress)
+            pass
 
     def load_filers(self):
         """
@@ -733,6 +786,7 @@ class ProjectConfig:
             rootaggr = node.attrib['rootaggr']
                 
             filername = node.xpath("parent::*/@name")[0]
+
             filer = self.filers[filername]
             try:
                 vlan_num = node.xpath("ancestor::site/vlan/@number")[0]
@@ -751,7 +805,8 @@ class ProjectConfig:
 
             gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
-            vfilers[name] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
+            vfiler_key = '%s:%s' % (filer.name, name)
+            vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
             
         return vfilers
 
@@ -2457,6 +2512,8 @@ class ProjectConfig:
         for all hosts that have interfaces connected to this switch.
         """
         cmdset = []
+
+        vlan = self.get_project_vlan('primary')
         
         for host in self.hosts.values():
             for iface in host.interfaces:
@@ -2464,6 +2521,22 @@ class ProjectConfig:
                     cmdset.extend(
                         ["interface %s" % iface.switchport,
                          "  description %s" % host.name,
+                         #"  switchport mode access",
+                         #"  switchport port-security maximum 10",
+                         #"  switchport port-security aging time 300",
+                         #"  switchport port-security violation restrict",
+                         #"  switchport post-security limit rate invalid-source-mac 5",
+                         "  switchport access vlan %s" % vlan.number,
+                         "  ip access-group %s_in in" % self.shortname,
+                         "  ip access-group %s_out out" % self.shortname,
+                         "  mac access-group FilterL2 in",
+                         #"  flowcontrol receive on",
+                         #"  flowcontrol send on",
+                         #"  mtu 9198",
+                         #"  no cdp enable",
+                         #"  spanning-tree portfast",
+                         "  no shutdown",
+                         "!",
                          ]
                         )
 

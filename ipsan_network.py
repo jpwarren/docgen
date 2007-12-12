@@ -319,11 +319,12 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         # need to be updated somehow.
         log.warn("Edge balance algorithm is CoLo only at this stage.")
         if int(self.conf.primary_project_vlan) < 3500:
-            ns['core_switch_balance_side'] = 'exip-swtcor-1401'
+            
+            ns['core_switch_balance_side'] = 'left (Core 01)'
             pass
         
         else:
-            ns['core_switch_balance_side'] = 'exip-swtcor-1402'
+            ns['core_switch_balance_side'] = 'right (Core 02)'
             pass
 
         ns['core_networking_table'] = core_networking_table.safe_substitute(ns)
