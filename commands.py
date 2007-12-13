@@ -94,11 +94,13 @@ class IPSANCommandsGenerator(CommandGenerator):
             commands.extend( self.conf.filer_vol_create_commands(filer) )
 
         #
-        # Only create qtrees on primary filers at primary site
+        # Only create qtrees on primary filers
         #
-        if filer.site == 'primary' and filer.type == 'primary':
-            commands.append( "\n# Qtree Creation\n" )
-            commands.extend( self.conf.filer_qtree_create_commands(filer) )
+        if filer.type == 'primary':
+            cmds = self.conf.filer_qtree_create_commands(filer)
+            if len(cmds) > 0:
+                commands.append( "\n# Qtree Creation\n" )
+                commands.extend( cmds )
 
         # Create the vfiler VLAN
         commands.append("\n# VLAN Creation\n")

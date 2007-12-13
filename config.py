@@ -515,7 +515,8 @@ class ProjectConfig:
             if vol.proto not in self.allowed_protocols and vol.proto is not None:
                 self.allowed_protocols.append(vol.proto)
 
-        self.qtrees = self.load_qtrees()
+        self.qtrees = self.load_qtrees('primary')
+        self.qtrees.extend( self.load_qtrees('secondary') )
 
     def load_revisions(self):
         """
@@ -964,11 +965,9 @@ class ProjectConfig:
         osname = host.os
 
         if host in qtree.rwhostlist:
-            log.debug("Read/Write host")
             mountoptions.append('rw')
 
         if host in qtree.rohostlist:
-            log.debug("Read-only host")
             mountoptions.append('ro')
             pass
         
@@ -995,7 +994,6 @@ class ProjectConfig:
         elif osname.startswith('Linux'):
             mountoptions.extend([ 'intr', ])
 
-        log.debug("mountoptions are: %s", mountoptions)
         return mountoptions
 
     def __get_qtree_mountoptions(self, qtree):
@@ -1066,7 +1064,11 @@ class ProjectConfig:
 
                 # check to see if the network is defined with slash notation for a netmask
                 if network.find('/') > 0:
-                    network, netmask = self.str2net(network)
+                    try:
+                        network, netmask = self.str2net(network)
+                    except:
+                        log.error("Error with network number for VLAN %s", number)
+                        raise
                     log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
                 
             except IndexError:
@@ -1751,7 +1753,7 @@ class ProjectConfig:
         Build the qtree creation commands for qtrees on volumes on filers at site and type.
         """
         cmdset = []
-        for vol in filer.volumes:
+        for vol in [ vol for vol in filer.volumes if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
             for qtree in vol.qtrees:
                 cmdset.append( "qtree create /vol/%s/%s" % (qtree.volume.name, qtree.name) )
                 cmdset.append( "qtree security /vol/%s/%s %s" % (qtree.volume.name, qtree.name, qtree.security) )
