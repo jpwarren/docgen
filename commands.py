@@ -146,7 +146,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # Careful! Quotas file is the verbatim file contents, not a list!
         # Quotas are only used on primary filers
-        if filer.type in ['primary', 'nearstore'] and filer.site == 'primary':
+        if filer.type in ['primary', 'nearstore']:
             commands.append("\n# Quota File Contents\n")
             commands.extend( self.conf.vfiler_quotas_add_commands(filer, vfiler, ns) )
 

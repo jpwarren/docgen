@@ -1954,7 +1954,7 @@ class ProjectConfig:
         
     def vfiler_quota_enable_commands(self, filer, vfiler):
         cmdset = []
-        for vol in filer.volumes:
+        for vol in [x for x in filer.volumes if x.type not in ['snapmirrordst']]:
             if not vol.name.endswith('root'):
                 cmdset.append("vfiler run %s quota on %s" % (vfiler.name, vol.name))
                 pass
