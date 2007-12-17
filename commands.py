@@ -235,6 +235,29 @@ class IPSANCommandsGenerator(CommandGenerator):
                 commands.append("\n# CIFS DNS Configuration\n")
                 commands.extend( self.conf.vfiler_cifs_dns_commands(vfiler) )
 
+        #
+        # iSCSI commands
+        #
+        if 'iscsi' in self.conf.allowed_protocols:
+            if filer.type in [ 'primary', ]:
+
+                # iSCSI CHAP configuration
+                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler)
+                commands.append("\n# %s" % title)
+                commands.extend(cmds)
+
+                # iSCSI iGroup configuration
+                title, cmds = self.conf.vfiler_igroup_enable_commands(filer, vfiler)
+                if len(cmds) > 0:
+                    commands.append("\n# %s" % title)
+                    commands.extend(cmds)
+
+                # iSCSI LUN configuration
+                title, cmds = self.conf.vfiler_lun_enable_commands(filer, vfiler)
+                if len(cmds) > 0:
+                    commands.append("\n# %s" % title)
+                    commands.extend(cmds)
+
         return commands
     
 class IPSANVolumeSizeCommandsGenerator(IPSANCommandsGenerator):

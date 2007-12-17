@@ -101,6 +101,9 @@
     <storageip>
       <ipaddr>10.240.4.232</ipaddr>
     </storageip>
+
+    <iscsi_initiator>iqn.1986-03.com.sun:01:faf8a8efffff.471c075b</iscsi_initiator>
+
   </host>
 
   <!-- Continue to add hosts, one at a time, for every host in the project. -->
@@ -116,6 +119,7 @@
     <drhost name="drtesthost01"/>
     <drhost name="drtesthost02"/>
 
+    <iscsi_initiator>iqn.1986-03.com.sun:01:faf8a8efffff.471c077b</iscsi_initiator>
   </host>
 
   <host name="primhost03">
@@ -225,7 +229,8 @@
 	       Valid values are: NFS, CIFS, and iSCSI
 	  -->
 	  <protocol>NFS</protocol>
-EI0267.dbx.IPSAN.storage.commands.txt
+	  <protocol>iSCSI</protocol>
+
 	  <!--
 	      Each filer must have a primaryip. This is the IP address used to
 	      provide the storage to the hosts.
@@ -411,6 +416,12 @@ EI0267.dbx.IPSAN.storage.commands.txt
 	      <export to="primhost03" ro="yes"/>
 
 	      <snapmirrorsetref name="default_sm"/>
+	    </volume>
+
+	    <volume name="iscsi_tester" proto="iscsi">
+	      <lun size="50"/>
+	      <export to="primhost01"/>
+	      <export to="primhost02"/>
 	    </volume>
 
 	  </aggregate>

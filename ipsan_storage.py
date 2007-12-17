@@ -1292,7 +1292,7 @@ the host activation guides.
         qtree_list = []
         for vol in [ vol for vol in filer.volumes if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
             log.debug("finding qtrees on volume: %s: %s", vol, vol.qtrees)
-            qtree_list.extend(vol.qtrees)
+            qtree_list.extend(vol.qtrees.values())
 
         for qtree in qtree_list:
             row = """
@@ -1475,12 +1475,39 @@ the host activation guides.
           <section>
             <title>iSCSI iGroup Configuration</title>
             <para>iSCSI initiator names must be obtained from each client host, and should be supplied by the project team.</para>
+            
+            $igroup_tables
 
+          </section>
+
+          <section>
+            <title>iSCSI LUN Configuration</title>
+            <para>iSCSI initiator names must be obtained from each client host, and should be supplied by the project team.</para>
+
+            $lun_tables
+
+          </section>
+
+          <para>Once the above iSCSI configuration has been applied on the project's vfiler, the hosts can
+          then be configured to connect to the vFiler's iSCSI target subsystem and mount the
+          configured iSCSI LUNs.
+          </para>
+
+          <note>
+            <para>Refer to the specific operating system host activation guides for further information on host
+            side iSCSI activation.
+            </para>
+          </note>
+
+      </section>
+      """)
+
+        igroup_table_template = Template("""
             <table tabstyle="techtable-01">
-              <title>iSCSI iGroup Configuration for &project.name; on &primary.filer_name;</title>
+              <title>iSCSI iGroup Configuration on $filer_name</title>
               <tgroup cols="4">
-                <colspec colnum="1" align="left" colwidth="2*"/>
-                <colspec colnum="2" align="left" colwidth="2*"/>
+                <colspec colnum="1" align="left" colwidth="1.2*"/>
+                <colspec colnum="2" align="left" colwidth="2.5*"/>
                 <colspec colnum="3" align="left" colwidth="1*"/>
                 <colspec colnum="4" align="left" colwidth="1*"/>
                 <thead>
@@ -1497,15 +1524,11 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
-
-          </section>
-
-          <section>
-            <title>iSCSI LUN Configuration</title>
-            <para>iSCSI initiator names must be obtained from each client host, and should be supplied by the project team.</para>
-
+            """)
+        
+        lun_table_template = Template("""
             <table tabstyle="techtable-01">
-              <title>iSCSI LUN Configuration for &project.name; on &primary.filer_name;</title>
+              <title>iSCSI LUN Configuration on $filer_name</title>
               <tgroup cols="5">
                 <colspec colnum="1" align="left" colwidth="3*"/>
                 <colspec colnum="2" align="left" colwidth="1*"/>
@@ -1527,53 +1550,55 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
+            """)
 
-          </section>
+        if len(self.conf.luns) > 0:
+            igroup_tables = []
+            lun_tables = []
 
-          <para>Once the above iSCSI configuration has been applied on the project's vfiler, the hosts can
-          then be configured to connect to the vFiler's iSCSI target subsystem and mount the
-          configured iSCSI LUNs.
-          </para>
+            for filer in [ x for x in self.conf.filers.values() if x.type in ['primary', ] ]:
+                tblns = {}
+                tblns['filer_name'] = filer.name
+                igroup_rows = self.get_iscsi_igroup_rows(filer)
+                if len(igroup_rows) > 0:
+                    tblns['iscsi_igroup_rows'] = igroup_rows
+                    igroup_tables.append(igroup_table_template.safe_substitute(tblns))
+                    pass
+                
+                lun_rows = self.get_iscsi_lun_rows(filer)
+                if len(lun_rows) > 0:
+                    tblns['iscsi_lun_rows'] = lun_rows
+                    lun_tables.append(lun_table_template.safe_substitute(tblns))
+                    pass
+                pass
 
-          <note>
-            <para>Refer to the specific operating system host activation guides for further information on host
-            side iSCSI activation.
-            </para>
-          </note>
+            ns['igroup_tables'] = '\n'.join(igroup_tables)
+            ns['lun_tables'] = '\n'.join(lun_tables)
 
-        </section>
-        """)
-
-        # Check that we actually have iSCSI
-        iscsi_rows = self.get_iscsi_igroup_rows(ns)
-        if len(iscsi_rows) > 0:
-            ns['iscsi_igroup_rows'] = iscsi_rows
-            ns['iscsi_lun_rows'] = self.get_iscsi_lun_rows(ns)
-        
             return section.safe_substitute(ns)
         else:
             return ''
 
-    def get_iscsi_igroup_rows(self, ns, site='primary'):
+    def get_iscsi_igroup_rows(self, filer):
         """
         Find a list of iSCSI iGroups for the project, and convert
         them into the appropriate rows for the iGroup configuration table.
         """
         rows = []
 
-        igroup_list = self.conf.get_site_iscsi_igroups(ns, site='primary')
+        igroup_list = self.conf.get_filer_iscsi_igroups(filer)
         for igroup in igroup_list:
             entries = "<entry><para>%s</para></entry>\n" % igroup.name
-            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % x[1] for x in igroup.initlist ] )
+            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % host.iscsi_initiator for host in igroup.initlist ] )
             entries += "<entry><para>iSCSI</para></entry>\n"
             entries += "<entry><para>%s</para></entry>\n" % igroup.type            
 
             rows.append("<row valign='middle'>%s</row>\n" % entries)
         return '\n'.join(rows)
 
-    def get_iscsi_lun_rows(self, ns, site='primary'):
+    def get_iscsi_lun_rows(self, filer):
         rows = []
-        lunlist = self.conf.lunlist
+        lunlist = self.conf.get_filer_luns(filer)
         for lun in lunlist:
             entries = "<entry><para>%s</para></entry>\n" % lun.name
             entries += "<entry><para>%s</para></entry>\n" % lun.size
@@ -2280,5 +2305,31 @@ the host activation guides.
                 <screen>%s</screen>
                 </section>""" % '\n'.join(cmds)
 
+        # iSCSI exports are only configured on primary filers
+        if 'iscsi' in self.conf.allowed_protocols:
+            if filer.type in [ 'primary', ]:
 
+                # iSCSI CHAP configuration
+                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler)
+                cmd_ns['commands'] += """<section>
+                <title>%s</title>
+                <screen>%s</screen>
+                </section>""" % (title, '\n'.join(cmds) )
+
+                # iSCSI iGroup configuration
+                title, cmds = self.conf.vfiler_igroup_enable_commands(filer, vfiler)
+                if len(cmds) > 0:
+                    cmd_ns['commands'] += """<section>
+                    <title>%s</title>
+                    <screen><?db-font-size 60%% ?>%s</screen>
+                    </section>""" % (title, '\n'.join(cmds) )
+
+                # iSCSI LUN configuration
+                title, cmds = self.conf.vfiler_lun_enable_commands(filer, vfiler)
+                if len(cmds) > 0:
+                    cmd_ns['commands'] += """<section>
+                    <title>%s</title>
+                    <screen><?db-font-size 60%% ?>%s</screen>
+                    </section>""" % (title, '\n'.join(cmds) )
+                
         return section.safe_substitute(cmd_ns)
