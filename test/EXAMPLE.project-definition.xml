@@ -424,6 +424,13 @@
 	      <export to="primhost02"/>
 	    </volume>
 
+	    <volume name="cifs_test" proto="cifs">
+	      <usablestorage>100</usablestorage>
+	      <export to="primhost01"/>
+	      <export to="primhost02"/>
+	    </volume>
+
+
 	  </aggregate>
 
 	</vfiler>

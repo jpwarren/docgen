@@ -164,13 +164,38 @@ class VFiler:
         self.gateway = gateway
         self.volumes = []
 
-        self.nameservers = [ '161.117.245.73',
-                             '161.117.218.175',
-                             ]
+        #
+        # CIFS related configuration stuff
+        #
 
-        self.winsservers = [ '161.117.245.73',
-                             '161.117.218.175',
-                             ]
+        # We will need at least one additional 'services' VLAN
+        # This will have a separate interface, IP address and gateway route
+        # The format of each entry in the list is a tuple:
+        # (vlan, ipaddress)
+        self.services_ips = []
+        
+        # Nameservers are dependent on which site we're at.
+        # Pending the implementation of the <site/> element,
+        # we use string comparisons of filer prefixes, which are
+        # known to refer to certain sites.
+        if self.filer.name.startswith('exip'):
+            self.nameservers = [ '161.117.218.175',
+                                 '161.117.245.73',
+                                 ]
+
+            self.winsservers = [ '161.117.218.175',
+                                 '161.117.245.73',
+                                 ]
+
+        elif self.filer.name.startswith('clip'):
+            self.nameservers = [ '161.117.245.73',
+                                 '161.117.218.175',
+                                 ]
+
+            self.winsservers = [ '161.117.245.73',
+                                 '161.117.218.175',
+                                 ]
+            pass
 
         self.dns_domain_name = 'corp.org.local'
         self.ad_account_location = "OU=Storage,OU=PRD,OU=Server,DC=corp,DC=org,DC=local"
@@ -191,14 +216,17 @@ class VFiler:
         """
         Return my NetBIOS name
         """
-        return self.name.upper()
+        return '%s-%s' % (self.filer.name, self.name)
 
     def fqdn(self):
         """
         Return my fully qualified domain name.
         """
 
-        return '%s.%s' % ( self.name, self.dns_domain_name )
+        return '%s.%s' % ( self.netbios_name(), self.dns_domain_name )
+
+    def add_service_ip(self, vlan, ipaddress):
+        self.services_ips.append( (vlan, ipaddress) )
     pass
 
 def get_create_size(size):
@@ -385,8 +413,10 @@ class Vlan:
         self.netmask = netmask
         self.description = description
 
-
         self.node = node
+
+    def __repr__(self):
+        return '<Vlan: %s, %s, %s/%s, %s>' % (self.type, self.number, self.network, self.netmask, self.gateway)
 
 class iGroup:
     """
@@ -708,6 +738,17 @@ class ProjectConfig:
             gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
             vfilers[name] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
+
+            for vlanip in node.xpath("vlanip"):
+                # Find the vlan object that relates to the vlan mentioned here
+                log.debug("found additional VLAN ip for vlan %s", vlanip.attrib['vlan'])
+                try:
+                    vlan_node = vlanip.xpath("ancestor::site/vlan[@type = 'services' and @number = '%s']" % vlanip.attrib['vlan'])[0]
+                except IndexError:
+                    raise ValueError("vlanip references non-existant VLAN '%s'" % vlanip.attrib['vlan'])
+                log.debug("vlan_node is: %s", vlan_node)
+                vlan = [ x for x in self.vlans if x.node == vlan_node ][0]
+                vfilers[name].add_service_ip( vlan, vlanip.find('ipaddr').text )
             
         return vfilers
 
@@ -846,7 +887,14 @@ class ProjectConfig:
                         try:
                             qtree_security = qtree_node.xpath("@security")[0]
                         except IndexError:
-                            qtree_security = 'unix'
+                            # If qtree security isn't set manually, use defaults for
+                            # the kind of volume
+                            log.debug("Determining qtree security mode: %s, %s", vol.name, vol.proto)
+                            if vol.proto == 'cifs':
+                                log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
+                                qtree_security = 'ntfs'
+                            else:
+                                qtree_security = 'unix'
                             pass
 
                         if qtree_node.text is None:
@@ -936,12 +984,25 @@ class ProjectConfig:
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                                 #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
-
+                                pass
+                            pass
+                        pass
+                    #
+                    # Not an Oracle volume, so this is a standard data volume
+                    #
                     else:
+                        # Figure out the security mode
+                        if vol.proto == 'cifs':
+                            log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
+                            qtree_security = 'ntfs'
+                        else:
+                            qtree_security = 'unix'
+                            pass
+
                         # Figure out the hostlist by checking for volume based export definitions
                         rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
 
-                        qtree = Qtree(vol, rwhostlist=rwhostlist, rohostlist=rohostlist)
+                        qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist)
                         #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
@@ -1601,6 +1662,7 @@ class ProjectConfig:
         """
         return [ x for x in self.qtrees if x.volume.proto == 'cifs' and x.volume.filer == filer ]
 
+
     def create_snapshot_for(self, srcvol):
         """
         Create snapshot definitions for volumes, if they have a snapref.
@@ -1917,18 +1979,30 @@ class ProjectConfig:
         Return a list of all vlans of type 'services'
         """
         return [ vlan for vlan in self.vlans if vlan.type == 'services' and vlan.site == site ]
-            
-    def services_vlan_route_commands(self, site, vfiler):
+
+    def default_route_command(self, filer, vfiler):
         """
-        Because we use VRFs to route into other services VLANs, we only need
-        a single default route, iff services VLANs are defined. The route will
-        use the gateway address for the project VLAN.
+        The default route points to the VRF address for the primary VLAN.
+        It may not exist yet, but having this here means no additional
+        routing needs to be configured if the VRF is configured at some point.
         """
         cmdset = []
-
-        if len(self.get_services_vlans(site)) > 0:
-            proj_vlan = self.get_project_vlan(site)
-            cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
+        title = "Default Route"
+        proj_vlan = self.get_project_vlan(filer.site)
+        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
+        return title, cmdset
+    
+    def services_vlan_route_commands(self, vfiler):
+        """
+        Services VLANs are different from VRFs. Services VLANs are actual VLANs
+        that are routed via firewalls into the main corporate network to provide
+        access to services, such as Active Directory.
+        """
+        cmdset = []
+        log.debug("vfiler services vlans: %s", vfiler.services_ips)
+        for (vlan, ipaddress) in vfiler.services_ips:
+            log.debug("Adding a services route: %s", vlan)
+            cmdset.append("vfiler run %s route add %s %s 1" % (vfiler.name, vlan.network, vlan.gateway) )
             pass
         
         return cmdset

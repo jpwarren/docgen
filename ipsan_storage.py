@@ -847,10 +847,11 @@ the host activation guides.
             pass
 
         # FIXME: Only include vfiler routes if inter-project routing is required.
-        if len(self.conf.get_services_vlans('primary')) > 0:
-            ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
-        else:
-            ns['vfiler_routes_section'] = ''
+##         if len(self.conf.get_services_vlans('primary')) > 0:
+##             ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
+##         else:
+
+        ns['vfiler_routes_section'] = ''
         
         return section.safe_substitute(ns)
 
@@ -859,7 +860,7 @@ the host activation guides.
         services_rows = []
         log.debug("finding services vlans...")
         for vlan in self.conf.get_services_vlans(type):
-            log.debug("Adding a services VLAN...")
+            log.debug("Adding a services VLAN: %s", vlan)
             services_rows.append("""
                   <row>
                     <entry><para>Services VLAN</para></entry>
@@ -875,7 +876,7 @@ the host activation guides.
         Fetch the services vlan additions that we need.
         """
         retstr = "<screen># For Services VLAN access\n"
-        retstr += '\n'.join(self.conf.services_vlan_route_commands('primary', self.conf.vfilers[self.conf.shortname]) )
+        retstr += '\n'.join(self.conf.services_vlan_route_commands(self.conf.vfilers[self.conf.shortname]) )
         retstr += '</screen>'
 
         return retstr
@@ -967,20 +968,22 @@ the host activation guides.
                     pass
 
                 vol_list = self.conf.get_volumes(site, role)
-                # Take the list of volumes and build a list of body rows
-                tblns['volume_rows'] = self.build_vol_rows(vol_list)
-                
-                # calculate primary volume totals
-                total_usable, total_raw = self.conf.get_volume_totals(vol_list)
+                if len(vol_list) > 0:
+                    # Take the list of volumes and build a list of body rows
+                    tblns['volume_rows'] = self.build_vol_rows(vol_list)
 
-                tblns['volume_totals'] = """
-                  <row>
-                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
-                    <entry><para>%s</para></entry>
-                    <entry><para>%s</para></entry>
-                  </row>""" % (total_raw, total_usable)
+                    # calculate primary volume totals
+                    total_usable, total_raw = self.conf.get_volume_totals(vol_list)
 
-                vol_alloc_tables.append( volumes_table_template.safe_substitute(tblns) )
+                    tblns['volume_totals'] = """
+                      <row>
+                        <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
+                        <entry><para>%s</para></entry>
+                        <entry><para>%s</para></entry>
+                      </row>""" % (total_raw, total_usable)
+
+                    vol_alloc_tables.append( volumes_table_template.safe_substitute(tblns) )
+                    pass
                 pass
             pass
         ns['filer_volume_allocations'] = '\n'.join( vol_alloc_tables )
@@ -1731,8 +1734,10 @@ the host activation guides.
 
                 tabns['dns_domain_name'] = vfiler.dns_domain_name
 
-                tabns['vfiler_netbios_name'] = vfiler.name.upper()
-                tabns['vfiler_netbios_aliases'] = "<para>%s</para>" % vfiler.name
+                tabns['vfiler_netbios_name'] = vfiler.netbios_name()
+                #tabns['vfiler_netbios_aliases'] = "<para>%s</para>" % vfiler.name
+                # No NetBIOS aliases will be used by default.
+                tabns['vfiler_netbios_aliases'] = "<para>None</para>"
                 tabns['ad_domain_name'] = vfiler.fqdn()
                 tabns['vfiler_ad_account_location'] = vfiler.ad_account_location
                 
@@ -2217,14 +2222,22 @@ the host activation guides.
                 <screen><?db-font-size 60%% ?>%s</screen>
                 </section>""" % '\n'.join(cmds)
 
+        # Add default route
+        if filer.type in ['primary', 'nearstore']:
+            title, cmds = self.conf.default_route_command(filer, vfiler)
+            cmd_ns['commands'] += """<section>
+            <title>%s</title>
+            <screen>%s</screen>
+            </section>""" % (title, '\n'.join( cmds ) )
+
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
             services_vlans = self.conf.get_services_vlans(filer.site)
             if len(services_vlans) > 0:
-                cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
+                cmds = self.conf.services_vlan_route_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>Services VLAN routes</title>
-                <para>Use these commands to add routes into Services VLANs (aka VRFs):</para>
+                <para>Use these commands to add routes into Services VLANs:</para>
                 <screen>%s</screen>
                 </section>""" % '\n'.join( cmds )
                 pass
@@ -2245,7 +2258,9 @@ the host activation guides.
         #
         cmds = self.conf.vlan_create_commands(filer)
         cmds += self.conf.vfiler_add_storage_interface_commands(filer, vfiler)
-        cmds += self.conf.services_vlan_route_commands(filer.site, vfiler)
+        title, cmdlist = self.conf.default_route_command(filer, vfiler)
+        cmds += cmdlist
+        cmds += self.conf.services_vlan_route_commands(vfiler)
 
         cmd_ns['commands'] += """<section>
         <title>Filer <filename>/etc/rc</filename> Additions</title>
