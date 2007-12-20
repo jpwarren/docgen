@@ -2086,7 +2086,7 @@ the host activation guides.
                 </section>""" % '\n'.join(cmds)
 
         # Create the vfiler VLAN
-        cmds = '\n'.join( self.conf.vlan_create_commands(filer) )
+        cmds = '\n'.join( self.conf.vlan_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>VLAN Creation</title>
         <screen>%s</screen>
@@ -2256,7 +2256,7 @@ the host activation guides.
         # The /etc/rc file needs certain pieces of configuration added to it
         # to make the configuration persistent.
         #
-        cmds = self.conf.vlan_create_commands(filer)
+        cmds = self.conf.vlan_create_commands(filer, vfiler)
         cmds += self.conf.vfiler_add_storage_interface_commands(filer, vfiler)
         title, cmdlist = self.conf.default_route_command(filer, vfiler)
         cmds += cmdlist

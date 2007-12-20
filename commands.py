@@ -104,7 +104,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # Create the vfiler VLAN
         commands.append("\n# VLAN Creation\n")
-        commands.extend( self.conf.vlan_create_commands(filer) )
+        commands.extend( self.conf.vlan_create_commands(filer, vfiler) )
 
         # Create the vfiler IPspace
         commands.append("\n# IP Space Creation\n")
@@ -178,6 +178,12 @@ class IPSANCommandsGenerator(CommandGenerator):
                 commands.append("\n# SnapMirror Initialisation")
                 commands.extend( self.conf.filer_snapmirror_init_commands(filer) )
 
+        # Add default route
+        if filer.type in ['primary', 'nearstore']:
+            title, cmds = self.conf.default_route_command(filer, vfiler)
+            commands.append("\n# %s\n" % title)
+            commands.extend(cmds)
+
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
             services_vlans = self.conf.get_services_vlans(filer.site)
@@ -185,7 +191,6 @@ class IPSANCommandsGenerator(CommandGenerator):
                 cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
                 commands.append("\n# VLAN routes\n")
                 commands.extend(cmds)
-
                 pass
             pass
 

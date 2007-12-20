@@ -97,9 +97,10 @@ class Site:
     """
     A site contains Filers, VLANS, etc.
     """
-    def __init__(self, type):
+    def __init__(self, type, location):
 
         self.type = type
+        self.location = location
 
         # Filers, keyed by unique name
         self.filers = {}
@@ -537,7 +538,7 @@ class ProjectConfig:
 
         self.has_dr = False
 
-        #self.verify_doc()
+        self.verify_config()
 
         self.load_project_details()
 
@@ -616,7 +617,18 @@ class ProjectConfig:
         """
         Load site specific configuration information
         """
-        
+        sites = []
+        site_nodes = self.tree.xpath('nas/site')
+        for node in site_nodes:
+            site_type = node.attrib['type']
+            try:
+                site_loc = node.attrib['location']
+            except KeyError:
+                log.warn('Site location not set!')
+                site_loc = 'Not defined.'
+            sites.append(Site(site_type, site_loc))
+            pass
+        return sites
 
     def load_hosts(self):
         """
@@ -1304,11 +1316,24 @@ class ProjectConfig:
 
         return vlans
 
-    def verify_doc(self, configdoc):
+    def verify_config(self):
         """
-        Make sure that the document satisfies certain rules.
+        Make sure that the configuration satisfies certain rules.
         """
-        # Check that the parent node is a <project> node.
+        # check that if a services vlan is defined for a site
+        # that both the primary and nearstore devices have a vlan IP
+        # in the services VLAN
+        services_vlans = self.tree.xpath("nas/site/vlan[@type = 'services']")
+        for vlan in services_vlans:
+            vlan_num = vlan.attrib['number']
+            # Make sure that every primary filer and nearstore at this site
+            # has a vlanip in this vlan
+            for vfiler in vlan.xpath("ancestor::site/filer[@type = 'primary']/vfiler | ancestor::site/filer[@type = 'nearstore']/vfiler"):
+                if len( vfiler.xpath("vlanip[@vlan = '%s']" % vlan_num) ) < 1:
+                    parent_filer = vfiler.xpath('parent::filer')[0]
+                    raise ValueError("vFiler in Filer %s has no IP address for services VLAN %s" % (parent_filer.attrib['name'], vlan_num))
+                pass
+            pass
         pass
 
     def get_volumes(self, site='primary', filertype='primary'):
@@ -1890,7 +1915,7 @@ class ProjectConfig:
             pass
         return cmdset
 
-    def vlan_create_commands(self, filer):
+    def vlan_create_commands(self, filer, vfiler):
         """
         Find the project VLAN for the filer's site,
         and return the command for how to create it.
@@ -1898,6 +1923,8 @@ class ProjectConfig:
         cmdset = []
         vlan = self.get_project_vlan(filer.site)
         cmdset.append("vlan add svif0 %s" % vlan.number)
+        for vlan, ipaddr in vfiler.services_ips:
+            cmdset.append("vlan add svif0 %s" % vlan.number)
         return cmdset
 
     def ipspace_create_commands(self, filer, ns):
@@ -1949,6 +1976,20 @@ class ProjectConfig:
         if filer.type in [ 'primary', 'secondary' ]:
             cmd += " partner svif0-%s" % self.get_project_vlan(filer.site).number
         cmdset.append(cmd)
+
+        # Add any services VLAN interfaces
+        for vlan, ipaddr in vfiler.services_ips:
+            log.debug("Adding service VLAN interface...")
+            if filer.type == 'secondary':
+                cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 1500 up" % (vlan.number, vlan.netmask)
+            else:
+                cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number, ipaddr, vlan.netmask)
+
+            # Add partner clause if this is a primary or secondary filer
+            if filer.type in [ 'primary', 'secondary' ]:
+                cmd += " partner svif0-%s" % vlan.number
+
+            cmdset.append(cmd)
 
         #log.debug( '\n'.join(cmdset) )
         return cmdset

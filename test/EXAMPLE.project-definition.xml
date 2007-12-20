@@ -191,7 +191,7 @@
 	 for a project, depending on where the main use of storage is.
 	 The 'secondary' site is always the SnapMirror destination site.
     -->
-    <site type="primary">
+    <site type="primary" location='CoLo'>
 
       <!-- Every site requires a VLAN for the project, at a minimum.
 	   There can only be one 'project' VLAN.
@@ -204,9 +204,7 @@
       -->
       <vlan type="project" number="3003" network="10.240.4.128/27" gateway="10.240.4.254"/>
 
-      <vlan type="services" number="3544" network="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
-
-      <vlan type="services" number="3189" network="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
+      <vlan type="services" number="1003" network="10.10.10.0" netmask="255.255.255.0" gateway="10.10.10.254"/>
 
       <!-- Now we have the filer definitions. There will need to be 3:
 	   - The 'primary' filer, which is used for providing the storage.
@@ -241,6 +239,11 @@
 	    <ipaddr>10.240.4.225</ipaddr>
 	    <netmask>255.255.255.224</netmask>
 	  </primaryip>
+
+	  <vlanip vlan="1003">
+	    <ipaddr>10.10.10.14</ipaddr>
+	    <netmask>255.255.255.0</netmask>
+	  </vlanip>
 
 	  <!-- volumes exist within aggregates, so for each aggregate you
 	       want to use, define an aggregate like this.
@@ -460,6 +463,14 @@
 	    <ipaddr>10.240.4.226</ipaddr>
 	    <netmask>255.255.255.224</netmask>
 	  </primaryip>
+
+
+	  <vlanip vlan="1003">
+	    <ipaddr>10.10.10.15</ipaddr>
+	    <netmask>255.255.255.0</netmask>
+	  </vlanip>
+
+
 	</vfiler>
       </filer>
 
@@ -471,7 +482,7 @@
 	 The site type is 'secondary' for the DR site.
     -->
 
-    <site type="secondary">
+    <site type="secondary" location='Clayton'>
 
       <!-- The DR site also has a vlan, and it may have a different vlan number
 	   to the primary site. Its IP network is likely to be different, also,
