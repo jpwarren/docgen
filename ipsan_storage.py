@@ -2093,7 +2093,7 @@ the host activation guides.
         </section>""" % cmds
 
         # Create the vfiler IPspace
-        cmds = '\n'.join( self.conf.ipspace_create_commands(filer, ns) )
+        cmds = '\n'.join( self.conf.ipspace_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>IP Space Creation</title>
         <screen>%s</screen>
@@ -2142,13 +2142,6 @@ the host activation guides.
             cmds = '\n'.join( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Allowed Protocols</title>
-            <screen>%s</screen>
-            </section>""" % cmds
-
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.vfiler_set_options_commands(vfiler, ns) )
-            cmd_ns['commands'] += """<section>
-            <title>vFiler Options</title>
             <screen>%s</screen>
             </section>""" % cmds
 
@@ -2346,5 +2339,15 @@ the host activation guides.
                     <title>%s</title>
                     <screen><?db-font-size 60%% ?>%s</screen>
                     </section>""" % (title, '\n'.join(cmds) )
-                
+
+        # Finally, set the vFiler options.
+        # Some options require previous pieces of configuration to exist before they work.
+        # eg: dns.enable on requires /etc/resolv.conf to exist.
+        if not filer.type == 'secondary':
+            cmds = '\n'.join( self.conf.vfiler_set_options_commands(vfiler, ns) )
+            cmd_ns['commands'] += """<section>
+            <title>vFiler Options</title>
+            <screen>%s</screen>
+            </section>""" % cmds
+
         return section.safe_substitute(cmd_ns)

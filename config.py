@@ -31,6 +31,33 @@ FILER_TYPES = [
     'dr_nearstore',
     ]
 
+def ip_within_network(ipaddr, baseip, netmask=None):
+    """
+    Check to see if an IP address is within a network defined
+    by a base IP address and the netmask provided.
+    """
+    if netmask is None:
+        # If no netmask is provided, the baseip is in / notation,
+        # providing both the base ip address and the netmask as
+        # the number of bits.
+        baseip, bits = baseip.split('/')
+        maskint = (2**32-1) - (2**(32-int(bits))-1)
+        netmask = socket.inet_ntoa(struct.pack('>I', maskint))
+        pass
+
+    maskint = struct.unpack( '>I', socket.inet_aton(netmask) )[0]
+    ipint = struct.unpack( '>I', socket.inet_aton(ipaddr) )[0]
+
+    masked_int = ipint & maskint
+    log.debug("checking masked_int: %s", masked_int)
+
+    baseint = struct.unpack( '>I', socket.inet_aton(baseip) )[0]
+    log.debug("checking baseint: %s", baseint)
+
+    if masked_int == baseint:
+        return True
+    
+    
 class Revision:
     """
     A Revision is a particular revision of a document. A single
@@ -415,6 +442,10 @@ class Vlan:
         self.description = description
 
         self.node = node
+
+        # sanity check on the gateway
+        if not ip_within_network(gateway, network, netmask):
+            log.error("Gateway '%s' is not within network %s/%s", gateway, network, netmask)
 
     def __repr__(self):
         return '<Vlan: %s, %s, %s/%s, %s>' % (self.type, self.number, self.network, self.netmask, self.gateway)
@@ -1221,7 +1252,7 @@ class ProjectConfig:
                     pass
                 pass
             pass
-        log.info("Loaded all LUNs")
+        log.debug("Loaded all LUNs")
         return lunlist
 
     def load_igroups(self):
@@ -1927,14 +1958,16 @@ class ProjectConfig:
             cmdset.append("vlan add svif0 %s" % vlan.number)
         return cmdset
 
-    def ipspace_create_commands(self, filer, ns):
+    def ipspace_create_commands(self, filer, vfiler):
         """
         Determine how to create the ipspace for the filer.
         """
         cmdset = []
         vlan = self.get_project_vlan(filer.site)
-        cmdset.append("ipspace create ips-%s" % self.shortname)
-        cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
+        cmdset.append("ipspace create ips-%s" % vfiler.name)
+        cmdset.append("ipspace assign ips-%s svif0-%s" % (vfiler.name, vlan.number) )
+        for vlan, ipaddr in vfiler.services_ips:
+            cmdset.append("ipspace assign ips-%s svif0-%s" % (vfiler.name, vlan.number) )
         return cmdset
 
     def vfiler_create_commands(self, filer, vfiler, ns):
@@ -1944,6 +1977,8 @@ class ProjectConfig:
                                                                             vfiler.ipaddress,
                                                                             vfiler.name,
                                                                             ) )
+        for vlan, ipaddr in vfiler.services_ips:
+            cmdset.append("vfiler add %s -i %s" % (vfiler.name, ipaddr))
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
@@ -2040,12 +2075,24 @@ class ProjectConfig:
         access to services, such as Active Directory.
         """
         cmdset = []
+
+        # keep track of destinations we've added a route to
+        destinations = []
         log.debug("vfiler services vlans: %s", vfiler.services_ips)
         for (vlan, ipaddress) in vfiler.services_ips:
-            log.debug("Adding a services route: %s", vlan)
-            cmdset.append("vfiler run %s route add %s %s 1" % (vfiler.name, vlan.network, vlan.gateway) )
+            log.debug("Adding services routes: %s", vlan)
+            for ipaddr in vfiler.nameservers:
+                if ipaddr not in destinations:
+                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
+                    destinations.append(ipaddr)
+
+            for ipaddr in vfiler.winsservers:
+                if ipaddr not in destinations:
+                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
+                    destinations.append(ipaddr)
+
             pass
-        
+        #cmdset.append("vfiler run %s route add %s %s 1" % (vfiler.name, vlan.network, vlan.gateway) )        
         return cmdset
     
     def vfiler_set_allowed_protocols_commands(self, vfiler, ns):
@@ -2090,8 +2137,8 @@ class ProjectConfig:
 
         # DNS enablement options for CIFS capable vfilers
         if 'cifs' in self.allowed_protocols:
-            options.append("dns domainname %s" % vfiler.dns_domain_name)
-            options.append("dns enable on")
+            options.append("dns.domainname %s" % vfiler.dns_domain_name)
+            options.append("dns.enable on")
             
         for opt in options:
             cmdset.append("vfiler run %s options %s" % (vfiler.name, opt) )
@@ -2486,10 +2533,10 @@ class ProjectConfig:
         """
         cmdset = []
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
-        cmds += self.vlan_create_commands(filer)
+        cmds += self.vlan_create_commands(filer, vfiler)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
         if filer.type in ['primary', 'nearstore']:
-            cmds += self.services_vlan_route_commands(filer.site, vfiler)
+            cmds += self.services_vlan_route_commands(vfiler)
 
         for line in cmds:
             if len(line) == 0:
@@ -2523,6 +2570,7 @@ class ProjectConfig:
 
         return addrstr, maskstr
 
+        
 if __name__ == '__main__':
 
     log.setLevel(logging.DEBUG)
