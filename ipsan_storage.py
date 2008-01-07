@@ -847,10 +847,11 @@ the host activation guides.
             pass
 
         # FIXME: Only include vfiler routes if inter-project routing is required.
-        if len(self.conf.get_services_vlans('primary')) > 0:
-            ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
-        else:
-            ns['vfiler_routes_section'] = ''
+##         if len(self.conf.get_services_vlans('primary')) > 0:
+##             ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
+##         else:
+
+        ns['vfiler_routes_section'] = ''
         
         return section.safe_substitute(ns)
 
@@ -859,7 +860,7 @@ the host activation guides.
         services_rows = []
         log.debug("finding services vlans...")
         for vlan in self.conf.get_services_vlans(type):
-            log.debug("Adding a services VLAN...")
+            log.debug("Adding a services VLAN: %s", vlan)
             services_rows.append("""
                   <row>
                     <entry><para>Services VLAN</para></entry>
@@ -875,7 +876,7 @@ the host activation guides.
         Fetch the services vlan additions that we need.
         """
         retstr = "<screen># For Services VLAN access\n"
-        retstr += '\n'.join(self.conf.services_vlan_route_commands('primary', self.conf.vfilers[self.conf.shortname]) )
+        retstr += '\n'.join(self.conf.services_vlan_route_commands(self.conf.vfilers[self.conf.shortname]) )
         retstr += '</screen>'
 
         return retstr
@@ -904,11 +905,7 @@ the host activation guides.
           the total volume capacity, 20% will be allocated as the snapshot
           reserve.</para>
 
-          $filer_volume_allocation
-          $nearstore_volume_allocation
-
-          $dr_filer_volume_allocation
-          $dr_nearstore_volume_allocation
+          $filer_volume_allocations
 
           $volume_config_subsection
 
@@ -917,22 +914,19 @@ the host activation guides.
         </section>
         """)
 
-        filer_volumes = Template("""
+        volumes_table_template = Template("""
           <section>
-            <title>Filer Volume Allocation</title>
-            <para>The following table details the amount of storage
-            allocated to each volume on &primary.filer_name;.</para>
+            <title>$sitetype Site $filer_type Volume Allocation</title>
 
-            <table tabstyle="techtable-01">
-              <title>Volume Allocation</title>
+            <informaltable tabstyle="techtable-01">
               <tgroup cols="7" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.5*"/>
                 <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.75*"/>
                 <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
-                <colspec colnum="5" colname="c5" colwidth="0.5*"/>
-                <colspec colnum="6" colname="c6" colwidth="0.5*"/>
-                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
+                <colspec colnum="5" colname="c5" colwidth="0.3*"/>
+                <colspec colnum="6" colname="c6" colwidth="0.3*"/>
+                <colspec colnum="7" colname="c7" colwidth="0.3*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>Device</para></entry>
@@ -946,218 +940,54 @@ the host activation guides.
                 </thead>
 
                 <tfoot>
-                  $primary_volume_totals
+                  $volume_totals
                 </tfoot>
 
                 <tbody>
-                  $primary_volume_rows
+                  $volume_rows
                 </tbody>
               </tgroup>
-            </table>
+            </informaltable>
           </section>
           """)
 
-        nearstore_volumes = Template("""
-          <section>
-            <title>Nearstore Volume Allocation</title>
-            <para>The following table details the amount of storage
-            allocated to each volume on &nearstore.filer_name;.</para>
+        # FIXME:
+        # Create a separate table for each Filer, in case we have
+        # projects that span multiple Filers/NearStores.
 
-            <table tabstyle="techtable-01">
-              <title>Volume Allocation</title>
-              <tgroup cols="7" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
-                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
-                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
-                <colspec colnum="5" colname="c5" colwidth="0.5*"/>
-                <colspec colnum="6" colname="c6" colwidth="0.5*"/>
-                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
-                <thead>
-                  <row valign="middle">
-                    <entry><para>Device</para></entry>
-                    <entry><para>Aggregate</para></entry>
-                    <entry><para>Volume</para></entry>
-                    <entry><para>Type</para></entry>
-                    <entry><para>Snap Reserve (%)</para></entry>
-                    <entry><para>Raw Storage (GiB)</para></entry>
-                    <entry><para>Usable Storage (GiB)</para></entry>
-                  </row>
-                </thead>
-
-                <tfoot>
-                  $nearstore_volume_totals
-                </tfoot>
-
-                <tbody>
-                  $nearstore_volume_rows
-                </tbody>
-              </tgroup>
-            </table>
-          </section>
-          """)
-
-        dr_filer_volumes = Template("""
-          <section>
-            <title>DR Filer Volume Allocation</title>
-            <para>The following table details the amount of storage
-            allocated to each volume on &dr.primary.filer_name;.</para>
-
-            <table tabstyle="techtable-01">
-              <title>Volume Allocation</title>
-              <tgroup cols="7" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
-                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
-                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
-                <colspec colnum="5" colname="c5" colwidth="0.5*"/>
-                <colspec colnum="6" colname="c6" colwidth="0.5*"/>
-                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
-                <thead>
-                  <row valign="middle">
-                    <entry><para>Device</para></entry>
-                    <entry><para>Aggregate</para></entry>
-                    <entry><para>Volume</para></entry>
-                    <entry><para>Type</para></entry>
-                    <entry><para>Snap Reserve (%)</para></entry>
-                    <entry><para>Raw Storage (GiB)</para></entry>
-                    <entry><para>Usable Storage (GiB)</para></entry>
-                  </row>
-                </thead>
-
-                <tfoot>
-                  $dr_primary_volume_totals
-                </tfoot>
-
-                <tbody>
-                  $dr_primary_volume_rows
-                </tbody>
-              </tgroup>
-            </table>
-          </section>
-          """)
-
-        dr_nearstore_volumes = Template("""
-          <section>
-            <title>DR Nearstore Volume Allocation</title>
-            <para>The following table details the amount of storage
-            allocated to each volume on &dr.nearstore.filer_name;.</para>
-
-            <table tabstyle="techtable-01">
-              <title>Volume Allocation</title>
-              <tgroup cols="7" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="0.75*"/>
-                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
-                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
-                <colspec colnum="5" colname="c5" colwidth="0.5*"/>
-                <colspec colnum="6" colname="c6" colwidth="0.5*"/>
-                <colspec colnum="7" colname="c7" colwidth="0.5*"/>
-                <thead>
-                  <row valign="middle">
-                    <entry><para>Device</para></entry>
-                    <entry><para>Aggregate</para></entry>
-                    <entry><para>Volume</para></entry>
-                    <entry><para>Type</para></entry>
-                    <entry><para>Snap Reserve (%)</para></entry>
-                    <entry><para>Raw Storage (GiB)</para></entry>
-                    <entry><para>Usable Storage (GiB)</para></entry>
-                  </row>
-                </thead>
-
-                <tfoot>
-                  $dr_nearstore_volume_totals
-                </tfoot>
-
-                <tbody>
-                  $dr_nearstore_volume_rows
-                </tbody>
-              </tgroup>
-            </table>
-          </section>
-          """)
-
-        # work out the primary volume setup, totals, etc.
-        vol_list = self.conf.get_volumes('primary', 'primary')
-        # Take the list of volumes and build a list of body rows
-        ns['primary_volume_rows'] = self.build_vol_rows(vol_list)
-
-        # calculate primary volume totals
-        total_usable, total_raw = self.conf.get_volume_totals(vol_list)
-
-        ns['primary_volume_totals'] = """
-                  <row>
-                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
-                    <entry><para>%s</para></entry>
-                    <entry><para>%s</para></entry>
-                  </row>""" % (total_raw, total_usable)
-
-        ns['filer_volume_allocation'] = filer_volumes.safe_substitute(ns)
-
-        # Then, work out the corresponding nearstore volumes, totals, etc.
-        ns_vol_list = self.conf.get_volumes('primary', 'nearstore')
-        ns['nearstore_volume_rows'] = self.build_vol_rows(ns_vol_list)
-
-        total_usable, total_raw = self.conf.get_volume_totals(ns_vol_list)
-        ns['nearstore_volume_totals'] = """
-                  <row>
-                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
-                    <entry><para>%s</para></entry>
-                    <entry><para>%s</para></entry>
-                  </row>""" % (total_raw, total_usable)
+        vol_alloc_tables = []
         
-        ns['nearstore_volume_allocation'] = nearstore_volumes.safe_substitute(ns)
+        for site in ['primary', 'secondary']:
+            for role in ['primary', 'nearstore']:
+                tblns = {}
+                tblns['sitetype'] = site.capitalize()
+                if role == 'primary':
+                    tblns['filer_type'] = 'Filer'
+                elif role == 'nearstore':
+                    tblns['filer_type'] = 'NearStore'
+                    pass
 
-        #
-        # If DR primaries are required, add them
-        #
-        dr_vols = self.conf.get_volumes('secondary', 'primary')
-        if len(dr_vols) > 0:
-            log.info("DR site is defined.")
+                vol_list = self.conf.get_volumes(site, role)
+                if len(vol_list) > 0:
+                    # Take the list of volumes and build a list of body rows
+                    tblns['volume_rows'] = self.build_vol_rows(vol_list)
 
-            ns['dr_primary_volume_rows'] = self.build_vol_rows(dr_vols)
+                    # calculate primary volume totals
+                    total_usable, total_raw = self.conf.get_volume_totals(vol_list)
 
-            total_usable, total_raw = self.conf.get_volume_totals(dr_vols)
-            ns['dr_primary_volume_totals'] = """
-                  <row>
-                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
-                    <entry><para>%s</para></entry>
-                    <entry><para>%s</para></entry>
-                  </row>""" % (total_raw, total_usable)
+                    tblns['volume_totals'] = """
+                      <row>
+                        <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
+                        <entry><para>%s</para></entry>
+                        <entry><para>%s</para></entry>
+                      </row>""" % (total_raw, total_usable)
 
-            ns['dr_filer_volume_allocation'] = dr_filer_volumes.safe_substitute(ns)
-
-        else:
-            log.info("No DR copy defined.")
-            if self.conf.has_dr:
-                log.warn("Weird. DR is defined, but has no primary volumes.")
-
-            ns['dr_filer_volume_allocation'] = ''
+                    vol_alloc_tables.append( volumes_table_template.safe_substitute(tblns) )
+                    pass
+                pass
             pass
-
-        #
-        # If offsite backup copies are required, add them
-        #
-        dr_ns_vols = self.conf.get_volumes('secondary', 'nearstore')
-        if len(dr_ns_vols) > 0:
-            log.info("No offsite backup defined.")
-
-            ns['dr_nearstore_volume_rows'] = self.build_vol_rows(dr_ns_vols)
-            
-            total_usable, total_raw = self.conf.get_volume_totals(dr_ns_vols)
-            ns['dr_nearstore_volume_totals'] = """
-                  <row>
-                    <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
-                    <entry><para>%s</para></entry>
-                    <entry><para>%s</para></entry>
-                  </row>""" % (total_raw, total_usable)
-
-            ns['dr_nearstore_volume_allocation'] = dr_nearstore_volumes.safe_substitute(ns)
-
-        else:
-            ns['dr_nearstore_volume_allocation'] = ''
-            log.info("Offsite backup not defined.")
-
+        ns['filer_volume_allocations'] = '\n'.join( vol_alloc_tables )
+        
         # Then do the configuration subsections
         ns['volume_config_subsection'] = self.build_volume_config_section(ns)
         ns['qtree_config_subsection'] = self.build_qtree_config_section(ns)
@@ -1389,18 +1219,25 @@ the host activation guides.
         section = Template("""
         <section>
           <title>Volume Qtree Structure</title>
-          <para>The following qtrees will be created on &primary.filer_name;:</para>
+
+        <para>Qtrees on primary site NearStores will be created automatically
+	as part of &snapvault; replication; this will produce the
+	same qtree structure on NearStores as exists on the source volumes.
+        </para>
+
+        <para>Qtrees on secondary site Filers and NearStores will be created automatically
+	as part of the SnapMirror replication; this will produce the
+	same qtree structure as exists on the source volumes.
+        </para>
 
           $filer_qtrees
 
         </section>
         """)
 
-        # FIXME: Add $dr_filer_qtrees
-
-        filer_qtrees = Template("""
+        qtrees_table_template = Template("""
         <table tabstyle="techtable-01">
-          <title>Qtree Configuration For &primary.filer_name;</title>
+          <title>Qtree Configuration For $filer_name</title>
           <tgroup cols="4" align="left">
             <colspec colname="c1" colwidth="2*"/>
             <colspec colname="c2" colwidth="1*"/>
@@ -1416,73 +1253,49 @@ the host activation guides.
             </thead>
 
             <tbody>
-              $primary_qtree_rows
+              $qtree_rows
             </tbody>
           </tgroup>
         </table>
 
-        <para>Qtrees on &nearstore.filer_name; will be created automatically
-	as part of the &snapvault; replication; this will produce the
-	same qtree structure on &nearstore.filer_name; as exists on the source volumes.
-      </para>
       """)
 
-        dr_filer_qtrees = Template("""
-        <table tabstyle="techtable-01">
-          <title>Qtree Configuration For &dr.primary.filer_name;</title>
-          <tgroup cols="3" align="left">
-            <colspec colname="c1" colwidth="2*"/>
-            <colspec colname="c2" colwidth="1*"/>
-            <colspec colname="c3" colwidth="1.5*"/>
-            <thead>
-              <row valign="middle">
-                <entry align="center"><para>Qtree Name</para></entry>
-                <entry><para>Quota Details</para></entry>
-                <entry><para>Comments</para></entry>
-              </row>
-            </thead>
 
-            <tbody>
-              <row valign="middle">
-                <entry><para>/vol/ctcm_vol1/nus509_os_backup</para></entry>
-                <entry><para>Reporting Only</para></entry>
-                <entry/>
-              </row>
-            </tbody>
-          </tgroup>
-        </table>
+        qtree_tables = []
+        for site in ['primary', 'secondary']:
+            for filertype in ['primary', ]:
+                # Find filers with this site and type
+                filers = [ x for x in self.conf.filers.values() if x.site == site and x.type == filertype ]
 
-        <para>Qtrees on &dr.primary.filer_name; and &dr.nearstore.filer_name; will be created automatically
-	as part of the SnapMirror replication; this will produce the
-	same qtree structure as exists on the source volumes.
-      </para>
-      """)
+                for filer in filers:
+                    log.debug("finding qtrees for filer: %s", filer.name)
+                    tblns = {}
+                    tblns['filer_name'] = filer.name
+                    filer_qtree_rows = self.get_filer_qtree_rows(filer)
+                    tblns['qtree_rows'] = filer_qtree_rows
+                    if len(filer_qtree_rows) > 0:
+                        log.debug("Adding qtree table for filer %s", filer.name)
+                        qtree_tables.append( qtrees_table_template.safe_substitute(tblns) )
+                        pass
+                    pass
+                pass
+            pass
+        pass
 
-        filer_qtree_rows = self.get_filer_qtree_rows(ns)
-        if len(filer_qtree_rows) > 0:
-            ns['primary_qtree_rows'] = filer_qtree_rows
-            ns['filer_qtrees'] = filer_qtrees.safe_substitute(ns)
-        else:
-            # No qtrees, so return an empty section
-            return ''
 
-        # FIXME: It is possible that you might have no qtrees at
-        # the primary site, but have qtrees at the DR site. That would
-        # be odd, but I guess it's theoretically possible.
-
-        if self.conf.has_dr:
-            ns['dr_filer_qtrees'] = dr_filer_qtrees.safe_substitute(ns)
-        else:
-            ns['dr_filer_qtrees'] = ''
-        
+        ns['filer_qtrees'] = '\n'.join(qtree_tables)
         return section.safe_substitute(ns)
 
-    def get_filer_qtree_rows(self, ns):
+    def get_filer_qtree_rows(self, filer):
         """
-        Provide the qtrees for the filer volumes, generating the names where required.
+        Process the filer's qtrees in the format required for the qtree
+        configuration table.
         """
         rows = []
-        qtree_list = self.conf.get_site_qtrees('primary')
+        qtree_list = []
+        for vol in [ vol for vol in filer.volumes if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
+            log.debug("finding qtrees on volume: %s: %s", vol, vol.qtrees)
+            qtree_list.extend(vol.qtrees.values())
 
         for qtree in qtree_list:
             row = """
@@ -1518,11 +1331,24 @@ the host activation guides.
 
           <section>
             <title>Host NFS Configuration</title>
-            <para>The following table provides the qtree NFS exports and host mount configuration.</para>
+            <para>The following tables provide the qtree NFS exports and host mount configurations.</para>
 
-            <para>
-            <informaltable tabstyle="techtable-01">
+            $nfs_exports_tables
 
+            <note>
+            <para>Refer to the specific operating system host activation guides for further information on host
+            side NFS activation.</para>
+            </note>
+
+          </section>
+
+        </section>
+
+            """)
+            
+        nfs_table_template = Template("""<para>
+            <table tabstyle="techtable-01">
+              <title>NFS Exports for $sitetype Site</title>
               <tgroup cols="3">
                 <colspec colnum="1" align="left" colwidth="2*"/>
                 <colspec colnum="2" align="center" colwidth="0.75*"/>
@@ -1540,30 +1366,28 @@ the host activation guides.
                   $nfs_qtree_rows
                 </tbody>
               </tgroup>
-            </informaltable>
+            </table>
             </para>
-            
-            <note>
-            <para>Refer to the specific operating system host activation guides for further information on host
-            side NFS activation.</para>
-            </note>
-
-          </section>
-
-        </section>
         """)
 
-        # Only include the NFS qtree section if there are NFS qtrees
-        nfs_qtree_rows = self.get_nfs_qtree_rows(ns)
-        if len(nfs_qtree_rows) > 0:
-            log.debug("Found NFS qtrees: '%s'", nfs_qtree_rows)
-            ns['nfs_qtree_rows'] = nfs_qtree_rows
-            return section.safe_substitute(ns)
-        else:
-            log.debug("No NFS qtrees. Skipping NFS export section.")
-            return ''
+        nfs_tables = []
+        for sitetype in ['primary', 'secondary']:
+            tblns = {}
+            # Only include the NFS qtree section if there are NFS qtrees
+            nfs_qtree_rows = self.get_nfs_qtree_rows(ns, sitetype)
+            if len(nfs_qtree_rows) > 0:
+                #log.debug("Found NFS qtrees: '%s'", nfs_qtree_rows)
+                tblns['sitetype'] = sitetype.capitalize()
+                tblns['nfs_qtree_rows'] = nfs_qtree_rows
+                nfs_tables.append( nfs_table_template.safe_substitute(tblns))
+                pass
+            pass
 
-    def get_nfs_qtree_rows(self, ns, site='primary'):
+        ns['nfs_exports_tables'] = '\n'.join(nfs_tables)
+        
+        return section.safe_substitute(ns)
+
+    def get_nfs_qtree_rows(self, ns, site):
         """
         Get the qtree level NFS configuration information for a site.
         @returns rows: an XML string of the rows data.
@@ -1571,7 +1395,7 @@ the host activation guides.
         rows = []
 
         # only create export definition for nfs volumes
-        qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' ]
+        qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
         for qtree in qtree_list:
             #log.debug("Adding NFS export definition for %s", qtree)
             # For each qtree, add a row for each host that needs to mount it
@@ -1588,7 +1412,6 @@ the host activation guides.
                     """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)
-                log.debug("Added rw host/qtree: %s/%s", host.name, qtree.name)
                 pass
 
             # Read Only mounts
@@ -1655,12 +1478,39 @@ the host activation guides.
           <section>
             <title>iSCSI iGroup Configuration</title>
             <para>iSCSI initiator names must be obtained from each client host, and should be supplied by the project team.</para>
+            
+            $igroup_tables
 
+          </section>
+
+          <section>
+            <title>iSCSI LUN Configuration</title>
+            <para>iSCSI initiator names must be obtained from each client host, and should be supplied by the project team.</para>
+
+            $lun_tables
+
+          </section>
+
+          <para>Once the above iSCSI configuration has been applied on the project's vfiler, the hosts can
+          then be configured to connect to the vFiler's iSCSI target subsystem and mount the
+          configured iSCSI LUNs.
+          </para>
+
+          <note>
+            <para>Refer to the specific operating system host activation guides for further information on host
+            side iSCSI activation.
+            </para>
+          </note>
+
+      </section>
+      """)
+
+        igroup_table_template = Template("""
             <table tabstyle="techtable-01">
-              <title>iSCSI iGroup Configuration for &project.name; on &primary.filer_name;</title>
+              <title>iSCSI iGroup Configuration on $filer_name</title>
               <tgroup cols="4">
-                <colspec colnum="1" align="left" colwidth="2*"/>
-                <colspec colnum="2" align="left" colwidth="2*"/>
+                <colspec colnum="1" align="left" colwidth="1.2*"/>
+                <colspec colnum="2" align="left" colwidth="2.5*"/>
                 <colspec colnum="3" align="left" colwidth="1*"/>
                 <colspec colnum="4" align="left" colwidth="1*"/>
                 <thead>
@@ -1677,15 +1527,11 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
-
-          </section>
-
-          <section>
-            <title>iSCSI LUN Configuration</title>
-            <para>iSCSI initiator names must be obtained from each client host, and should be supplied by the project team.</para>
-
+            """)
+        
+        lun_table_template = Template("""
             <table tabstyle="techtable-01">
-              <title>iSCSI LUN Configuration for &project.name; on &primary.filer_name;</title>
+              <title>iSCSI LUN Configuration on $filer_name</title>
               <tgroup cols="5">
                 <colspec colnum="1" align="left" colwidth="3*"/>
                 <colspec colnum="2" align="left" colwidth="1*"/>
@@ -1707,53 +1553,55 @@ the host activation guides.
                 </tbody>
               </tgroup>
             </table>
+            """)
 
-          </section>
+        if len(self.conf.luns) > 0:
+            igroup_tables = []
+            lun_tables = []
 
-          <para>Once the above iSCSI configuration has been applied on the project's vfiler, the hosts can
-          then be configured to connect to the vFiler's iSCSI target subsystem and mount the
-          configured iSCSI LUNs.
-          </para>
+            for filer in [ x for x in self.conf.filers.values() if x.type in ['primary', ] ]:
+                tblns = {}
+                tblns['filer_name'] = filer.name
+                igroup_rows = self.get_iscsi_igroup_rows(filer)
+                if len(igroup_rows) > 0:
+                    tblns['iscsi_igroup_rows'] = igroup_rows
+                    igroup_tables.append(igroup_table_template.safe_substitute(tblns))
+                    pass
+                
+                lun_rows = self.get_iscsi_lun_rows(filer)
+                if len(lun_rows) > 0:
+                    tblns['iscsi_lun_rows'] = lun_rows
+                    lun_tables.append(lun_table_template.safe_substitute(tblns))
+                    pass
+                pass
 
-          <note>
-            <para>Refer to the specific operating system host activation guides for further information on host
-            side iSCSI activation.
-            </para>
-          </note>
+            ns['igroup_tables'] = '\n'.join(igroup_tables)
+            ns['lun_tables'] = '\n'.join(lun_tables)
 
-        </section>
-        """)
-
-        # Check that we actually have iSCSI
-        iscsi_rows = self.get_iscsi_igroup_rows(ns)
-        if len(iscsi_rows) > 0:
-            ns['iscsi_igroup_rows'] = iscsi_rows
-            ns['iscsi_lun_rows'] = self.get_iscsi_lun_rows(ns)
-        
             return section.safe_substitute(ns)
         else:
             return ''
 
-    def get_iscsi_igroup_rows(self, ns, site='primary'):
+    def get_iscsi_igroup_rows(self, filer):
         """
         Find a list of iSCSI iGroups for the project, and convert
         them into the appropriate rows for the iGroup configuration table.
         """
         rows = []
 
-        igroup_list = self.conf.get_site_iscsi_igroups(ns, site='primary')
+        igroup_list = self.conf.get_filer_iscsi_igroups(filer)
         for igroup in igroup_list:
             entries = "<entry><para>%s</para></entry>\n" % igroup.name
-            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % x[1] for x in igroup.initlist ] )
+            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % host.iscsi_initiator for host in igroup.initlist ] )
             entries += "<entry><para>iSCSI</para></entry>\n"
             entries += "<entry><para>%s</para></entry>\n" % igroup.type            
 
             rows.append("<row valign='middle'>%s</row>\n" % entries)
         return '\n'.join(rows)
 
-    def get_iscsi_lun_rows(self, ns, site='primary'):
+    def get_iscsi_lun_rows(self, filer):
         rows = []
-        lunlist = self.conf.lunlist
+        lunlist = self.conf.get_filer_luns(filer)
         for lun in lunlist:
             entries = "<entry><para>%s</para></entry>\n" % lun.name
             entries += "<entry><para>%s</para></entry>\n" % lun.size
@@ -1886,8 +1734,10 @@ the host activation guides.
 
                 tabns['dns_domain_name'] = vfiler.dns_domain_name
 
-                tabns['vfiler_netbios_name'] = vfiler.name.upper()
-                tabns['vfiler_netbios_aliases'] = "<para>%s</para>" % vfiler.name
+                tabns['vfiler_netbios_name'] = vfiler.netbios_name()
+                #tabns['vfiler_netbios_aliases'] = "<para>%s</para>" % vfiler.name
+                # No NetBIOS aliases will be used by default.
+                tabns['vfiler_netbios_aliases'] = "<para>None</para>"
                 tabns['ad_domain_name'] = vfiler.fqdn()
                 tabns['vfiler_ad_account_location'] = vfiler.ad_account_location
                 
@@ -2225,24 +2075,25 @@ the host activation guides.
             </section>""" % cmds
 
         #
-        # Only create qtrees on primary filers at primary site
+        # Only create qtrees on primary filers
         #
-        if filer.site == 'primary' and filer.type == 'primary':
-            cmds = '\n'.join( self.conf.filer_qtree_create_commands(filer) )
-            cmd_ns['commands'] += """<section>
-            <title>Qtree Creation</title>
-            <screen>%s</screen>
-            </section>""" % cmds
+        if filer.type == 'primary':
+            cmds = self.conf.filer_qtree_create_commands(filer)
+            if len(cmds) > 0:
+                cmd_ns['commands'] += """<section>
+                <title>Qtree Creation</title>
+                <screen>%s</screen>
+                </section>""" % '\n'.join(cmds)
 
         # Create the vfiler VLAN
-        cmds = '\n'.join( self.conf.vlan_create_commands(filer) )
+        cmds = '\n'.join( self.conf.vlan_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>VLAN Creation</title>
         <screen>%s</screen>
         </section>""" % cmds
 
         # Create the vfiler IPspace
-        cmds = '\n'.join( self.conf.ipspace_create_commands(filer, ns) )
+        cmds = '\n'.join( self.conf.ipspace_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>IP Space Creation</title>
         <screen>%s</screen>
@@ -2294,15 +2145,8 @@ the host activation guides.
             <screen>%s</screen>
             </section>""" % cmds
 
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.vfiler_set_options_commands(vfiler, ns) )
-            cmd_ns['commands'] += """<section>
-            <title>vFiler Options</title>
-            <screen>%s</screen>
-            </section>""" % cmds
-
         # Careful! Quotas file is the verbatim file contents, not a list!
-        if filer.type in ['primary', 'nearstore'] and filer.site == 'primary':
+        if filer.type in ['primary', 'nearstore']:
             cmds = '\n'.join( self.conf.vfiler_quotas_add_commands(filer, vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Quota File Contents</title>
@@ -2371,14 +2215,22 @@ the host activation guides.
                 <screen><?db-font-size 60%% ?>%s</screen>
                 </section>""" % '\n'.join(cmds)
 
+        # Add default route
+        if filer.type in ['primary', 'nearstore']:
+            title, cmds = self.conf.default_route_command(filer, vfiler)
+            cmd_ns['commands'] += """<section>
+            <title>%s</title>
+            <screen>%s</screen>
+            </section>""" % (title, '\n'.join( cmds ) )
+
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
             services_vlans = self.conf.get_services_vlans(filer.site)
             if len(services_vlans) > 0:
-                cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
+                cmds = self.conf.services_vlan_route_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>Services VLAN routes</title>
-                <para>Use these commands to add routes into Services VLANs (aka VRFs):</para>
+                <para>Use these commands to add routes into Services VLANs:</para>
                 <screen>%s</screen>
                 </section>""" % '\n'.join( cmds )
                 pass
@@ -2397,9 +2249,11 @@ the host activation guides.
         # The /etc/rc file needs certain pieces of configuration added to it
         # to make the configuration persistent.
         #
-        cmds = self.conf.vlan_create_commands(filer)
+        cmds = self.conf.vlan_create_commands(filer, vfiler)
         cmds += self.conf.vfiler_add_storage_interface_commands(filer, vfiler)
-        cmds += self.conf.services_vlan_route_commands(filer.site, vfiler)
+        title, cmdlist = self.conf.default_route_command(filer, vfiler)
+        cmds += cmdlist
+        cmds += self.conf.services_vlan_route_commands(vfiler)
 
         cmd_ns['commands'] += """<section>
         <title>Filer <filename>/etc/rc</filename> Additions</title>
@@ -2459,5 +2313,41 @@ the host activation guides.
                 <screen>%s</screen>
                 </section>""" % '\n'.join(cmds)
 
+        # iSCSI exports are only configured on primary filers
+        if 'iscsi' in self.conf.allowed_protocols:
+            if filer.type in [ 'primary', ]:
+
+                # iSCSI CHAP configuration
+                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler)
+                cmd_ns['commands'] += """<section>
+                <title>%s</title>
+                <screen>%s</screen>
+                </section>""" % (title, '\n'.join(cmds) )
+
+                # iSCSI iGroup configuration
+                title, cmds = self.conf.vfiler_igroup_enable_commands(filer, vfiler)
+                if len(cmds) > 0:
+                    cmd_ns['commands'] += """<section>
+                    <title>%s</title>
+                    <screen><?db-font-size 60%% ?>%s</screen>
+                    </section>""" % (title, '\n'.join(cmds) )
+
+                # iSCSI LUN configuration
+                title, cmds = self.conf.vfiler_lun_enable_commands(filer, vfiler)
+                if len(cmds) > 0:
+                    cmd_ns['commands'] += """<section>
+                    <title>%s</title>
+                    <screen><?db-font-size 60%% ?>%s</screen>
+                    </section>""" % (title, '\n'.join(cmds) )
+
+        # Finally, set the vFiler options.
+        # Some options require previous pieces of configuration to exist before they work.
+        # eg: dns.enable on requires /etc/resolv.conf to exist.
+        if not filer.type == 'secondary':
+            cmds = '\n'.join( self.conf.vfiler_set_options_commands(vfiler, ns) )
+            cmd_ns['commands'] += """<section>
+            <title>vFiler Options</title>
+            <screen>%s</screen>
+            </section>""" % cmds
 
         return section.safe_substitute(cmd_ns)

@@ -1,0 +1,681 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is an example project definition file for the Sensis Document Generator.
+     Use this file as a reference for how you might configure a project.
+     It contains examples of how to configure various features of a project,
+     though not all of them will be present in every project.
+
+-->
+
+<!-- The DOCTYPE for the project contains a computer readable Document Type Definition
+     that can be used by programs such as 'xmllint' to verify that your defintion
+     file is well-formed and also a valid file.
+-->
+<!DOCTYPE project SYSTEM "http://docbook.sensis.com.au/sensis-docgen/docgen.dtd">
+
+<!-- All projects contain one, and only one, 'project' tag -->
+<project>
+
+  <!-- A document prefix. This isn't really used at the moment. -->
+  <prefix>Sensis</prefix>
+
+  <!-- The EI PMO project code, assigned by the Project Management Office -->
+  <code>EI1007</code>
+
+  <!-- A short name for the project. This is used for the vfiler name. -->
+  <shortname>wpcams</shortname>
+
+  <!-- A longer, more descriptive name. This is used on the title page of
+       documents, and in the page headers.
+  -->
+  <longname>WPCAMS Database</longname>
+
+  <!-- The background tag contains verbatim DocBook XML markup that is inserted
+       into the Background section of the design document. Use this to insert some
+       explanatory background text about the project, of required.
+  -->
+  <background>
+    <para>The &project.name; environment consists of Solaris servers at Level 5 CoLo.
+    </para>
+
+    <itemizedlist>
+      <listitem>
+	<para>3 x Sun Solaris Servers
+	</para>
+      </listitem>
+
+    </itemizedlist>
+
+  </background>
+
+  <!-- Design revision history -->
+  <revhistory>
+
+    <!-- Every time you modify the design, you should add a revision, to track
+	 who makes changes, a summary of what they were, and when they were made.
+    -->
+    <revision>
+      <majornumber>1</majornumber>
+      <minornumber>0</minornumber>
+      <date>31 July 2007</date>
+      <authorinitials>PoD</authorinitials>
+      <revremark>
+	Initial version by Peter O'Dowd.
+      </revremark>
+    </revision>
+
+    <revision>
+      <majornumber>2</majornumber>
+      <minornumber>0</minornumber>
+      <date>4 October 2007</date>
+      <authorinitials>JPW</authorinitials>
+      <revremark>
+	Addition of extra server and storage for Morph Quality Centre databases.
+      </revremark>
+    </revision>
+
+  </revhistory>
+
+  <!-- Every project host that needs shared storage should be defined here. 
+       The 'name' attribute for the tag is a unique name for the host that
+       can be used elsewhere in the definition to refer specifically to this host.
+  -->
+
+  <host name="primhost01">
+
+    <!-- The platform name. One of 'Sun', or 'Intel' -->
+    <platform>Sun</platform>
+
+    <!-- The operating system. Starts with 'Solaris', 'Windows' or 'Linux' -->
+    <operatingsystem>Solaris 10</operatingsystem>
+
+    <!-- Descriptive text for where the server is located -->
+    <location>CoLo Level 5</location>
+
+    <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
+    <description>Database server</description>
+
+    <!-- The IP address assigned to the host on the IP-SAN. This is usually
+	 assigned by the network team from a network range specifically for
+	 this project, tracked in the solution control spreadsheets.
+    -->
+    <storageip>
+      <ipaddr>10.240.4.232</ipaddr>
+    </storageip>
+
+    <iscsi_initiator>iqn.1986-03.com.sun:01:faf8a8efffff.471c075b</iscsi_initiator>
+
+  </host>
+
+  <!-- Continue to add hosts, one at a time, for every host in the project. -->
+  <host name="primhost02">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>CoLo Level 5</location>
+    <description>Database server</description>
+    <storageip>
+      <ipaddr>10.240.4.233</ipaddr>
+    </storageip>
+
+    <drhost name="drtesthost01"/>
+    <drhost name="drtesthost02"/>
+
+    <iscsi_initiator>iqn.1986-03.com.sun:01:faf8a8efffff.471c077b</iscsi_initiator>
+  </host>
+
+  <host name="primhost03">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>CoLo Level 5</location>
+    <description>Database server</description>
+    <storageip>
+      <ipaddr>10.240.4.234</ipaddr>
+    </storageip>
+
+    <drhost name="drtesthost02"/>
+
+  </host>
+
+  <!-- Some hosts that are purportedly at DR -->
+  <host name="drtesthost01">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>DR Room O</location>
+    <description>Database server</description>
+    <storageip>
+      <ipaddr>10.XXX.123.1</ipaddr>
+    </storageip>
+  </host>
+
+  <host name="drtesthost02">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>DR Room O</location>
+    <description>Database server</description>
+    <storageip>
+      <ipaddr>10.XXX.123.2</ipaddr>
+    </storageip>
+  </host>
+
+  <!-- Databases can be defined to ease the defininion of exports.
+       Define a database by specifying its 'id' and 'type'. The id
+       attribute is the database SID (for Oracle) or equivalent unique
+       name for other databases.
+
+       Each database may exist on one or more hosts, which is defined
+       using the <onhost/> tag. It has one attribute: 'name', which
+       is the unique hostname that the database exists on. This is used
+       to look up the host, defined above.
+       
+       By using this mechanism, you can define all the volumes for a database,
+       and the volumes will be exported rw to all the hosts listed in
+       <onhost/> tags for the database. This will also be combined with the
+       host's <drhost/> tags to automatically export to the appropriate
+       hosts at DR for snapmirrored volumes.
+
+       This will likely be used with automated backup designs in the future.
+  -->
+  <database id="HTPD01" type="Oracle">
+    <onhost name="primhost01"/>
+    <onhost name="primhost02"/>
+  </database>
+
+  <!--
+      The <nas/> section makes up the bulk of the project definition.
+      There is only one per design.
+  -->
+
+  <nas>
+
+    <!-- Every project will have a 'primary' site. This is the site that
+	 the storage is provided from. CoLo or DR could be the primary site
+	 for a project, depending on where the main use of storage is.
+	 The 'secondary' site is always the SnapMirror destination site.
+    -->
+    <site type="primary" location='CoLo'>
+
+      <!-- Every site requires a VLAN for the project, at a minimum.
+	   There can only be one 'project' VLAN.
+	   It has the following attributes:
+	     'type': the type of vlan. 'project' for project VLANs
+	             or 'services' for services VLANs, described below.
+	     'number': the VLAN number, assigned by networks.
+	     'gateway': the IP address for the VRF in the VLAN. This
+	                may not be used, but should always be assigned.
+      -->
+      <vlan type="project" number="3003" network="10.240.4.128/27" gateway="10.240.4.254"/>
+
+      <vlan type="services" number="1003" network="10.10.10.0" netmask="255.255.255.0" gateway="10.10.10.254"/>
+
+      <!-- Now we have the filer definitions. There will need to be 3:
+	   - The 'primary' filer, which is used for providing the storage.
+	   - The 'secondary' filer, which is the cluster partner for the primary.
+	   - The 'nearstore' filer, which is used for backups.
+	   The 'name' parameter is the unique name of the filer device.
+      -->
+      <filer type="primary" name="exip-fashda-01">
+
+	<!-- A vfiler must be defined for the primary.
+	     - If no 'name' attribute is specified, it defaults to the same
+	     as the project shortname. This will be the case for 99% of
+	     designs, and the generator may break if you actually specify a name.
+	     - The 'rootaggr' attribute must be supplied. It defines which
+	     aggregate on the filer will be used for the vfiler root volume.
+	-->
+	<vfiler rootaggr="aggr01">
+
+	  <!-- Each protocol supported by the vfiler should be specified here.
+	       Valid values are: NFS, CIFS, and iSCSI
+	  -->
+	  <protocol>NFS</protocol>
+	  <protocol>iSCSI</protocol>
+
+	  <!--
+	      Each filer must have a primaryip. This is the IP address used to
+	      provide the storage to the hosts.
+	      You will also need to supply the netmask.
+	  -->
+
+	  <primaryip>
+	    <ipaddr>10.240.4.225</ipaddr>
+	    <netmask>255.255.255.224</netmask>
+	  </primaryip>
+
+	  <vlanip vlan="1003">
+	    <ipaddr>10.10.10.14</ipaddr>
+	    <netmask>255.255.255.0</netmask>
+	  </vlanip>
+
+	  <!-- volumes exist within aggregates, so for each aggregate you
+	       want to use, define an aggregate like this.
+	  -->
+
+	  <aggregate name="aggr02">
+
+	    <!-- Inside the aggregate, define volumes in the order you
+		 need them. These are just the primary volumes, as any
+		 volumes that are created as a result of snapvaults or
+		 snapmirrors will be automatically created by the system.
+		 
+		 Volume names are defined automatically, based on the
+		 name of the vfiler and the order of the volumes in this
+		 file. A root volume will always be defined for a EI0267.dbx.IPSAN.storage.commands.txtvfiler
+		 using the 'rootaggr' parameter above.
+		 
+		 Volumes can have a 'type' attribute that will enable
+		 additional processing for special volumes. This is
+		 mostly used for database volumes where there are
+		 standard rules for the snap reserve, qtree names, etc. The
+		 default volume type is an NFS data volume with a single qtree
+		 named 'data'.
+		 
+		 The parameter 'snapreserve' is used to define the snapreserve
+		 amount required for the volume. This is a float value specifying
+		 the percentage snap reserve. It defaults to 20, ie. 20%
+		 
+		 Every volume should contain a subnode <usablestorage/> which
+		 defines the amount of usable storage required. It is combined
+		 with the setting for 'snapreserve' to determine the amount of
+		 raw storage required.
+	    -->
+
+	    <!-- An Oracle quorum volume. Every project with databases
+		 will need one of these. It isn't backed up or mirrored.
+	    -->
+	    <volume type="oracm" snapreserve="0">
+	      <usablestorage>0.02</usablestorage>
+	    </volume>
+
+	    <!--
+		The 'oraconfig' volume is defined second. There is only
+		one of these per Oracle RAC project. It should be backed up.
+	    -->
+	    <volume type="oraconfig">
+	      <usablestorage>5</usablestorage>
+	      <snapvaultsetref name="default_primary"/>
+	    </volume>
+
+	    <!-- The following sequence of volumes define a standard
+		 Oracle database layout with custom usablestorage
+		 amounts for each volume. Each oracle database volume has
+		 a parameter 'oracle' which is set to the name of the
+		 database instance that requires the storage. The name of
+		 the oracle database must be unique within this file.
+		 
+		 Each database volume type makes certain assumptions with
+		 regard to the snap reserve setting, export options and the
+		 required mount options. These can be overridden manually,
+		 if required.
+	    -->
+
+	    <!-- HTPD01 database -->
+	    <volume oracle="HTPD01" type="oradata">
+	      <!-- The 'oradata' volume type is used for the Oracle data area -->
+	      <usablestorage>60</usablestorage>
+
+	      <!-- The 'snapvaultsetref' node is a reference to a snapvaultset
+		   defined elsewhere in the file (usually near the bottom). This
+		   reference says that the snapvaultset referred to should be used
+		   when creating a snapvault for this volume. More information on
+		   snapvaultsets can be found below.
+	      -->
+	      <snapvaultsetref name="HTPD01-data"/>
+
+	      <!-- A 'snapmirrorsetref' is similar to a snapvaultsetref. It refers
+		   to a snapmirrorset definition later in the file, and is used to
+		   define the SnapMirror relationship between the primary volume
+		   and the DR site.
+	      -->
+	      <snapmirrorsetref name="default_sm"/>
+	    </volume>
+
+	    <volume oracle="HTPD01" type="oraindx">
+	      <!-- The 'oraindx' type is for an oracle index volume. -->
+	      <usablestorage>30</usablestorage>
+	      <snapvaultsetref name="HTPD01-data"/>
+	      <snapmirrorsetref name="default_sm"/>
+
+	      <!--
+		  A 'snapvaultmirrorsetref' is a reference to a snapmirror definition
+		  that is used for creating a volume SnapMirror of the snapvault
+		  for the volume that is created by the 'snapvaultsetref'. This is used
+		  to define a remote site copy of the snapvault backups of this volume.
+	      -->
+	      <snapvaultmirrorsetref name="default_svm"/>
+
+	    </volume>
+
+	    <!-- 
+		 This is an example of an Oracle redo logs area with a manual qtree
+		 definition. If you supply manualy qtree definitions, all automatic
+		 qtree definitions will be turned off, so you need to make sure you
+		 specify all of them.
+		 
+		 The text inside the <qtree/> node is used as a description of the
+		 qtree, which is provided in some tables in the design documentation.
+	    -->
+	    <volume oracle="HTPD01" type="oraredo">
+	      <usablestorage>8</usablestorage>
+	      <qtree name="ora_HTPD01_redo01">Oracle redo qtree</qtree>
+	    </volume>
+
+	    <!-- 
+		 An Oracle temp volume, with custom qtree definitions. Normally
+		 the undo qtree is automatically added to the oraredo volume.
+	    -->
+	    <volume oracle="HTPD01" type="oratemp">
+	      <usablestorage>20</usablestorage>
+	      <qtree name="ora_HTPD01_temp01">Oracle temp qtree</qtree>
+	      <qtree name="ora_HTPD01_undo01">Oracle undo qtree</qtree>
+	    </volume>
+
+	    <!-- The Oracle archivelogs volume for the database.
+		 Note that it has a different snapvaultsetref from the data
+		 volume. This allows you to define a different snapvault schedule
+		 so that the data volume snapvault completes before the archivelog
+		 snapvault is done, so that all in flight transactions during
+		 hot backup mode are captured in the archivelog backup.
+	    -->
+	    <volume oracle="HTPD01" type="oraarch">
+	      <usablestorage>20</usablestorage>
+	      <snapvaultsetref name="HTPD01-arch"/>
+	      <snapmirrorsetref name="default_sm"/>
+	    </volume>
+
+	    <!-- This is a standard volume, which will default to being
+		 exported to all hosts via NFS.
+	    -->
+	    <volume>
+	      <usablestorage>50</usablestorage>
+	    </volume>
+
+	    <!-- We might want to restart the automatic volume numbering
+		 for some reason, such as virtualised environments where
+		 we want the 'test' suffixed volume to have the same
+		 number as the production volume.
+		 This can also be used to number a volume arbitrarily, but
+		 have all the other automatic naming details used as normal.
+	    -->
+	    <volume restartnumbering="19">
+	      <usablestorage>50</usablestorage>
+	    </volume>
+
+	    <volume>
+	      <usablestorage>50</usablestorage>
+	    </volume>
+
+
+	  </aggregate>
+
+	  <!-- Here we can define some volumes on a different aggregate from the
+	       first one.
+	  -->
+	  <aggregate name="aggr03">
+
+	    <volume name="wibble">
+	      <!-- This volume is exported to one host, not all of them, which 
+		   is the default.
+	      -->
+	      <export to="primhost01"/>
+	      <export to="primhost03" ro="yes"/>
+
+	      <snapmirrorsetref name="default_sm"/>
+	    </volume>
+
+	    <volume name="iscsi_tester" proto="iscsi">
+	      <lun size="50"/>
+	      <export to="primhost01"/>
+	      <export to="primhost02"/>
+	    </volume>
+
+	    <volume name="cifs_test" proto="cifs">
+	      <usablestorage>100</usablestorage>
+	      <export to="primhost01"/>
+	      <export to="primhost02"/>
+	    </volume>
+
+
+	  </aggregate>
+
+	</vfiler>
+
+      </filer>
+
+      <!-- The secondary filer is the cluster partner of the primary.
+	   Nothing else needs to be defined other than the filer, as
+	   the system assumes everything will match the primary filer.
+      -->
+      <filer type="secondary" name="exip-fashdb-01"/>
+
+      <!-- The nearstore filer is used for the backups from the primary filer.
+	   Very little needs to be defined for the nearstore, as most of the
+	   definitions are contained in the primary volumes and their references
+	   to snapvaultsets.
+      -->
+      <filer type="nearstore" name="exip-fasnst-01">
+
+	<!-- A vFiler with a rootaggr is required, so we know where to create
+	     the root volume. The name of the vFiler will match that of the primary filer.
+	-->
+	<vfiler rootaggr="aggr09">
+
+	  <!-- The NearStore has its own IP address in the project VLAN -->
+	  <primaryip>
+	    <ipaddr>10.240.4.226</ipaddr>
+	    <netmask>255.255.255.224</netmask>
+	  </primaryip>
+
+
+	  <vlanip vlan="1003">
+	    <ipaddr>10.10.10.15</ipaddr>
+	    <netmask>255.255.255.0</netmask>
+	  </vlanip>
+
+
+	</vfiler>
+      </filer>
+
+    </site>
+
+    <!-- DR configuration
+
+	 If you have a DR setup for the project, define it here.
+	 The site type is 'secondary' for the DR site.
+    -->
+
+    <site type="secondary" location='Clayton'>
+
+      <!-- The DR site also has a vlan, and it may have a different vlan number
+	   to the primary site. Its IP network is likely to be different, also,
+	   so you will need to have a different gateway IP address.
+      -->
+      <vlan type="project" number="3113" network="10.241.14.0/27" gateway="10.241.XXX.XXX"/>
+
+      <!-- The filer definitions are done in the same way as the primary site,
+	   The major difference is that you don't need to define any volumes
+	   as a general rule. All the volumes are automatically worked out
+	   as a result of the primary volume definitions and the snapvault/snapmirror
+	   relationships defined for them.
+      -->
+      <filer type="primary" name="clip-fashda-01">
+	<vfiler rootaggr="aggr02">
+	  <primaryip>
+	    <ipaddr>10.241.XXX.XXX</ipaddr>
+	    <netmask>255.255.255.224</netmask>
+	  </primaryip>
+
+	  <aggregate name="aggr09">
+	    <volume>
+	      <usablestorage>75</usablestorage>
+	      <qtree name="demo_qtree_01">This is a demo qtree at the DR site</qtree>
+	      <qtree name="demo_qtree_02">So is this one.</qtree>
+
+	      <export to='drtesthost01'/>
+	    </volume>
+	  </aggregate>
+
+	</vfiler>
+
+      </filer>
+
+      <filer type="secondary" name="clip-fashdb-01"/>
+
+      <filer type="nearstore" name="clip-fasnst-01">
+	<vfiler rootaggr="aggr09">
+	  <primaryip>
+	    <ipaddr>10.241.XXX.XXX</ipaddr>
+	    <netmask>255.255.255.224</netmask>
+	  </primaryip>
+	</vfiler>
+      </filer>
+
+    </site>
+  </nas>
+
+  <!--
+      The SnapVault and SnapMirror definitions are put here. These define
+      how the backups and DR copies are actually done. The volumes you defined
+      above refer to these 'snapvaultset' and 'snapmirrorset' nodes by
+      referring to their 'id' attribute.
+  -->
+
+  <!-- default snapvaults -->
+  <!-- You will need to define 1 snapvaultset as a minimum, with the id 'default_primary'.
+       This is the snapvaultset used to back up the root volume on the primary filer.
+       You can use the same snapvaultset to back up data volumes as well, if you wish.
+  -->
+
+  <!-- 
+       A snapvaultset has 3 attributes:
+       - id: a unique identifier for the snapvaultset, used when referring to it from a
+             volume definition, via the snapvaultsetref parameter.
+       - targetfiler: This is the target filer the snapvault should copy data to. This
+                      should always be the NearStore at the same site as the volume
+		      being snapvaulted.
+       - targetaggr: This is the aggregate on the target NearStore that the snapvaulted
+                     volumes should be created in. You may wish to use a different
+		     aggregate on the NearStore than the one you use on the primary filer,
+		     usually because the NearStore has a lot more aggregates than the
+		     primary. You can also make different volumes on the primary get
+		     snapvaulted to different aggregates. This is particularly useful
+		     for large volumes, such as large databases, where you might want to
+		     snapvault the data volume to aggr03, but put the indexes on aggr04, 
+		     for example.
+       A snapvaultset has one type of child node: <snapvault/>. You can have multiple
+       <snapvault/> nodes, defining different snapvault schedules. You will generally
+       have 2: sv_daily and sv_weekly.
+       The <snapvault/> node has 2 children: <snapschedule/> and <snapvaultschedule/>.
+       They are both snapvault schedule definitions. The <snapschedule/> defines the
+       schedule for the baseline snapshot on the primary filer, and the <snapvaultschedule/>
+       defines the transfer schedule on the NearStore, defining when the data is actually
+       snapvaulted from the primary to the NearStore.
+       The schedule is of the form: number@days_of_the_week@hour
+       Make sure the snapvaultschedule happens after the snapschedule, so that the data
+       changes are snapshotted on the primary before the transfer is attempted.
+  -->
+
+  <!-- primary site -->
+  <snapvaultset id="default_primary" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@mon-sat@1</snapschedule>
+      <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapschedule>1@sun@1</snapschedule>
+      <snapvaultschedule>13@sun@2</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <!-- DR site -->
+  <!-- The 'default_secondary' snapvaultset is used by the secondary site for the
+       backup snapvaults of the priamry filer at the secondary site. Note how the
+       targetfiler is the NearStore at the same site as the DR primary.
+  -->
+  <snapvaultset id="default_secondary" targetfiler="clip-fasnst-01" targetaggregate="aggr02">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@mon-sat@1</snapschedule>
+      <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapschedule>1@sun@1</snapschedule>
+      <snapvaultschedule>13@sun@2</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+
+  <!-- backup snapshots for HTPD01 -->
+  <!-- Here we have some example database snapshots. In order to correctly back up
+       an Oracle database, the data must be snapshotted before the archivelogs
+       are snapshotted. This has to do with the way hotbackup mode works with
+       archivelogs.
+       In general, the <snapschedule/> for the data snapvaults should be an hour
+       before the one used for the archivelogs.
+  -->
+  <snapvaultset id="HTPD01-data" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@mon-sat@1</snapschedule>
+      <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapschedule>1@sun@1</snapschedule>
+      <snapvaultschedule>13@sun@2</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <!-- This is the corresponding archivelog snapvaultset for the data snapvaultset above -->
+  <snapvaultset id="HTPD01-arch" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@mon-sat@2</snapschedule>
+      <snapvaultschedule>8@mon-sat@3</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapschedule>1@sun@2</snapschedule>
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <!--
+      SnapMirrors
+      
+      SnapMirrors are a bit different to SnapVaults, though the underlying technology is
+      very similar. They are defined on the filer by establishing a relationship in a
+      very similar way to SnapVaults, which is why the attributes for the <snapmirrorset/>
+      are the same as for SnapVaults. SnapMirrors use a configuration file on the filer,
+      /etc/snapmirror.conf, to provide the schedules for the snapmirrors on the filer.
+      
+      The <snapmirror/> child node is used to define these schedules. There should only be one
+      <snapmirror/> child node for each <snapmirrorset/>, except in unique circumstances.
+      The <snapmirror/> node has 4 parameters:
+      - minute: the minute(s) of the hour to perform the snapmirror
+      - hour: the hour(s) to perform the snapmirror
+      - dayofmonth: The day(s) of the month to perform the snapmirror
+      - dayofweek: The day(s) of the week to perform the snapmirror.
+      
+      If any of the parameters are omitted, it will default to '*', ie: all/any
+
+  -->
+
+  <!-- snapmirrors -->
+  <snapmirrorset id="default_sm" targetfiler="clip-fashda-01" targetaggregate="aggr02">
+    <snapmirror>
+      <minute>0</minute>
+      <hour>6</hour>
+      <dayofmonth>*</dayofmonth>
+      <dayofweek>*</dayofweek>
+    </snapmirror>
+  </snapmirrorset>
+
+  <!-- snapvault snapmirrors -->
+  <!-- SnapVault snapmirrors are defined the same as regular snapmirrors.
+       It is the way they are referenced by a volume that alters the way they
+       are set up.
+  -->
+  <snapmirrorset id="default_svm" targetfiler="clip-fasnst-01" targetaggregate="aggr02">
+    <snapmirror>
+      <minute>0</minute>
+      <hour>6</hour>
+      <dayofmonth>*</dayofmonth>
+      <dayofweek>*</dayofweek>
+    </snapmirror>
+  </snapmirrorset>
+
+</project>
