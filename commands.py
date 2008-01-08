@@ -94,21 +94,19 @@ class IPSANCommandsGenerator(CommandGenerator):
             commands.extend( self.conf.filer_vol_create_commands(filer) )
 
         #
-        # Only create qtrees on primary filers
+        # Only create qtrees on primary filers at primary site
         #
-        if filer.type == 'primary':
-            cmds = self.conf.filer_qtree_create_commands(filer)
-            if len(cmds) > 0:
-                commands.append( "\n# Qtree Creation\n" )
-                commands.extend( cmds )
+        if filer.site == 'primary' and filer.type == 'primary':
+            commands.append( "\n# Qtree Creation\n" )
+            commands.extend( self.conf.filer_qtree_create_commands(filer) )
 
         # Create the vfiler VLAN
         commands.append("\n# VLAN Creation\n")
-        commands.extend( self.conf.vlan_create_commands(filer, vfiler) )
+        commands.extend( self.conf.vlan_create_commands(filer) )
 
         # Create the vfiler IPspace
         commands.append("\n# IP Space Creation\n")
-        commands.extend( self.conf.ipspace_create_commands(filer, vfiler) )
+        commands.extend( self.conf.ipspace_create_commands(filer, ns) )
 
         # Only create the vfiler on primary and nearstore filers
         if filer.type in [ 'primary', 'nearstore' ]:
@@ -140,9 +138,13 @@ class IPSANCommandsGenerator(CommandGenerator):
             commands.append("\n# Allowed Protocols\n")
             commands.extend( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
 
+        if not filer.type == 'secondary':
+            commands.append("\n# vFiler Options\n")
+            commands.extend( self.conf.vfiler_set_options_commands(vfiler, ns) )
+
         # Careful! Quotas file is the verbatim file contents, not a list!
         # Quotas are only used on primary filers
-        if filer.type in ['primary', 'nearstore']:
+        if filer.type in ['primary', 'nearstore'] and filer.site == 'primary':
             commands.append("\n# Quota File Contents\n")
             commands.extend( self.conf.vfiler_quotas_add_commands(filer, vfiler, ns) )
 
@@ -174,19 +176,14 @@ class IPSANCommandsGenerator(CommandGenerator):
                 commands.append("\n# SnapMirror Initialisation")
                 commands.extend( self.conf.filer_snapmirror_init_commands(filer) )
 
-        # Add default route
-        if filer.type in ['primary', 'nearstore']:
-            title, cmds = self.conf.default_route_command(filer, vfiler)
-            commands.append("\n# %s\n" % title)
-            commands.extend(cmds)
-
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
             services_vlans = self.conf.get_services_vlans(filer.site)
             if len(services_vlans) > 0:
-                cmds = self.conf.services_vlan_route_commands(vfiler)
+                cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
                 commands.append("\n# VLAN routes\n")
                 commands.extend(cmds)
+
                 pass
             pass
 
@@ -235,46 +232,6 @@ class IPSANCommandsGenerator(CommandGenerator):
 
                 commands.append("\n# CIFS DNS Configuration\n")
                 commands.extend( self.conf.vfiler_cifs_dns_commands(vfiler) )
-
-            # Set up CIFS in the vFiler
-            if filer.type in [ 'primary', 'nearstore']:
-                commands.append("\n# Set up CIFS")
-                commands.extend( ['vfiler run %s cifs setup' % vfiler.name] )
-
-            # Set up CIFS shares
-            if filer.type in [ 'primary', ]:
-                commands.append("\n# CIFS Share Configuration")
-                commands.extend( self.conf.vfiler_cifs_shares_commands(vfiler) )
-
-        #
-        # iSCSI commands
-        #
-        if 'iscsi' in self.conf.allowed_protocols:
-            if filer.type in [ 'primary', ]:
-
-                # iSCSI CHAP configuration
-                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler)
-                commands.append("\n# %s" % title)
-                commands.extend(cmds)
-
-                # iSCSI iGroup configuration
-                title, cmds = self.conf.vfiler_igroup_enable_commands(filer, vfiler)
-                if len(cmds) > 0:
-                    commands.append("\n# %s" % title)
-                    commands.extend(cmds)
-
-                # iSCSI LUN configuration
-                title, cmds = self.conf.vfiler_lun_enable_commands(filer, vfiler)
-                if len(cmds) > 0:
-                    commands.append("\n# %s" % title)
-                    commands.extend(cmds)
-
-        # Finally, set the vFiler options.
-        # Some options require previous pieces of configuration to exist before they work.
-        # eg: dns.enable on requires /etc/resolv.conf to exist.
-        if not filer.type == 'secondary':
-            commands.append("\n# vFiler Options\n")
-            commands.extend( self.conf.vfiler_set_options_commands(vfiler, ns) )
 
         return commands
     

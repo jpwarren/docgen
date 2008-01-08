@@ -80,81 +80,6 @@
        can be used elsewhere in the definition to refer specifically to this host.
   -->
 
-  <host name="primhost01">
-
-    <!-- The platform name. One of 'Sun', or 'Intel' -->
-    <platform>Sun</platform>
-
-    <!-- The operating system. Starts with 'Solaris', 'Windows' or 'Linux' -->
-    <operatingsystem>Solaris 10</operatingsystem>
-
-    <!-- Descriptive text for where the server is located -->
-    <location>CoLo Level 5</location>
-
-    <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
-    <description>Database server</description>
-
-    <!-- The IP address assigned to the host on the IP-SAN. This is usually
-	 assigned by the network team from a network range specifically for
-	 this project, tracked in the solution control spreadsheets.
-    -->
-    <storageip>
-      <ipaddr>10.240.4.232</ipaddr>
-    </storageip>
-
-    <iscsi_initiator>iqn.1986-03.com.sun:01:faf8a8efffff.471c075b</iscsi_initiator>
-
-  </host>
-
-  <!-- Continue to add hosts, one at a time, for every host in the project. -->
-  <host name="primhost02">
-    <platform>Sun</platform>
-    <operatingsystem>Solaris 10</operatingsystem>
-    <location>CoLo Level 5</location>
-    <description>Database server</description>
-    <storageip>
-      <ipaddr>10.240.4.233</ipaddr>
-    </storageip>
-
-    <drhost name="drtesthost01"/>
-    <drhost name="drtesthost02"/>
-
-    <iscsi_initiator>iqn.1986-03.com.sun:01:faf8a8efffff.471c077b</iscsi_initiator>
-  </host>
-
-  <host name="primhost03">
-    <platform>Sun</platform>
-    <operatingsystem>Solaris 10</operatingsystem>
-    <location>CoLo Level 5</location>
-    <description>Database server</description>
-    <storageip>
-      <ipaddr>10.240.4.234</ipaddr>
-    </storageip>
-
-    <drhost name="drtesthost02"/>
-
-  </host>
-
-  <!-- Some hosts that are purportedly at DR -->
-  <host name="drtesthost01">
-    <platform>Sun</platform>
-    <operatingsystem>Solaris 10</operatingsystem>
-    <location>DR Room O</location>
-    <description>Database server</description>
-    <storageip>
-      <ipaddr>10.XXX.123.1</ipaddr>
-    </storageip>
-  </host>
-
-  <host name="drtesthost02">
-    <platform>Sun</platform>
-    <operatingsystem>Solaris 10</operatingsystem>
-    <location>DR Room O</location>
-    <description>Database server</description>
-    <storageip>
-      <ipaddr>10.XXX.123.2</ipaddr>
-    </storageip>
-  </host>
 
   <!-- Databases can be defined to ease the defininion of exports.
        Define a database by specifying its 'id' and 'type'. The id
@@ -184,14 +109,85 @@
       There is only one per design.
   -->
 
-  <nas>
-
     <!-- Every project will have a 'primary' site. This is the site that
 	 the storage is provided from. CoLo or DR could be the primary site
 	 for a project, depending on where the main use of storage is.
 	 The 'secondary' site is always the SnapMirror destination site.
     -->
-    <site type="primary" location='CoLo'>
+    <site type="primary">
+
+  <host name="primhost01">
+
+    <!-- The platform name. One of 'Sun', or 'Intel' -->
+    <platform>Sun</platform>
+
+    <!-- The operating system. Starts with 'Solaris', 'Windows' or 'Linux' -->
+    <operatingsystem>Solaris 10</operatingsystem>
+
+    <!-- Descriptive text for where the server is located -->
+    <location>CoLo Level 5</location>
+
+    <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
+    <description>Database server</description>
+
+    <!-- The IP address assigned to the host on the IP-SAN. This is usually
+	 assigned by the network team from a network range specifically for
+	 this project, tracked in the solution control spreadsheets.
+    -->
+
+    <interface type='storage' mode='active'>
+      <switchname>exip-swtedg-0103</switchname>
+      <switchport>GigabitEthernet1/1</switchport>
+      <hostport>PCI 0</hostport>
+      <ipaddr>10.240.4.232</ipaddr>
+    </interface>
+
+    <interface type='storage' mode='passive'>
+      <switchname>exip-swtedg-0104</switchname>
+      <switchport>GigabitEthernet1/1</switchport>
+      <hostport>PCI 1</hostport>
+    </interface>
+
+  </host>
+
+  <!-- Continue to add hosts, one at a time, for every host in the project. -->
+  <host name="primhost02">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>CoLo Level 5</location>
+    <description>Database server</description>
+
+    <interface type='storage' mode='active'>
+      <switchname>exip-swtedg-0103</switchname>
+      <switchport>GigabitEthernet1/2</switchport>
+      <hostport>PCI 0</hostport>
+      <ipaddr>10.240.4.234</ipaddr>
+    </interface>
+
+
+    <drhost name="drtesthost01"/>
+    <drhost name="drtesthost02"/>
+
+  </host>
+
+  <host name="primhost03">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>CoLo Level 5</location>
+    <description>Database server</description>
+
+    <interface type='storage' mode='active'>
+      <switchname>exip-swtedg-0103</switchname>
+      <switchport>GigabitEthernet1/3</switchport>
+      <hostport>PCI 0</hostport>
+      <ipaddr>10.240.4.235</ipaddr>
+    </interface>
+
+    <drhost name="drtesthost02"/>
+
+  </host>
+
+
 
       <!-- Every site requires a VLAN for the project, at a minimum.
 	   There can only be one 'project' VLAN.
@@ -202,9 +198,11 @@
 	     'gateway': the IP address for the VRF in the VLAN. This
 	                may not be used, but should always be assigned.
       -->
-      <vlan type="project" number="3003" network="10.240.4.128/27" gateway="10.240.4.254"/>
+      <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
 
-      <vlan type="services" number="1003" network="10.10.10.0" netmask="255.255.255.0" gateway="10.10.10.254"/>
+      <vlan type="services" number="3544" network="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
+
+      <vlan type="services" number="3189" network="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
 
       <!-- Now we have the filer definitions. There will need to be 3:
 	   - The 'primary' filer, which is used for providing the storage.
@@ -227,8 +225,7 @@
 	       Valid values are: NFS, CIFS, and iSCSI
 	  -->
 	  <protocol>NFS</protocol>
-	  <protocol>iSCSI</protocol>
-
+EI0267.dbx.IPSAN.storage.commands.txt
 	  <!--
 	      Each filer must have a primaryip. This is the IP address used to
 	      provide the storage to the hosts.
@@ -239,11 +236,6 @@
 	    <ipaddr>10.240.4.225</ipaddr>
 	    <netmask>255.255.255.224</netmask>
 	  </primaryip>
-
-	  <vlanip vlan="1003">
-	    <ipaddr>10.10.10.14</ipaddr>
-	    <netmask>255.255.255.0</netmask>
-	  </vlanip>
 
 	  <!-- volumes exist within aggregates, so for each aggregate you
 	       want to use, define an aggregate like this.
@@ -421,19 +413,6 @@
 	      <snapmirrorsetref name="default_sm"/>
 	    </volume>
 
-	    <volume name="iscsi_tester" proto="iscsi">
-	      <lun size="50"/>
-	      <export to="primhost01"/>
-	      <export to="primhost02"/>
-	    </volume>
-
-	    <volume name="cifs_test" proto="cifs">
-	      <usablestorage>100</usablestorage>
-	      <export to="primhost01"/>
-	      <export to="primhost02"/>
-	    </volume>
-
-
 	  </aggregate>
 
 	</vfiler>
@@ -463,14 +442,6 @@
 	    <ipaddr>10.240.4.226</ipaddr>
 	    <netmask>255.255.255.224</netmask>
 	  </primaryip>
-
-
-	  <vlanip vlan="1003">
-	    <ipaddr>10.10.10.15</ipaddr>
-	    <netmask>255.255.255.0</netmask>
-	  </vlanip>
-
-
 	</vfiler>
       </filer>
 
@@ -482,13 +453,45 @@
 	 The site type is 'secondary' for the DR site.
     -->
 
-    <site type="secondary" location='Clayton'>
+    <site type="secondary">
+
+  <!-- Some hosts that are purportedly at DR -->
+  <host name="drtesthost01">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>DR Room O</location>
+    <description>Database server</description>
+
+    <interface type='storage' mode='active'>
+      <switchname>clip-swtedg-ro01</switchname>
+      <switchport>GigabitEthernet1/6</switchport>
+      <hostport>PCI 0</hostport>
+      <ipaddr>10.XXX.123.1</ipaddr>
+    </interface>
+
+  </host>
+
+  <host name="drtesthost02">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>DR Room O</location>
+    <description>Database server</description>
+
+    <interface type='storage' mode='active'>
+      <switchname>clip-swtedg-ro01</switchname>
+      <switchport>GigabitEthernet1/2</switchport>
+      <hostport>PCI 0</hostport>
+      <ipaddr>10.XXX.123.2</ipaddr>
+    </interface>
+
+  </host>
+
 
       <!-- The DR site also has a vlan, and it may have a different vlan number
 	   to the primary site. Its IP network is likely to be different, also,
 	   so you will need to have a different gateway IP address.
       -->
-      <vlan type="project" number="3113" network="10.241.14.0/27" gateway="10.241.XXX.XXX"/>
+      <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
 
       <!-- The filer definitions are done in the same way as the primary site,
 	   The major difference is that you don't need to define any volumes
@@ -499,20 +502,9 @@
       <filer type="primary" name="clip-fashda-01">
 	<vfiler rootaggr="aggr02">
 	  <primaryip>
-	    <ipaddr>10.241.XXX.XXX</ipaddr>
+	    <ipaddr>10.241.XXX.1</ipaddr>
 	    <netmask>255.255.255.224</netmask>
 	  </primaryip>
-
-	  <aggregate name="aggr09">
-	    <volume>
-	      <usablestorage>75</usablestorage>
-	      <qtree name="demo_qtree_01">This is a demo qtree at the DR site</qtree>
-	      <qtree name="demo_qtree_02">So is this one.</qtree>
-
-	      <export to='drtesthost01'/>
-	    </volume>
-	  </aggregate>
-
 	</vfiler>
 
       </filer>
@@ -529,7 +521,6 @@
       </filer>
 
     </site>
-  </nas>
 
   <!--
       The SnapVault and SnapMirror definitions are put here. These define
