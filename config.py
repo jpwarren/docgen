@@ -127,10 +127,11 @@ class Site:
     """
     A site contains Filers, VLANS, etc.
     """
-    def __init__(self, type):
+    def __init__(self, type, location):
 
         self.type = type
-
+        self.type = location
+        
         # Filers, keyed by unique name
         self.filers = {}
 
@@ -393,10 +394,10 @@ class Vlan:
 
         self.node = node
 
-        log.debug("Create vlan: %s", self)
+        log.debug("Created vlan: %s", self)
 
     def __repr__(self):
-        return '<Vlan: %s, %s/%s>' % (number, site, type)
+        return '<Vlan: %s, %s/%s>' % (self.number, self.site, self.type)
 
 class iGroup:
     """
@@ -540,6 +541,7 @@ class ProjectConfig:
 
         self.sites = self.load_sites()
 
+        self.interfaces = []
         self.hosts = self.load_hosts()
 
         # Perform some sanity checking on the hosts
@@ -621,6 +623,20 @@ class ProjectConfig:
         """
         Load site specific configuration information
         """
+        sites = []
+        site_nodes = self.tree.xpath('site')
+        for node in site_nodes:
+            site_type = node.attrib['type']
+            try:
+                site_loc = node.attrib['location']
+            except KeyError:
+                log.warn('Site location not set!')
+                site_loc = 'Not defined.'
+            sites.append(Site(site_type, site_loc))
+            pass
+        return sites
+
+
 
     def load_hosts(self):
         """
@@ -628,6 +644,11 @@ class ProjectConfig:
         """
         hosts = {}
         hostnodes = self.tree.xpath('site/host')
+        if len(hostnodes) == 0:
+            if len(self.tree.findall('host')) > 0:
+                log.error("Hosts need to be defined within a <site/>.")
+            raise ValueError("No project hosts are defined.")
+
         for node in hostnodes:
 
             # find some mandatory attributes
@@ -660,6 +681,7 @@ class ProjectConfig:
             # Load host interfaces
             ifaces = []
             interface_nodes = node.findall('interface')
+            log.debug("found host interfaces: %s", interface_nodes)
             for ifnode in interface_nodes:
                 switchname = ifnode.find('switchname').text
                 switchport = ifnode.find('switchport').text
@@ -690,10 +712,21 @@ class ProjectConfig:
                     for coreswitch in switch.connected_switches:
                         if coreswitch not in self.project_switches:
                             self.project_switches[coreswitch] = self.known_switches[coreswitch]
+                            pass
+                        pass
+                    pass
+
+                # Sanity check the interface parameters. The combination of switchname+switchport should
+                # only occur once.
+                for iface in self.interfaces:
+                    log.debug("checking interface: %s", iface)
+                    if iface.switchname == switchname and iface.switchport == switchport:
+                        raise ValueError("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
                 
                 iface = Interface(type, mode, switchname, switchport, hostport, ipaddr)
                 ifaces.append(iface)
-        
+                self.interfaces.append(iface)
+                
             hosts[hostname] = Host(hostname, platform=host_attribs['platform'],
                                    os=host_attribs['operatingsystem'],
                                    site=site,
@@ -718,8 +751,8 @@ class ProjectConfig:
                         raise ValueError("Host '%s' is using the same switchport as another host in the project." % host.name)
 
                     # Check that IP addresses aren't duplicated
-                    if host_iface.ipaddress == known_iface.ipaddress:
-                        raise ValueError("Host '%s' is using the same IP address as another host in the project." % host.name)
+                    if host_iface.ipaddress is not None and host_iface.ipaddress == known_iface.ipaddress:
+                        raise ValueError("Host '%s' is using the same IP address '%s' as another host in the project." % (host.name, host_iface.ipaddress) )
                     pass
                 pass
 
@@ -2197,12 +2230,12 @@ class ProjectConfig:
             for qtree in vol.qtrees:
                 log.debug("Determining CIFS config commands for %s", qtree)
                 cmds.append("vfiler run %s cifs shares -add %s %s" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
-                cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
+                #cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
 
-                for host in qtree.rwhostlist:
-                    cmds.append("vfiler run %s cifs access %s CORP\%s Full Control" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
-                for host in qtree.rohostlist:
-                    cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
+##                 for host in qtree.rwhostlist:
+##                     cmds.append("vfiler run %s cifs access %s CORP\%s Full Control" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
+##                 for host in qtree.rohostlist:
+##                     cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
 
         return cmds
     
@@ -2461,6 +2494,17 @@ class ProjectConfig:
         cmdset = []
 
         cmdset.extend( self.switch_vlan_activation_commands(switch))
+
+        # If services VLANs exist, add them to the core
+        # These aren't added on edges, which is why the commands go here,
+        # and not in switch_vlan_activation_commands()
+        log.warn("Services vlans are only detected at the primary site for now.")
+        vlans = self.get_services_vlans()
+        if len(vlans) > 0:
+            cmdset.append('! Services VLANs')
+            for i, vlan in enumerate(vlans):
+                cmdset.append('Vlan %s' % vlan.number)
+                cmdset.append('  name %s_scv_%02d' % (self.shortname, i+1) )
 
         return cmdset
 

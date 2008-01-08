@@ -315,9 +315,6 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         ns['project_subnet'] = '%s/%s' % (primary_project_vlan.network, primary_project_vlan.maskbits)
         ns['primary_vlan_name'] = '%s_01' % self.conf.shortname
 
-        # FIXME: If the primary storage site is Clayton, this will
-        # need to be updated somehow.
-        log.warn("Edge balance algorithm is CoLo only at this stage.")
         if int(self.conf.primary_project_vlan) < 3500:
             
             ns['core_switch_balance_side'] = 'left (Core 01)'
@@ -397,7 +394,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
               the required host ports.
               </para>
 
-              <para>IPSAN switch port are clearly labelled on the edge switch devices.
+              <para>IPSAN switch ports are clearly labelled on the edge switch devices.
               </para>
 
             </warning>
@@ -432,13 +429,16 @@ to provide IP connectivity between the project hosts and the storage infrastruct
                 rows += "<row>%s</row>\n" % entries
                 pass
             pass
-                
-        ns['edge_table_body_rows'] = rows
 
-        ns['edge_networking_table'] = edge_networking_table.safe_substitute(ns)
+        log.debug("rows: %s", rows)
+        if len(rows) < 1:
+            log.error("No hosts have storage interfaces.")
+            ns['edge_networking_table'] = ''
+        else:
+            ns['edge_table_body_rows'] = rows
+            ns['edge_networking_table'] = edge_networking_table.safe_substitute(ns)
 
         return section.safe_substitute(ns)
-
 
     def build_activation_section(self, ns):
         log.debug("Adding activation instructions...")
@@ -463,6 +463,11 @@ to provide IP connectivity between the project hosts and the storage infrastruct
             log.debug("Adding edge switch activation commands for %s...", switch.name)
             activation_commands += self.build_switch_activation_commands(switch)
             pass
+
+        if len(self.conf.get_services_vlans()) > 0:
+            log.info("Services VLANs are defined.")
+
+            activation_commands += self.build_firewall_activation_commands()
 
         log.debug("activation commands: %s", activation_commands)
         return activation_commands
@@ -552,7 +557,37 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         ns['cmds'] = '\n'.join( self.conf.edge_switch_interfaces_commands(switch) )
 
         return section.safe_substitute(ns)
+
+    def build_firewall_activation_commands(self):
+        """
+        When services VLANs are defined, the firewalls will need to have
+        the services VLANs added to them.
+        """
+        ns = {}
+        section = Template("""<appendix><title>Firewall Activation Commmands</title>
+        $sections
+        </appendix>
+        """)
+        ns['sections'] = ''
+
+        subinterface_section = Template("""<section>
+        <title>Configure Firewall Sub-Interface</title>
+        $subinterface_commands
+        </section>
+        """)
+
+        ns['subinterface_commands'] = "<screen>%s</screen>" % '\n'.join( self.build_firewall_subinterface_commands() )
+
+        ns['sections'] += subinterface_section.safe_substitute(ns)
         
+        return section.safe_substitute(ns)
+
+    def build_firewall_subinterface_commands(self):
+        cmds = []
+        for vlan in self.conf.get_services_vlans():
+            cmds.append('set interface "ethernet0/3.2" tag %s zone "services"' % vlan.number)
+            cmds.append('set interface "ethernet0/3.2" tag %s zone "services"' % vlan.number)
+            
     def build_filer_activation_commands(self, filer, vfiler, ns):
         """
         Build the various command sections for a specific filer.
