@@ -8,6 +8,7 @@ import sys
 import os
 import socket
 import struct
+import csv
 from warnings import warn
 
 from lxml import etree
@@ -17,6 +18,8 @@ from lxml import etree
 
 import logging
 import debug
+
+_configdir = '/usr/local/docgen'
 
 log = logging.getLogger('docgen')
 
@@ -31,33 +34,6 @@ FILER_TYPES = [
     'dr_nearstore',
     ]
 
-def ip_within_network(ipaddr, baseip, netmask=None):
-    """
-    Check to see if an IP address is within a network defined
-    by a base IP address and the netmask provided.
-    """
-    if netmask is None:
-        # If no netmask is provided, the baseip is in / notation,
-        # providing both the base ip address and the netmask as
-        # the number of bits.
-        baseip, bits = baseip.split('/')
-        maskint = (2**32-1) - (2**(32-int(bits))-1)
-        netmask = socket.inet_ntoa(struct.pack('>I', maskint))
-        pass
-
-    maskint = struct.unpack( '>I', socket.inet_aton(netmask) )[0]
-    ipint = struct.unpack( '>I', socket.inet_aton(ipaddr) )[0]
-
-    masked_int = ipint & maskint
-    log.debug("checking masked_int: %s", masked_int)
-
-    baseint = struct.unpack( '>I', socket.inet_aton(baseip) )[0]
-    log.debug("checking baseint: %s", baseint)
-
-    if masked_int == baseint:
-        return True
-    
-    
 class Revision:
     """
     A Revision is a particular revision of a document. A single
@@ -76,13 +52,12 @@ class Host:
     """
     A host definition
     """
-    def __init__(self, name, platform, os, location, storageip, description='', drhosts=[], iscsi_initiator=None):
+    def __init__(self, name, platform, os, site, location, description='', drhosts=[], interfaces=[], filesystems=[]):
 
         self.name = name
         self.platform = platform
         self.os = os
         self.location = location
-        self.storageip = storageip
         self.description = description
 
         # drhosts is a reference to other hosts that will take on
@@ -91,15 +66,27 @@ class Host:
         # DR targetvol of the snapmirrors for this host's volumes.
         self.drhosts = drhosts
 
-        self.iscsi_initiator = iscsi_initiator
-
-        self.filesystems = []
-        self.interfaces = []
-
+        self.interfaces = interfaces
+        self.filesystems = filesystems
+        
         log.debug("Created host: %s", self)
 
     def __str__(self):
-        return "%s [%s] (%s, %s)" % (self.name, self.storageip, self.os, self.location)
+        return "%s (%s, %s)" % (self.name, self.os, self.location)
+
+    def get_storage_ip(self):
+        """
+        Find the IP address of the active storage interface.
+        """
+        #log.debug("Interfaces on %s: %s", self.name, self.interfaces)
+        # Find the first 'storage' type interface that is 'active'
+        ifacelist = [ x for x in self.interfaces if x.type == 'storage' and x.mode == 'active' ]
+
+        try:
+            return ifacelist[0].ipaddress
+        except IndexError:
+            log.error("Host '%s' has no interfaces defined.", self.name)
+            raise
 
 class Filesystem:
 
@@ -108,26 +95,41 @@ class Filesystem:
         self.type = type
         self.name = name
 
+class Switch:
+
+    def __init__(self, name, type, site, location, connected_switches=[]):
+
+        self.name = name
+        if type not in ['core', 'edge']:
+            raise ValueError("Switch '%s' has unknown type '%s'" % (name, type))
+        self.type = type
+        self.site = site
+        self.location = location
+
+        self.connected_switches = connected_switches
+
 class Interface:
 
-    def __init__(self, switchname, switchport, vlan, ipaddress):
+    def __init__(self, type, mode, switchname, switchport, hostport=None, ipaddress=None):
 
+        self.type = type
+        self.mode = mode
         self.switchname = switchname
         self.switchport = switchport
-        self.vlan = vlan
+        #self.vlan = vlan
+        self.hostport = hostport
         self.ipaddress = ipaddress
 
     def __repr__(self):
-        return '<Interface %s:%s (vlan %s) %s>' % (self.switchname, self.switchport, self.vlan, self.ipaddress)
+        return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
 
 class Site:
     """
     A site contains Filers, VLANS, etc.
     """
-    def __init__(self, type, location):
+    def __init__(self, type):
 
         self.type = type
-        self.location = location
 
         # Filers, keyed by unique name
         self.filers = {}
@@ -192,45 +194,21 @@ class VFiler:
         self.gateway = gateway
         self.volumes = []
 
-        #
-        # CIFS related configuration stuff
-        #
+        self.nameservers = [ '161.117.245.73',
+                             '161.117.218.175',
+                             ]
 
-        # We will need at least one additional 'services' VLAN
-        # This will have a separate interface, IP address and gateway route
-        # The format of each entry in the list is a tuple:
-        # (vlan, ipaddress)
-        self.services_ips = []
-        
-        # Nameservers are dependent on which site we're at.
-        # Pending the implementation of the <site/> element,
-        # we use string comparisons of filer prefixes, which are
-        # known to refer to certain sites.
-        if self.filer.name.startswith('exip'):
-            self.nameservers = [ '161.117.218.175',
-                                 '161.117.245.73',
-                                 ]
-
-            self.winsservers = [ '161.117.218.175',
-                                 '161.117.245.73',
-                                 ]
-
-        elif self.filer.name.startswith('clip'):
-            self.nameservers = [ '161.117.245.73',
-                                 '161.117.218.175',
-                                 ]
-
-            self.winsservers = [ '161.117.245.73',
-                                 '161.117.218.175',
-                                 ]
-            pass
+        self.winsservers = [ '161.117.245.73',
+                             '161.117.218.175',
+                             ]
 
         self.dns_domain_name = 'corp.org.local'
         self.ad_account_location = "OU=Storage,OU=PRD,OU=Server,DC=corp,DC=org,DC=local"
 
         self.netbios_aliases = []
 
-        filer.vfilers[name] = self
+        vfiler_key = '%s:%s' % (filer.name, name)
+        filer.vfilers[vfiler_key] = self
 
     def as_string(self):
         """
@@ -244,39 +222,14 @@ class VFiler:
         """
         Return my NetBIOS name
         """
-        return '%s-%s' % (self.filer.name, self.name)
+        return self.name.upper()
 
     def fqdn(self):
         """
         Return my fully qualified domain name.
         """
 
-        return '%s.%s' % ( self.netbios_name(), self.dns_domain_name )
-
-    def add_service_ip(self, vlan, ipaddress):
-        self.services_ips.append( (vlan, ipaddress) )
-    pass
-
-def get_create_size(size):
-    """
-    Utility function
-    Get the raw size in a format acceptable to the vol or lun create command,
-    ie: integer amounts, and the appropriate scale (0.02g == 20m)
-    """
-    # Figure out if the raw volume size is fractional.
-    # NetApps won't accept fractional numbers for the vol create command,
-    # so we convert it from the default gigabytes to megabytes.
-    if 0 < float(size) - int(size) < 1:
-        log.debug("size %s is fractional gigabytes, using megabytes for create command", size)
-        # Note: This uses 1000 megabytes per gigabytes, which is not true.
-        # It should be base 2, not base 10, == 1024, but most humans prefer base 10.
-        roundsize = round(size * 1000)
-        if roundsize == 0:
-            log.error("Size error: %s", size)
-            raise ValueError("Attempting to create Volume/LUN of size 0!")
-        return '%dm' % roundsize
-
-    return '%dg' % round(size)
+        return '%s.%s' % ( self.name, self.dns_domain_name )
 
 class Volume:
 
@@ -304,7 +257,7 @@ class Volume:
         self.snapvaults = []
         self.snapmirrors = []
 
-        self.qtrees = {}
+        self.qtrees = []
 
         # Set default volume options
         if len(voloptions) == 0:
@@ -324,10 +277,27 @@ class Volume:
         log.debug("Created: %s", self)
 
     def __str__(self):
-        return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw), %s>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw, self.proto)
+        return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw)
 
     def get_create_size(self):
-        return get_create_size(self.raw)
+        """
+        Get the raw size in a format acceptable to the vol create command,
+        ie: integer amounts, and the appropriate scale (0.02g == 20m)
+        """
+        # Figure out if the raw volume size is fractional.
+        # NetApps won't accept fractional numbers for the vol create command,
+        # so we convert it from the default gigabytes to megabytes.
+        if 0 < float(self.raw) - int(self.raw) < 1:
+            log.debug("Vol size %s is fractional gigabytes, using megabytes for create command", self.raw)
+            # Note: This uses 1000 megabytes per gigabytes, which is not true.
+            # It should be base 2, not base 10, == 1024, but most humans prefer base 10.
+            size = round(self.raw * 1000)
+            if size == 0:
+                log.error("Volume size error: %s", self)
+                raise ValueError("Attempting to create volume of size 0!")
+            return '%dm' % size
+        
+        return '%dg' % round(self.raw)
 
     def shortpath(self):
         """
@@ -349,7 +319,7 @@ class Volume:
     
 class Qtree:
 
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], qtreenode=None):
+    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[]):
         """
         A Qtree representation
         """
@@ -362,13 +332,13 @@ class Qtree:
         self.comment = comment
         self.rwhostlist = rwhostlist
         self.rohostlist = rohostlist
-        self.qtreenode = qtreenode
-
-        self.luns = []
         
+        # Any additional mount options that may be required, over the base ones
+        #self.mountoptions = mountoptions
+
         log.debug("Created qtree: %s", self)
 
-        self.volume.qtrees[self.name] = self
+        self.volume.qtrees.append(self)
 
     def __str__(self):
         return '<Qtree: type: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.name, self.volume.proto, self.security, [ str(x) for x in self.rwhostlist ], [ str(x) for x in self.rohostlist])
@@ -392,21 +362,11 @@ class LUN:
 
     lunid = 0
 
-    def __init__(self, name, qtree, lunid, size, ostype, initlist, lunnode):
+    def __init__(self, name, lunid, size, ostype, initlist, lunnode):
 
         self.name = name
-        self.qtree = qtree
         self.size = size
-
-        if ostype.lower().startswith('solaris'):
-            ostype = 'solaris'
-        elif ostype.lower().startswith('windows'):
-            ostype = 'windows'
-        else:
-            raise ValueError("Unsupported LUN type: '%s'", ostype)
-        
         self.ostype = ostype
-
         self.lunid = lunid
         self.lunnode = lunnode
         self.initlist = initlist
@@ -415,23 +375,12 @@ class LUN:
 
         log.debug("Created lun: %s", self.name)
 
-        qtree.luns.append(self)
-
-    def full_path(self):
-        """
-        Return the full path string for LUN creation
-        """
-        return self.name
-
-    def get_create_size(self):
-        return get_create_size(self.size)
-
 class Vlan:
     """
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.254', gateway=None, description='', node=None):
+    def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.224', maskbits='27', gateway=None, description='', node=None):
 
         self.site = site
         self.type = type
@@ -439,16 +388,10 @@ class Vlan:
         self.gateway = gateway
         self.network = network
         self.netmask = netmask
+        self.maskbits = maskbits
         self.description = description
 
         self.node = node
-
-        # sanity check on the gateway
-        if not ip_within_network(gateway, network, netmask):
-            log.error("Gateway '%s' is not within network %s/%s", gateway, network, netmask)
-
-    def __repr__(self):
-        return '<Vlan: %s, %s, %s/%s, %s>' % (self.type, self.number, self.network, self.netmask, self.gateway)
 
 class iGroup:
     """
@@ -456,15 +399,11 @@ class iGroup:
     to the hosts (iSCSI initiators) that can access the LUNs.
     """
 
-    def __init__(self, name, filer, initlist=[], lunlist=[], type='windows'):
+    def __init__(self, name, initlist=[], lunlist=[], type='windows'):
         self.name = name
-        self.filer = filer
-
         self.type = type
         self.initlist = initlist
         self.lunlist = lunlist
-
-        log.debug("igroup '%s' created for filer '%s'", self.name, filer.name)
 
 class Snapshot:
     """
@@ -569,7 +508,7 @@ class ProjectConfig:
 
         self.has_dr = False
 
-        self.verify_config()
+        #self.verify_doc()
 
         self.load_project_details()
 
@@ -587,11 +526,19 @@ class ProjectConfig:
         self.shortname = self.tree.xpath('//project/shortname')[0].text
         self.longname = self.tree.xpath('//project/longname')[0].text
 
+        self.known_switches = self.load_known_switches()
+
+        # Project switches is populated when loading the hosts.
+        self.project_switches = {}
+
         self.revlist = self.load_revisions()
 
         self.sites = self.load_sites()
 
         self.hosts = self.load_hosts()
+
+        # Perform some sanity checking on the hosts
+        self.sanity_check_hosts(self.hosts)
 
         self.drhosts = []
         for host in self.hosts.values():
@@ -602,6 +549,8 @@ class ProjectConfig:
                 
         self.filers = self.load_filers()
         self.vfilers = self.load_vfilers()
+
+        self.sanity_check_vfilers(self.vfilers)
         
         self.volumes = self.load_volumes()
 
@@ -609,11 +558,7 @@ class ProjectConfig:
             if vol.proto not in self.allowed_protocols and vol.proto is not None:
                 self.allowed_protocols.append(vol.proto)
 
-        self.qtrees = self.load_qtrees('primary')
-        self.qtrees.extend( self.load_qtrees('secondary') )
-
-        self.luns = self.load_luns()
-        self.igroups = self.load_igroups()
+        self.qtrees = self.load_qtrees()
 
     def load_revisions(self):
         """
@@ -644,33 +589,46 @@ class ProjectConfig:
         #log.debug("Last revision is: %s", revlist[-1])
         return revlist[-1][1]
 
+    def load_known_switches(self, config_file=None):
+        """
+        Load known switches from a configuration file.
+        You can thus define site-wide switch configurations for known
+        devices, containing their names, physical locations, connectivity information, etc.
+        """
+        known_switches = {}
+        config_file = os.path.join(_configdir, 'switches.conf')
+        reader = csv.reader( open(config_file, 'rb'))
+        for row in reader:
+            if len(row) < 1:
+                continue
+            
+            if row[0].startswith('#'):
+                continue
+            (switchname, type, site, location, core01, core02) = row
+            switch = Switch(switchname, type, site, location, [ core01, core02 ])
+
+            known_switches[switchname] = switch
+            pass
+
+        return known_switches
+
     def load_sites(self):
         """
         Load site specific configuration information
         """
-        sites = []
-        site_nodes = self.tree.xpath('nas/site')
-        for node in site_nodes:
-            site_type = node.attrib['type']
-            try:
-                site_loc = node.attrib['location']
-            except KeyError:
-                log.warn('Site location not set!')
-                site_loc = 'Not defined.'
-            sites.append(Site(site_type, site_loc))
-            pass
-        return sites
 
     def load_hosts(self):
         """
         Load all the hosts
         """
         hosts = {}
-        hostnodes = self.tree.xpath('host')
+        hostnodes = self.tree.xpath('site/host')
         for node in hostnodes:
 
             # find some mandatory attributes
             hostname = node.attrib['name']
+
+            site = node.xpath('ancestor::*/site')[0].attrib['type']
 
             # check to see if the host has already been defined
             if hostname in hosts.keys():
@@ -687,39 +645,105 @@ class ProjectConfig:
                     raise
 
             try:
-                storageip = node.find('storageip/ipaddr').text
-            except AttributeError:
-                log.error("Host has no defined storageip: %s", hostname)
-                raise
-
-            try:
                 description = node.find('description')[0].text
             except IndexError:
                 description = ''
-                pass
-            
-            try:
-                iscsi_initiator = node.find('iscsi_initiator').text
-            except AttributeError:
-                iscsi_initiator = None
 
             drhostnodes = node.findall('drhost')
             drhosts = [ host.attrib['name'] for host in drhostnodes ]
+
+            # Load host interfaces
+            ifaces = []
+            interface_nodes = node.findall('interface')
+            for ifnode in interface_nodes:
+                switchname = ifnode.find('switchname').text
+                switchport = ifnode.find('switchport').text
+                hostport = ifnode.find('hostport').text
+
+                try:
+                    ipaddr = ifnode.find('ipaddr').text
+                except AttributeError:
+                    ipaddr = None
+
+                type = ifnode.attrib['type']
+                try:
+                    mode = ifnode.attrib['mode']
+                except KeyError:
+                    mode = 'passive'
+
+                # Add the required switch to the project switches list
+                try:
+                    switch = self.known_switches[switchname]
+                except KeyError:
+                    raise KeyError("Switch '%s' is not defined. Is it in switches.conf?" % switchname)
+                
+                self.project_switches[switchname] = switch
+
+                # If this is an edge, make sure its connected cores are added to the
+                # list of project switches.
+                if switch.type == 'edge':
+                    for coreswitch in switch.connected_switches:
+                        if coreswitch not in self.project_switches:
+                            self.project_switches[coreswitch] = self.known_switches[coreswitch]
+                
+                iface = Interface(type, mode, switchname, switchport, hostport, ipaddr)
+                ifaces.append(iface)
         
             hosts[hostname] = Host(hostname, platform=host_attribs['platform'],
-                               os=host_attribs['operatingsystem'],
-                               location=host_attribs['location'],
-                               storageip=storageip,
-                               description=description, drhosts=drhosts,
-                                   iscsi_initiator=iscsi_initiator)
+                                   os=host_attribs['operatingsystem'],
+                                   site=site,
+                                   location=host_attribs['location'],
+                                   description=description,
+                                   drhosts=drhosts,
+                                   interfaces=ifaces)
         return hosts
+
+    def sanity_check_hosts(self, hostdict):
+        """
+        Perform some sanity checking of the hosts configuration to
+        ensure that silly things aren't done, such as duplicating
+        IP addresses, or assigning the same interfaces to 2 hosts.
+        """
+        ifaces = []
+        for host in hostdict.values():
+            for host_iface in host.interfaces:
+                for known_iface in ifaces:
+                    # Check the same switchport isn't allocated to different hosts
+                    if host_iface.switchname == known_iface.switchname and host_iface.switchport == known_iface.switchport:
+                        raise ValueError("Host '%s' is using the same switchport as another host in the project." % host.name)
+
+                    # Check that IP addresses aren't duplicated
+                    if host_iface.ipaddress == known_iface.ipaddress:
+                        raise ValueError("Host '%s' is using the same IP address as another host in the project." % host.name)
+                    pass
+                pass
+
+            # add the checked interfaces to the master list
+            ifaces.extend( host.interfaces )
+            pass
+        pass
+    
+    def sanity_check_vfilers(self, vfiler_dict):
+        """
+        Perform some sanity checking of vFilers.
+        """
+        #log.info("%d vfilers exist.", len(vfiler_dict.values()))
+        known_ips = []
+        for vfiler in vfiler_dict.values():
+            log.debug("checking %s", vfiler.name)
+            log.debug("ipaddress is: %s", vfiler.ipaddress)
+            if vfiler.ipaddress in known_ips:
+                raise ValueError("Duplicate IP address '%s' used on filer '%s'" % ( vfiler.ipaddress, vfiler.filer.name) )
+
+            known_ips.append(vfiler.ipaddress)
+            pass
 
     def load_filers(self):
         """
         Create filer objects from configuration
         """
         filers = {}
-        filernodes = self.tree.xpath("nas/site/filer")
+        filernodes = self.tree.xpath("site/filer")
         for node in filernodes:
             filername = node.attrib['name']
 
@@ -752,7 +776,7 @@ class ProjectConfig:
         Create vfiler objects from configuration
         """
         vfilers = {}
-        vfilernodes = self.tree.xpath("nas/site/filer/vfiler")
+        vfilernodes = self.tree.xpath("site/filer/vfiler")
         for node in vfilernodes:
             try:
                 name = node.attrib['name']
@@ -762,6 +786,7 @@ class ProjectConfig:
             rootaggr = node.attrib['rootaggr']
                 
             filername = node.xpath("parent::*/@name")[0]
+
             filer = self.filers[filername]
             try:
                 vlan_num = node.xpath("ancestor::site/vlan/@number")[0]
@@ -780,18 +805,8 @@ class ProjectConfig:
 
             gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
-            vfilers[name] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
-
-            for vlanip in node.xpath("vlanip"):
-                # Find the vlan object that relates to the vlan mentioned here
-                log.debug("found additional VLAN ip for vlan %s", vlanip.attrib['vlan'])
-                try:
-                    vlan_node = vlanip.xpath("ancestor::site/vlan[@type = 'services' and @number = '%s']" % vlanip.attrib['vlan'])[0]
-                except IndexError:
-                    raise ValueError("vlanip references non-existant VLAN '%s'" % vlanip.attrib['vlan'])
-                log.debug("vlan_node is: %s", vlan_node)
-                vlan = [ x for x in self.vlans if x.node == vlan_node ][0]
-                vfilers[name].add_service_ip( vlan, vlanip.find('ipaddr').text )
+            vfiler_key = '%s:%s' % (filer.name, name)
+            vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
             
         return vfilers
 
@@ -800,7 +815,7 @@ class ProjectConfig:
         Create all the volumes in the configuration
         """
 
-        volnodes = self.tree.xpath("nas/site/filer/vfiler/aggregate/volume | nas/site/filer/vfiler/aggregate/volumeset")
+        volnodes = self.tree.xpath("site/filer/vfiler/aggregate/volume | site/filer/vfiler/aggregate/volumeset")
 
         # Add root volumes to the filers/vfilers
         self.add_root_volumes()
@@ -930,14 +945,7 @@ class ProjectConfig:
                         try:
                             qtree_security = qtree_node.xpath("@security")[0]
                         except IndexError:
-                            # If qtree security isn't set manually, use defaults for
-                            # the kind of volume
-                            log.debug("Determining qtree security mode: %s, %s", vol.name, vol.proto)
-                            if vol.proto == 'cifs':
-                                log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
-                                qtree_security = 'ntfs'
-                            else:
-                                qtree_security = 'unix'
+                            qtree_security = 'unix'
                             pass
 
                         if qtree_node.text is None:
@@ -953,7 +961,7 @@ class ProjectConfig:
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
 
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist, qtreenode=qtree_node)
+                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist)
 
                         # Build mountoptions for the qtree
 ##                         mountoptions.extend( self.get_qtree_mountoptions(qtree) )
@@ -1027,25 +1035,12 @@ class ProjectConfig:
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                                 #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
-                                pass
-                            pass
-                        pass
-                    #
-                    # Not an Oracle volume, so this is a standard data volume
-                    #
-                    else:
-                        # Figure out the security mode
-                        if vol.proto == 'cifs':
-                            log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
-                            qtree_security = 'ntfs'
-                        else:
-                            qtree_security = 'unix'
-                            pass
 
+                    else:
                         # Figure out the hostlist by checking for volume based export definitions
                         rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
 
-                        qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist)
+                        qtree = Qtree(vol, rwhostlist=rwhostlist, rohostlist=rohostlist)
                         #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
@@ -1057,7 +1052,7 @@ class ProjectConfig:
             # permissions at the remote side as they do on the local side
             if len(vol.snapmirrors) > 0:
 
-                for qtree in vol.qtrees.values():
+                for qtree in vol.qtrees:
                     dr_rwhostlist = []
                     dr_rohostlist = []
 
@@ -1111,9 +1106,11 @@ class ProjectConfig:
         osname = host.os
 
         if host in qtree.rwhostlist:
+            log.debug("Read/Write host")
             mountoptions.append('rw')
 
         if host in qtree.rohostlist:
+            log.debug("Read-only host")
             mountoptions.append('ro')
             pass
         
@@ -1140,6 +1137,7 @@ class ProjectConfig:
         elif osname.startswith('Linux'):
             mountoptions.extend([ 'intr', ])
 
+        log.debug("mountoptions are: %s", mountoptions)
         return mountoptions
 
     def __get_qtree_mountoptions(self, qtree):
@@ -1189,115 +1187,12 @@ class ProjectConfig:
 
         return mountoptions
 
-    def load_luns(self):
-        """
-        Load LUN definitions.
-        """
-        lunlist = []
-
-        for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi']:
-            log.debug("Found iSCSI volume for LUNs...")
-
-            # check to see if any LUN nodes are defined.
-            luns = vol.volnode.xpath("descendant-or-self::lun")
-            if len(luns) > 0:
-                log.debug("found lun nodes: %s", luns)
-
-                # If you specify LUN sizes, the system will use exactly
-                # what you define in the config file.
-                # If you don't specify the LUN size, then the system will
-                # divide up however much storage is left in the volume evenly
-                # between the number of LUNs that don't have a size specified.
-
-                lun_total = 0
-
-                for lunnode in vol.volnode.xpath("descendant-or-self::lun"):
-                    try:
-                        lunsize = float(lunnode.xpath("@size")[0])
-                    except IndexError:
-                        log.debug("No LUN size specified. Figuring it out...")
-                        lunsize = ( vol.usable - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
-                        log.debug("calculated lun size of: %s", lunsize)
-                        pass
-
-                    log.info("Allocating %sg storage to LUN", lunsize)
-                    lun_total += lunsize
-
-                    lunid = len(lunlist)
-
-                    rwhostlist, rohostlist = self.get_export_hostlists(lunnode)
-                    hostlist = rwhostlist + rohostlist
-
-                    # See if a qtree parent node exists
-                    try:
-                        qtree_parent_node = lunnode.xpath('parent::qtree')[0]
-                        qtree_parent = [ qtree for qtree in vol.qtrees.values() if qtree_parent_node == qtree.qtreenode ][0]
-                    except IndexError:
-                        # No qtree node defined, so use the first one in the volume.
-                        # Technically, there should only be one.
-                        qtree_parent = vol.qtrees.values()[0]
-
-                    try:
-                        lunname = lunnode.xpath("@name")[0]
-                    except IndexError:
-                        if hostlist[0].iscsi_initiator is None:
-                            raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
-
-                        lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
-                        #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
-                        pass
-
-                    # The LUN ostype defaults to the same type as the first one in its initiator list
-                    lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
-                    pass
-                pass
-            pass
-        log.debug("Loaded all LUNs")
-        return lunlist
-
-    def load_igroups(self):
-        """
-        Load iGroup definitions based on previously loaded LUN definitions
-        """
-        # For each LUN in the lunlist, create an iGroup for its initlist.
-        # If multiple LUNs are exported to the same initlist, they are
-        # exported to the same iGroup, so a new one is not created.
-        igroups = []
-        
-        for lun in self.luns:
-            if lun.initlist not in [ x.initlist for x in igroups ]:
-                log.debug("initlist %s has not had a group created for it yet", lun.initlist)
-                igroup_name = '%s_igroup%02d' % ( self.shortname, len(igroups) )
-
-                # Add a list of one LUN to a brand new iGroup with this LUN's initlist
-                # The iGroup type defaults the same as the first LUN type that it contains.
-                group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
-                lun.igroup = group
-                igroups.append(group)
-                
-            else:
-                log.debug("Aha! An iGroup with this initlist already exists!")
-                for group in igroups:
-                    if group.initlist == lun.initlist:
-                        log.info("Appending LUN to iGroup %s", group.name)
-                        if group.type != lun.ostype:
-                            log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
-                        else:
-                            lun.igroup = group
-                            group.lunlist.append(lun)
-                        break
-                    pass
-                pass
-            pass
-
-        return igroups
-            
     def load_vlans(self):
         """
         Load all the vlan definitions
         """
         vlans = []
-        vlan_nodes = self.tree.xpath("nas/site/vlan")
+        vlan_nodes = self.tree.xpath("site/vlan")
         for node in vlan_nodes:
 
             site = node.xpath("ancestor::site/@type")[0]
@@ -1313,11 +1208,7 @@ class ProjectConfig:
 
                 # check to see if the network is defined with slash notation for a netmask
                 if network.find('/') > 0:
-                    try:
-                        network, netmask = self.str2net(network)
-                    except:
-                        log.error("Error with network number for VLAN %s", number)
-                        raise
+                    network, netmask, maskbits = self.str2net(network)
                     log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
                 
             except IndexError:
@@ -1341,31 +1232,22 @@ class ProjectConfig:
                 description = ''
             #site = 'primary'
             
-            vlan = Vlan(number, site, type, network, netmask, gateway, description, node)
+            vlan = Vlan(number, site, type, network, netmask, maskbits, gateway, description, node)
             vlans.append(vlan)
             pass
 
         return vlans
 
-    def verify_config(self):
+    def verify_doc(self, configdoc):
         """
-        Make sure that the configuration satisfies certain rules.
+        Make sure that the document satisfies certain rules.
         """
-        # check that if a services vlan is defined for a site
-        # that both the primary and nearstore devices have a vlan IP
-        # in the services VLAN
-        services_vlans = self.tree.xpath("nas/site/vlan[@type = 'services']")
-        for vlan in services_vlans:
-            vlan_num = vlan.attrib['number']
-            # Make sure that every primary filer and nearstore at this site
-            # has a vlanip in this vlan
-            for vfiler in vlan.xpath("ancestor::site/filer[@type = 'primary']/vfiler | ancestor::site/filer[@type = 'nearstore']/vfiler"):
-                if len( vfiler.xpath("vlanip[@vlan = '%s']" % vlan_num) ) < 1:
-                    parent_filer = vfiler.xpath('parent::filer')[0]
-                    raise ValueError("vFiler in Filer %s has no IP address for services VLAN %s" % (parent_filer.attrib['name'], vlan_num))
-                pass
-            pass
+        # Check that the parent node is a <project> node.
         pass
+
+    def get_filers(self, site, type):
+
+         return [ x for x in self.filers.values() if x.site == site and x.type == type ]
 
     def get_volumes(self, site='primary', filertype='primary'):
         """
@@ -1437,15 +1319,10 @@ class ProjectConfig:
         # the list of possible protocols for the vfiler.
         # If neither of these are set, it will default to nfs.
         try:
-            proto = node.xpath("@proto")[0].lower()
-            log.debug("Proto defined for volume: %s", proto)
+            proto = node.xpath("@proto | ancestor::*/vfiler/protocol/text()")[0].lower()
+            log.debug("Found proto for volume: %s", proto)
         except IndexError:
-            try:
-                proto = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
-                log.debug("Found proto in vfiler ancestor: %s", proto)
-            except IndexError:
-                proto = 'nfs'
-                log.debug("Proto set to default: %s", proto)
+            proto = 'nfs'
 
         try:
             voltype = node.xpath("@type")[0]
@@ -1457,7 +1334,7 @@ class ProjectConfig:
             snapreserve = node.xpath("@snapreserve")[0]
         except IndexError:
             #log.debug("No snapreserve specified.")
-            if proto == 'iscsi':
+            if voltype == 'iscsi':
                 snapreserve = 0
             elif voltype in ['oraundo', 'oraarch', ]:
                 snapreserve = 50
@@ -1618,23 +1495,111 @@ class ProjectConfig:
         qtrees = [ x for x in self.qtrees if x.volume.filer.site == site ]
         return qtrees
 
-    def get_filer_iscsi_igroups(self, filer):
+    def get_site_iscsi_igroups(self, ns, site='primary'):
         """
         Fetch the iSCSI iGroups for a site
         """
-        igroups = [ igroup for igroup in self.igroups if igroup.filer == filer ]
-        log.debug("igroups for %s are: %s", filer.name, igroups)
+        if hasattr(self, 'igroups'):
+            return self.igroups
+        
+        igroups = []
+        lunlist = []
+        
+        vols = [ x for x in self.get_volumes(site, 'primary') if x.type == 'iscsi' ]
+        for vol in vols:
+            log.debug("iSCSI vol: %s", vol)
+
+            # If a volume has multiple LUNs defined, put each one in its own
+            # qtree, unless they are defined within qtrees, in which case,
+            # use the exact layout that is specified in the config file.
+
+            # check to see if any LUN nodes are defined.
+            luns = vol.volnode.xpath("descendant-or-self::lun")
+
+            if len(luns) > 0:
+                log.debug("found lun nodes: %s", luns)
+
+                # If you specify LUN sizes, the system will use exactly
+                # what you define in the config file.
+                # If you don't specify the LUN size, then the system will
+                # divide up however much storage is left in the volume evenly
+                # between the number of LUNs that don't have a size specified.
+
+                lun_total = 0
+                
+                # Define all the LUNs that have sizes specified
+                for lunnode in vol.volnode.xpath("descendant-or-self::lun[@size]"):
+                    lunsize = float(lunnode.xpath("@size")[0])
+                    log.info("Allocating %sg storage to LUN", lunsize)
+                    lun_total += lunsize
+
+                    lunid = len(lunlist)
+
+                    initlist = self.get_iscsi_initiators(lunnode)
+
+                    # We use the hostname component of the first entry in the initiator list
+                    # to name the lun if a lun name is not specified.
+                    try:
+                        lunname = lunnode.xpath("@name")[0]
+                    except IndexError:
+                        lunname = '%s_%s_lun%02d.lun' % (ns['vfiler_name'], initlist[0][0], lunid)
+
+                    # The LUN ostype defaults to the same type as the first one in its initiator list
+                    lunlist.append( LUN( lunname, lunid, lunsize, initlist[0][2], initlist, lunnode) )
+
+                for lunnode in vol.volnode.xpath("descendant-or-self::lun[not(@size)]"):
+                    lunsize = ( vol.usable - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+                    log.info("calculated lun size of: %s", lunsize)
+
+                    lunid = len(lunlist)
+                    
+                    initlist = self.get_iscsi_initiators(lunnode)
+
+                    try:
+                        lunname = lunnode.xpath("@name")[0]
+                    except IndexError:
+                        lunname = '%s_%s_lun%02d.lun' % (ns['vfiler_name'], initlist[0][0], lunid)
+
+                    lunlist.append( LUN( lunname, lunid, lunsize, initlist[0][2], initlist, lunnode) )
+                pass
+
+            pass
+
+        # For each LUN in the lunlist, create an iGroup for its initlist.
+        # If multiple LUNs are exported to the same initlist, they are
+        # exported to the same iGroup, so a new one is not created.
+
+        self.lunlist = lunlist
+
+        for lun in lunlist:
+            if lun.initlist not in [ x.initlist for x in igroups ]:
+                log.debug("initlist %s has not had a group created for it yet", lun.initlist)
+                igroup_name = '%s_%s_igroup%02d' % ( ns['vfiler_name'], lun.initlist[0][0], len(igroups) )
+
+                # Add a list of one LUN to a brand new iGroup with this LUN's initlist
+                # The iGroup type defaults the same as the first LUN type that it contains.
+                group = iGroup(igroup_name, lun.initlist, [lun,], type=lun.ostype)
+                lun.igroup = group
+                igroups.append(group)
+                
+            else:
+                log.debug("Aha! An iGroup with this initlist already exists!")
+                for group in igroups:
+                    if group.initlist == lun.initlist:
+                        log.info("Appending LUN to iGroup %s", group.name)
+                        if group.type != lun.ostype:
+                            log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
+                        else:
+                            lun.igroup = group
+                            group.lunlist.append(lun)
+                        break
+                    pass
+                pass
+            pass
+
+        self.igroups = igroups
         return igroups
 
-    def get_filer_luns(self, filer):
-        """
-        Fetch all the LUNs on a certain filer
-        """
-        log.debug("getting luns on %s", filer)
-        luns = [ lun for lun in self.luns if lun.qtree.volume.filer == filer ]
-        log.debug("luns are: %s", luns)
-        return luns
-            
     def get_iscsi_initiators(self, node):
         """
         Given a node, look for <export to=/> nodes and then look up
@@ -1648,14 +1613,9 @@ class ProjectConfig:
         """
         log.debug("finding initiators for LUN: %s", node.xpath("@name"))
         initlist = []
+        exports = self.get_export_nodes(node)
 
-        rwhostlist, rohostlist = self.get_export_hostlists(node)
-        
-        #exports = self.get_export_nodes(node)
-
-        log.debug("rwhostlist is: %s", rwhostlist)
-
-        for host in rwhostlist:
+        for export in exports:
             hostname = export.xpath("@to")[0]
             initname = self.tree.xpath("host[@name = '%s']/iscsi_initiator" % hostname)[0].text
             operatingsystem = self.tree.xpath("host[@name = '%s']/operatingsystem" % hostname)[0].text
@@ -1718,7 +1678,6 @@ class ProjectConfig:
         """
         return [ x for x in self.qtrees if x.volume.proto == 'cifs' and x.volume.filer == filer ]
 
-
     def create_snapshot_for(self, srcvol):
         """
         Create snapshot definitions for volumes, if they have a snapref.
@@ -1756,7 +1715,7 @@ class ProjectConfig:
                 target_filername = set_node.attrib['targetfiler']
             except KeyError:
                 # No target filer specified, so use the first nearstore at the same site as the primary
-                target_filername = self.tree.xpath("nas/site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site)[0]
+                target_filername = self.tree.xpath("site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site)[0]
                 pass
 
             try:
@@ -1769,7 +1728,7 @@ class ProjectConfig:
                 targetaggr = set_node.attrib['targetaggregate']
             except:
                 try:
-                    targetaggr = self.tree.xpath("nas/site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
+                    targetaggr = self.tree.xpath("site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
                 except:
                     # No aggregates are specified on the target filer, so use the same one as the source volume
                     targetaggr = srcvol.aggregate
@@ -1825,7 +1784,7 @@ class ProjectConfig:
             except KeyError:
                 # No target filer specified, so use the first primary at a site other than the source
                 # This auto-created DR snapmirrors, but may not be what you mean.
-                target_filername = self.tree.xpath("nas/site[not(@type = '%s')]/filer[@type = 'primary']/@name" % srcvol.filer.site)[0]
+                target_filername = self.tree.xpath("site[not(@type = '%s')]/filer[@type = 'primary']/@name" % srcvol.filer.site)[0]
                 log.warn("No destination for snapmirror provided, using '%s'" % target_filername)
                 pass
 
@@ -1840,7 +1799,7 @@ class ProjectConfig:
                 targetaggr = set_node.attrib['targetaggregate']
             except:
                 try:
-                    targetaggr = self.tree.xpath("nas/site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
+                    targetaggr = self.tree.xpath("site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
                 except:
                     # No aggregates are specified on the target filer, so use the same one as the source volume
                     targetaggr = srcvol.aggregate
@@ -1938,15 +1897,15 @@ class ProjectConfig:
         Build the qtree creation commands for qtrees on volumes on filers at site and type.
         """
         cmdset = []
-        for vol in [ vol for vol in filer.volumes if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
-            for qtree in vol.qtrees.values():
+        for vol in filer.volumes:
+            for qtree in vol.qtrees:
                 cmdset.append( "qtree create /vol/%s/%s" % (qtree.volume.name, qtree.name) )
                 cmdset.append( "qtree security /vol/%s/%s %s" % (qtree.volume.name, qtree.name, qtree.security) )
                 pass
             pass
         return cmdset
 
-    def vlan_create_commands(self, filer, vfiler):
+    def vlan_create_commands(self, filer):
         """
         Find the project VLAN for the filer's site,
         and return the command for how to create it.
@@ -1954,20 +1913,16 @@ class ProjectConfig:
         cmdset = []
         vlan = self.get_project_vlan(filer.site)
         cmdset.append("vlan add svif0 %s" % vlan.number)
-        for vlan, ipaddr in vfiler.services_ips:
-            cmdset.append("vlan add svif0 %s" % vlan.number)
         return cmdset
 
-    def ipspace_create_commands(self, filer, vfiler):
+    def ipspace_create_commands(self, filer, ns):
         """
         Determine how to create the ipspace for the filer.
         """
         cmdset = []
         vlan = self.get_project_vlan(filer.site)
-        cmdset.append("ipspace create ips-%s" % vfiler.name)
-        cmdset.append("ipspace assign ips-%s svif0-%s" % (vfiler.name, vlan.number) )
-        for vlan, ipaddr in vfiler.services_ips:
-            cmdset.append("ipspace assign ips-%s svif0-%s" % (vfiler.name, vlan.number) )
+        cmdset.append("ipspace create ips-%s" % self.shortname)
+        cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
         return cmdset
 
     def vfiler_create_commands(self, filer, vfiler, ns):
@@ -1977,8 +1932,6 @@ class ProjectConfig:
                                                                             vfiler.ipaddress,
                                                                             vfiler.name,
                                                                             ) )
-        for vlan, ipaddr in vfiler.services_ips:
-            cmdset.append("vfiler add %s -i %s" % (vfiler.name, ipaddr))
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
@@ -2012,20 +1965,6 @@ class ProjectConfig:
             cmd += " partner svif0-%s" % self.get_project_vlan(filer.site).number
         cmdset.append(cmd)
 
-        # Add any services VLAN interfaces
-        for vlan, ipaddr in vfiler.services_ips:
-            log.debug("Adding service VLAN interface...")
-            if filer.type == 'secondary':
-                cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 1500 up" % (vlan.number, vlan.netmask)
-            else:
-                cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number, ipaddr, vlan.netmask)
-
-            # Add partner clause if this is a primary or secondary filer
-            if filer.type in [ 'primary', 'secondary' ]:
-                cmd += " partner svif0-%s" % vlan.number
-
-            cmdset.append(cmd)
-
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
@@ -2055,44 +1994,20 @@ class ProjectConfig:
         Return a list of all vlans of type 'services'
         """
         return [ vlan for vlan in self.vlans if vlan.type == 'services' and vlan.site == site ]
-
-    def default_route_command(self, filer, vfiler):
+            
+    def services_vlan_route_commands(self, site, vfiler):
         """
-        The default route points to the VRF address for the primary VLAN.
-        It may not exist yet, but having this here means no additional
-        routing needs to be configured if the VRF is configured at some point.
-        """
-        cmdset = []
-        title = "Default Route"
-        proj_vlan = self.get_project_vlan(filer.site)
-        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
-        return title, cmdset
-    
-    def services_vlan_route_commands(self, vfiler):
-        """
-        Services VLANs are different from VRFs. Services VLANs are actual VLANs
-        that are routed via firewalls into the main corporate network to provide
-        access to services, such as Active Directory.
+        Because we use VRFs to route into other services VLANs, we only need
+        a single default route, iff services VLANs are defined. The route will
+        use the gateway address for the project VLAN.
         """
         cmdset = []
 
-        # keep track of destinations we've added a route to
-        destinations = []
-        log.debug("vfiler services vlans: %s", vfiler.services_ips)
-        for (vlan, ipaddress) in vfiler.services_ips:
-            log.debug("Adding services routes: %s", vlan)
-            for ipaddr in vfiler.nameservers:
-                if ipaddr not in destinations:
-                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
-                    destinations.append(ipaddr)
-
-            for ipaddr in vfiler.winsservers:
-                if ipaddr not in destinations:
-                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
-                    destinations.append(ipaddr)
-
+        if len(self.get_services_vlans(site)) > 0:
+            proj_vlan = self.get_project_vlan(site)
+            cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
             pass
-        #cmdset.append("vfiler run %s route add %s %s 1" % (vfiler.name, vlan.network, vlan.gateway) )        
+        
         return cmdset
     
     def vfiler_set_allowed_protocols_commands(self, vfiler, ns):
@@ -2137,8 +2052,8 @@ class ProjectConfig:
 
         # DNS enablement options for CIFS capable vfilers
         if 'cifs' in self.allowed_protocols:
-            options.append("dns.domainname %s" % vfiler.dns_domain_name)
-            options.append("dns.enable on")
+            options.append("dns domainname %s" % vfiler.dns_domain_name)
+            options.append("dns enable on")
             
         for opt in options:
             cmdset.append("vfiler run %s options %s" % (vfiler.name, opt) )
@@ -2183,7 +2098,7 @@ class ProjectConfig:
         
     def vfiler_quota_enable_commands(self, filer, vfiler):
         cmdset = []
-        for vol in [x for x in filer.volumes if x.type not in ['snapmirrordst']]:
+        for vol in filer.volumes:
             if not vol.name.endswith('root'):
                 cmdset.append("vfiler run %s quota on %s" % (vfiler.name, vol.name))
                 pass
@@ -2200,14 +2115,14 @@ class ProjectConfig:
         log.debug("Finding NFS exports for filer: %s", filer.name)
         for vol in [ x for x in filer.volumes if x.proto == 'nfs' ]:
             log.debug("Found volume: %s", vol)
-            for qtree in vol.qtrees.values():
+            for qtree in vol.qtrees:
                 log.debug("exporting qtree: %s", qtree)
 
                 # Find read/write exports
                 rw_export_to = []
                 for host in qtree.rwhostlist:
                     try:
-                        rw_export_to.append('%s' % host.storageip)
+                        rw_export_to.append('%s' % host.get_storage_ip() )
                     except IndexError:
                         log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
                         raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
@@ -2217,7 +2132,7 @@ class ProjectConfig:
                 ro_export_to = []
                 for host in qtree.rohostlist:
                     try:
-                        ro_export_to.append('%s' % host.storageip)
+                        ro_export_to.append('%s' % host.get_storage_ip())
                     except IndexError:
                         log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
                         raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
@@ -2273,7 +2188,7 @@ class ProjectConfig:
         cmds = []
         volumes = [ x for x in vfiler.filer.volumes if x.proto == 'cifs' ]
         for vol in volumes:
-            for qtree in vol.qtrees.values():
+            for qtree in vol.qtrees:
                 log.debug("Determining CIFS config commands for %s", qtree)
                 cmds.append("vfiler run %s cifs shares -add %s %s" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
                 cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
@@ -2284,43 +2199,6 @@ class ProjectConfig:
                     cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
 
         return cmds
-
-    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler):
-        """
-        Return the commands required to enable the vfiler configuration
-        """
-        title = "iSCSI CHAP Configuration for %s" % filer.name
-        cmds = []
-        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p sensis%s123" % (vfiler.name, vfiler.name, vfiler.name) )
-        return title, cmds
-
-    def vfiler_igroup_enable_commands(self, filer, vfiler):
-        """
-        Return the commands required to enable the vfiler iGroup configuration
-        """
-        title = "iSCSI iGroup Configuration for %s" % filer.name
-        cmds = []
-        for igroup in self.get_filer_iscsi_igroups(filer):
-            cmds.append("vfiler run %s igroup create -i -t %s %s %s" % (vfiler.name, igroup.type, igroup.name, igroup.initlist[0].iscsi_initiator) )
-            if len(igroup.initlist) > 1:
-                for host in igroup.initlist[1:]:
-                    cmds.append("vfiler run %s igroup add %s %s" % (vfiler.name, igroup.name, host.iscsi_initiator) )
-        return title, cmds
-
-    def vfiler_lun_enable_commands(self, filer, vfiler):
-        """
-        Return the commands required to enable the vfiler LUN configuration
-        """
-        title = "iSCSI LUN Configuration for %s" % filer.name
-        cmds = []
-        for igroup in self.get_filer_iscsi_igroups(filer):
-            for lun in igroup.lunlist:
-                cmds.append("vfiler run %s lun create -s %s -t %s %s" % (vfiler.name, lun.get_create_size(), lun.ostype, lun.full_path()) )
-                cmds.append("vfiler run %s lun map %s %s" % (vfiler.name, lun.full_path(), igroup.name) )
-                pass
-            pass
-
-        return title, cmds
     
     def filer_snapreserve_commands(self, filer, ns):
         cmdset = []
@@ -2403,7 +2281,7 @@ class ProjectConfig:
                                 donelist.append( (snap.sourcevol.filer, snap.sourcevol, 'root') )
 
                         # Snapvault relationships are done at the qtree level
-                        for qtree in snap.sourcevol.qtrees.values():
+                        for qtree in snap.sourcevol.qtrees:
                             if (snap.sourcevol.filer, snap.sourcevol, qtree) not in donelist:
                                 cmdset.append("snapvault start -S %s-svif0-2000:/vol/%s/%s /vol/%s/%s" % (snap.sourcevol.filer.name, snap.sourcevol.name, qtree.name, snap.targetvol.name, qtree.name ))
                                 donelist.append( (snap.sourcevol.filer, snap.sourcevol, qtree) )
@@ -2533,10 +2411,10 @@ class ProjectConfig:
         """
         cmdset = []
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
-        cmds += self.vlan_create_commands(filer, vfiler)
+        cmds += self.vlan_create_commands(filer)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
         if filer.type in ['primary', 'nearstore']:
-            cmds += self.services_vlan_route_commands(vfiler)
+            cmds += self.services_vlan_route_commands(filer.site, vfiler)
 
         for line in cmds:
             if len(line) == 0:
@@ -2568,9 +2446,102 @@ class ProjectConfig:
         addr = long(struct.unpack('!I', addr)[0])
         addr = addr & mask
 
-        return addrstr, maskstr
+        return addrstr, maskstr, maskbits
 
+    def core_switch_activation_commands(self, switch):
+        """
+        Return a list of commands that can be used to build the switch configuration.
+        """
+        cmdset = []
+
+        cmdset.extend( self.switch_vlan_activation_commands(switch))
+
+        return cmdset
+
+    def switch_vlan_activation_commands(self, switch):
+        """
+        Return activation commands for configuring the VLAN
+        """
+        cmdset = []
+
+        # Add the main project VLAN
+        cmdset.append('Vlan %s' % self.get_project_vlan('primary').number)
+        cmdset.append('  name %s_01' % self.shortname)
+
+        return cmdset
+
+    def edge_switch_activation_commands(self, switch):
+        """
+        Return a list of commands that can be used to build an edge switch configuration.
+        """
+        cmdset = []
+        cmdset.extend( self.switch_vlan_activation_commands )
+        cmdset.append('!')
+        cmdset.extend( self.edge_switch_port_acl_commands )
+        return cmdset
+
+    def edge_switch_port_acl_commands(self, switch):
+        """
+        Return a list of edge port ACL commands used to build an edge switch configuration.
+        """
+        vlan = self.get_project_vlan('primary')
+        cmdset = []
+
+        cmdset.append("mac access-list extended FilterL2")
+        cmdset.append("  deny any any")        
+
+        cmdset.append("!")
+
+        # inbound access list
+        cmdset.append("ip access-list extended %s_in" % self.shortname)
+        cmdset.append("  remark AntiSpoofing For Storage Devices")
+        cmdset.append("  deny ip %s 0.0.0.7 any" % vlan.network)
+        cmdset.append("  remark Permit Hosts To Storage Devices")
+        cmdset.append("  permit ip %s 0.0.0.31 %s 0.0.0.7" % (vlan.network, vlan.network) )
+
+        # outbound access list
+        cmdset.append("ip access-list extended %s_out" % self.shortname)
+        cmdset.append("  remark Permit Storage Devices To Hosts")
+        cmdset.append("  permit ip %s 0.0.0.7 %s 0.0.0.31" % (vlan.network, vlan.network) )
         
+        return cmdset
+
+    def edge_switch_interfaces_commands(self, switch):
+        """
+        Build the configuration commands required to activation the ports
+        for all hosts that have interfaces connected to this switch.
+        """
+        cmdset = []
+
+        vlan = self.get_project_vlan('primary')
+        
+        for host in self.hosts.values():
+            for iface in host.interfaces:
+                if iface.switchname == switch.name:
+                    cmdset.extend(
+                        ["interface %s" % iface.switchport,
+                         "  description %s" % host.name,
+                         #"  switchport mode access",
+                         #"  switchport port-security maximum 10",
+                         #"  switchport port-security aging time 300",
+                         #"  switchport port-security violation restrict",
+                         #"  switchport post-security limit rate invalid-source-mac 5",
+                         "  switchport access vlan %s" % vlan.number,
+                         "  ip access-group %s_in in" % self.shortname,
+                         "  ip access-group %s_out out" % self.shortname,
+                         "  mac access-group FilterL2 in",
+                         #"  flowcontrol receive on",
+                         #"  flowcontrol send on",
+                         #"  mtu 9198",
+                         #"  no cdp enable",
+                         #"  spanning-tree portfast",
+                         "  no shutdown",
+                         "!",
+                         ]
+                        )
+
+        return cmdset
+
 if __name__ == '__main__':
 
     log.setLevel(logging.DEBUG)
