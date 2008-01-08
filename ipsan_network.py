@@ -212,7 +212,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
 ''')
 
         ns['core_detail_section'] = self.build_core_detail_section(ns)
-        ns['edge_switch_detail_section'] = self.build_edge_switch_detail_section(ns)
+        ns['edge_switch_detail_section'] = '' #self.build_core_detail_section(ns)
         ns['host_config_section'] = '' #self.build_core_detail_section(ns)
         ns['cabling_section'] = '' #self.build_core_detail_section(ns)
         return chapter.safe_substitute(ns)
@@ -258,7 +258,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
 
                   <row>
                     <entry><para>VLAN Name</para></entry>
-                    <entry><para>$primary_vlan_name</para></entry>
+                    <entry><para></para></entry>
                     <entry><para></para></entry>
                   </row>
 
@@ -309,133 +309,115 @@ to provide IP connectivity between the project hosts and the storage infrastruct
             </table>
             ''')
 
-        primary_project_vlan = self.conf.get_project_vlan('primary')
-        ns['primary_project_vlan'] = primary_project_vlan.number
-        
-        ns['project_subnet'] = '%s/%s' % (primary_project_vlan.network, primary_project_vlan.maskbits)
-        ns['primary_vlan_name'] = '%s_01' % self.conf.shortname
-
+        ns['primary_project_vlan'] = self.conf.primary_project_vlan
         # FIXME: If the primary storage site is Clayton, this will
         # need to be updated somehow.
-        log.warn("Edge balance algorithm is CoLo only at this stage.")
         if int(self.conf.primary_project_vlan) < 3500:
-            
-            ns['core_switch_balance_side'] = 'left (Core 01)'
+            ns['core_switch_balance_side'] = 'exip-swtcor-1401'
             pass
         
         else:
-            ns['core_switch_balance_side'] = 'right (Core 02)'
+            ns['core_switch_balance_side'] = 'exip-swtcor-1402'
             pass
 
         ns['core_networking_table'] = core_networking_table.safe_substitute(ns)
 
         return section.safe_substitute(ns)
 
-    def build_edge_switch_detail_section(self, ns):
+
+    def edge_switch_detail_section(self, ns):
         """
         The edge switch detail section.
         This is just a table with a bunch of info in it.
         """
 
         section = Template('''
-          <section id="edge-detail-section">
-          <title>Project Edge Networking Details</title>
-            <para>The following table provides the connectivity information for
-            connecting the hosts to the IPSAN edge switches.</para>
+          <section id="core-detail-section">
+          <title>Project Core Networking Details</title>
+            <para>The following table provides the fundamental project network information.</para>
 
-            <para>All host to edge cabling is required to be CAT-6 UTP.
-            </para>
-
-            $edge_networking_table
+            $core_networking_table
 
           </section>
             ''')
         
-        edge_networking_table = Template('''
-            <table tabstyle="techtable-03">
-              <title>Project Edge Networking Details</title>
-              <tgroup cols="6">
-                <colspec colnum="1" align="center" colwidth="1*"/>
-                <colspec colnum="2" align="center" colwidth="1*"/>
-                <colspec colnum="3" align="center" colwidth="0.5*"/>
-                <colspec colnum="4" align="center" colwidth="1*"/>
-                <colspec colnum="5" align="center" colwidth="1*"/>
-                <colspec colnum="6" align="center" colwidth="0.5*"/>
-                
+        core_networking_table = Template('''
+            <table tabstyle="techtable-01">
+              <title>Project Core Networking Details</title>
+              <tgroup cols="3">
+                <colspec colnum="1" align="left" colwidth="1*"/>
+                <colspec colnum="2" align="left" colwidth="1*"/>
+                <colspec colnum="3" align="left" colwidth="2*"/>
                 <thead>
                   <row>
-                    <entry><para>Host</para></entry>
-                    <entry><para>Storage IP</para></entry>
-                    <entry><para>Host Port</para></entry>
-
-                    <entry><para>Edge Switch Name</para></entry>
-                    <entry><para>Switch Port</para></entry>
-                    <entry><para>Mode</para></entry>
-                    
+                    <entry><para>Attribute</para></entry>
+                    <entry><para>Value</para></entry>
+                    <entry><para>Comment</para></entry>
                   </row>
                 </thead>
 
                 <tbody>
-                
-                  $edge_table_body_rows
+
+                  <row>
+                    <entry><para>Project VLAN</para></entry>
+                    <entry><para>$project_vlan</para></entry>
+                    <entry><para></para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>VLAN Name</para></entry>
+                    <entry><para>$vlan_name</para></entry>
+                    <entry><para></para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>Core Switch Balance Side</para></entry>
+                    <entry><para>$core_switch_balance_side</para></entry>
+                    <entry><para>Chosen based on VLAN id</para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>Project Subnet</para></entry>
+                    <entry><para>$project_subnet</para></entry>
+                    <entry><para></para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>Physical Filer Primary</para></entry>
+                    <entry><para>&primary.filer_name;</para></entry>
+                    <entry><para>Obtained from network design document.</para></entry>
+                  </row>
+                  
+                  <row>
+                    <entry><para>Physical Filer Secondary</para></entry>
+                    <entry><para>&secondary.filer_name;</para></entry>
+                    <entry><para>Obtained from network design document.</para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>Primary Storage IP Address</para></entry>
+                    <entry><para>&primary.storage_ip;</para></entry>
+                    <entry><para>Obtained from network design document.</para></entry>
+                  </row>
+                  
+                  <row>
+                    <entry><para>Physical &nearstore;</para></entry>
+                    <entry><para>&nearstore.filer_name;</para></entry>
+                    <entry><para>Used as the backup target for the primary data held on	&primary.filer_name;.</para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>&nearstore; IP Address</para></entry>
+                    <entry><para>&nearstore.storage_ip;</para></entry>
+                    <entry><para>Obtained from network design document.</para></entry>
+                  </row>
                   
                 </tbody>
               </tgroup>
             </table>
-
-            <note>
-              <para>Hosts with dual connections to edge pairs must have their active connections
-              alternated between the edge switch pairs; this spreads the load across the
-              switch uplinks to the core switches, which increases throughput.
-              </para>
-            </note>
-
-            <warning>
-              <para>Care should be taken to correctly identify the host end ports. Sun host ports
-              are notoriously difficult to identify as the port names are determined by a
-              software process. Assistance may be required by build teams to correctly identify
-              the required host ports.
-              </para>
-
-              <para>IPSAN switch port are clearly labelled on the edge switch devices.
-              </para>
-
-            </warning>
-
-            
             ''')
 
-        rows = ''
-        for host in self.conf.hosts.values():
-
-            interfaces = [ x for x in host.interfaces if x.type == 'storage' ]
-
-            log.debug("Adding interfaces: %s", interfaces)
-
-            for iface, index in zip(interfaces, range(20) ):
-
-                entries = ''
-                log.debug("Processing interface: %s, %s", iface, index)
-                if index == 0:
-                    if len(interfaces) > 1:
-                        entries += "<entry morerows='%d' valign='middle'>%s</entry>\n" % ( len(interfaces)-1, host.name)
-                        entries += "<entry morerows='%d' valign='middle'>%s</entry>\n" % ( len(interfaces)-1, host.get_storage_ip() )
-                    else:
-                        entries += "<entry>%s</entry>\n" %  host.name
-                        entries += "<entry>%s</entry>\n" %  host.get_storage_ip()
-                
-                entries += "<entry>%s</entry>\n" % iface.hostport
-                entries += "<entry>%s</entry>\n" % iface.switchname
-                entries += "<entry>%s</entry>\n" % iface.switchport
-                entries += "<entry>%s</entry>\n" % iface.mode
-
-                rows += "<row>%s</row>\n" % entries
-                pass
-            pass
-                
-        ns['edge_table_body_rows'] = rows
-
-        ns['edge_networking_table'] = edge_networking_table.safe_substitute(ns)
+        ns['core_networking_table'] = core_networking_table.safe_substitute(ns)
 
         return section.safe_substitute(ns)
 
@@ -443,6 +425,17 @@ to provide IP connectivity between the project hosts and the storage infrastruct
     def build_activation_section(self, ns):
         log.debug("Adding activation instructions...")
 
+        # Old version with subsections
+##         section = Template("""
+##         <appendix>
+##           <title>Activation Instructions</title>
+
+##           $activation_commands
+          
+##         </appendix>
+##         """)
+
+        # new version where each filer is a separate appendix.
         section = Template("""
           $activation_commands
         """)
@@ -454,105 +447,37 @@ to provide IP connectivity between the project hosts and the storage infrastruct
 
         activation_commands = ''
 
-        # build core switch configs
-        for switch in [ x for x in self.conf.project_switches.values() if x.type == 'core' ]:
-            log.debug("Adding core switch activation commands for %s...", switch.name)
-            activation_commands += self.build_switch_activation_commands(switch)
-            
-        for switch in [ x for x in self.conf.project_switches.values() if x.type == 'edge' ]:
-            log.debug("Adding edge switch activation commands for %s...", switch.name)
-            activation_commands += self.build_switch_activation_commands(switch)
-            pass
+        # Build the commands for all primary filers
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
+            vfiler = filer.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        log.debug("activation commands: %s", activation_commands)
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'secondary' ]:
+            # My vfiler is the vfiler from the primary
+            vfiler = filer.secondary_for.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
+            vfiler = filer.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        # Build the commands for all secondary filers
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'primary' ]:
+            vfiler = filer.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'secondary' ]:
+            # My vfiler is the vfiler from the primary
+            vfiler = filer.secondary_for.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
+            vfiler = filer.vfilers[ns['vfiler_name']]
+            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+
+
         return activation_commands
 
-    def build_switch_activation_commands(self, switch):
-        """
-        Build the switch activation commands for a specific switch
-        in the configuration.
-        """
-        ns = {}
-        section = Template("""<appendix><title>Switch Activation Commmands for %s</title>
-        $sections
-        </appendix>
-        """ % switch.name)
-
-        ns['sections'] = ''
-        if switch.type == 'core':
-            ns['sections'] += self.build_core_switch_activation_commands(switch)
-
-        elif switch.type == 'edge':
-            ns['sections'] += self.build_edge_switch_activation_commands(switch)
-            pass
-
-        return section.safe_substitute(ns)
-
-    def build_core_switch_activation_commands(self, switch):
-        """
-        Build the core switch activation commands
-        """
-        ns = {}
-
-        section = Template("""<section><title>VLAN Activation</title>
-        <screen>$cmds</screen>
-        </section>
-        """)
-        ns['cmds'] = '\n'.join( self.conf.core_switch_activation_commands(switch) )
-
-        return section.safe_substitute(ns)
-
-    def build_edge_switch_activation_commands(self, switch):
-        """
-        Build the edge switch activation commands
-        """
-        sections = ''
-
-        sections += self.build_switch_vlan_activation_section(switch)
-        sections += self.build_edgeswitch_port_acls(switch)
-        sections += self.build_edgeswitch_interfaces(switch)
-        
-        return sections
-
-    def build_switch_vlan_activation_section(self, switch):
-        ns = {}
-
-        section = Template("""<section><title>VLAN Activation</title>
-        <screen>$cmds</screen>
-        </section>
-        """)
-        ns['cmds'] = '\n'.join( self.conf.switch_vlan_activation_commands(switch) )
-
-        return section.safe_substitute(ns)
-
-    def build_edgeswitch_port_acls(self, switch):
-        """
-        Build ACLs for an edge switch
-        """
-        ns = {}
-
-        section = Template("""<section><title>Edge Port ACLs</title>
-        <screen>$cmds</screen>
-        </section>
-        """)
-        ns['cmds'] = '\n'.join( self.conf.edge_switch_port_acl_commands(switch) )
-
-        return section.safe_substitute(ns)
-
-    def build_edgeswitch_interfaces(self, switch):
-        """
-        Build interfaces for an edge switch
-        """
-        ns = {}
-
-        section = Template("""<section><title>Edge Interfaces</title>
-        <screen>$cmds</screen>
-        </section>
-        """)
-        ns['cmds'] = '\n'.join( self.conf.edge_switch_interfaces_commands(switch) )
-
-        return section.safe_substitute(ns)
-        
     def build_filer_activation_commands(self, filer, vfiler, ns):
         """
         Build the various command sections for a specific filer.

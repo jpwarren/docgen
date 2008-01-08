@@ -5,7 +5,6 @@
 from zope.interface import Interface
 from string import Template
 
-import sys
 import os.path
 
 import logging
@@ -385,27 +384,26 @@ ${abstract}
         ns['vfiler_name'] = self.conf.shortname
         ns['primary_project_vlan'] = self.conf.primary_project_vlan
 
-        ns['primary_filer_name'] = self.conf.get_filers('primary', 'primary')[0].name
-        ns['secondary_filer_name'] = self.conf.get_filers('primary', 'secondary')[0].name
-        ns['nearstore_filer_name'] = self.conf.get_filers('primary', 'nearstore')[0].name
-        ns['primary_storage_ip'] = self.conf.get_filers('primary', 'primary')[0].vfilers.values()[0].ipaddress
-        ns['nearstore_storage_ip'] = self.conf.get_filers('primary', 'nearstore')[0].vfilers.values()[0].ipaddress
+        ns['primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/@name")[0]
+        ns['secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'secondary']/@name")[0]
+        ns['nearstore_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'nearstore']/@name")[0]
 
         if self.conf.has_dr:
             try:
                 ns['secondary_project_vlan'] = self.conf.secondary_project_vlan
 
-                ns['dr_primary_filer_name'] = self.conf.get_filers('secondary', 'primary')[0].name
-                ns['dr_secondary_filer_name'] = self.conf.get_filers('secondary', 'secondary')[0].name
-                ns['dr_nearstore_filer_name'] = self.conf.get_filers('secondary', 'nearstore')[0].name
-
-                ns['dr_primary_storage_ip'] = self.conf.get_filers('secondary', 'primary')[0].vfilers.values()[0].ipaddress
-                ns['dr_nearstore_storage_ip'] = self.conf.get_filers('secondary', 'nearstore')[0].vfilers.values()[0].ipaddress
+                ns['dr_primary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/@name")[0]
+                ns['dr_secondary_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'secondary']/@name")[0]
+                ns['dr_nearstore_filer_name'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/@name")[0]
+                ns['dr_primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
+                ns['dr_nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'secondary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
 
             except IndexError, e:
                 log.error("DR filer details not supplied.")
                 raise
 
+        ns['primary_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/vfiler/primaryip/ipaddr")[0].text
+        ns['nearstore_storage_ip'] = self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'nearstore']/vfiler/primaryip/ipaddr")[0].text
         
         ns['book_content'] = self.build_book_content(ns)
         return self.bookstr.safe_substitute( ns )
