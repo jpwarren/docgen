@@ -34,6 +34,27 @@ FILER_TYPES = [
     'dr_nearstore',
     ]
 
+def get_create_size(size):
+    """
+    Utility function
+    Get the raw size in a format acceptable to the vol or lun create command,
+    ie: integer amounts, and the appropriate scale (0.02g == 20m)
+    """
+    # Figure out if the raw volume size is fractional.
+    # NetApps won't accept fractional numbers for the vol create command,
+    # so we convert it from the default gigabytes to megabytes.
+    if 0 < float(size) - int(size) < 1:
+        log.debug("size %s is fractional gigabytes, using megabytes for create command", size)
+        # Note: This uses 1000 megabytes per gigabytes, which is not true.
+        # It should be base 2, not base 10, == 1024, but most humans prefer base 10.
+        roundsize = round(size * 1000)
+        if roundsize == 0:
+            log.error("Size error: %s", size)
+            raise ValueError("Attempting to create Volume/LUN of size 0!")
+        return '%dm' % roundsize
+
+    return '%dg' % round(size)
+    
 class Revision:
     """
     A Revision is a particular revision of a document. A single
@@ -52,7 +73,7 @@ class Host:
     """
     A host definition
     """
-    def __init__(self, name, platform, os, site, location, description='', drhosts=[], interfaces=[], filesystems=[]):
+    def __init__(self, name, platform, os, site, location, description='', drhosts=[], interfaces=[], iscsi_initiator=None):
 
         self.name = name
         self.platform = platform
@@ -67,7 +88,7 @@ class Host:
         self.drhosts = drhosts
 
         self.interfaces = interfaces
-        self.filesystems = filesystems
+        #self.filesystems = filesystems
         
         log.debug("Created host: %s", self)
 
@@ -195,13 +216,38 @@ class VFiler:
         self.gateway = gateway
         self.volumes = []
 
-        self.nameservers = [ '161.117.245.73',
-                             '161.117.218.175',
-                             ]
 
-        self.winsservers = [ '161.117.245.73',
-                             '161.117.218.175',
-                             ]
+        # We will need at least one additional 'services' VLAN
+        # This will have a separate interface, IP address and gateway route
+        # The format of each entry in the list is a tuple:
+        # (vlan, ipaddress)
+        self.services_ips = []
+
+        #
+        # CIFS related configuration stuff
+        #
+        
+        # Nameservers are dependent on which site we're at.
+        # Pending the implementation of the <site/> element,
+        # we use string comparisons of filer prefixes, which are
+        # known to refer to certain sites.
+        if self.filer.name.startswith('exip'):
+            self.nameservers = [ '161.117.218.175',
+                                 '161.117.245.73',
+                                 ]
+            self.winsservers = [ '161.117.218.175',
+                                 '161.117.245.73',
+                                 ]
+
+        elif self.filer.name.startswith('clip'):
+            self.nameservers = [ '161.117.245.73',
+                                 '161.117.218.175',
+                                 ]
+
+            self.winsservers = [ '161.117.245.73',
+                                 '161.117.218.175',
+                                 ]
+            pass
 
         self.dns_domain_name = 'corp.org.local'
         self.ad_account_location = "OU=Storage,OU=PRD,OU=Server,DC=corp,DC=org,DC=local"
@@ -223,14 +269,17 @@ class VFiler:
         """
         Return my NetBIOS name
         """
-        return self.name.upper()
+        return '%s-%s' % (self.filer.name, self.name)
 
     def fqdn(self):
         """
         Return my fully qualified domain name.
         """
+        return '%s.%s' % ( self.netbios_name(), self.dns_domain_name )
 
-        return '%s.%s' % ( self.name, self.dns_domain_name )
+    def add_service_ip(self, vlan, ipaddress):
+        self.services_ips.append( (vlan, ipaddress) )
+    pass
 
 class Volume:
 
@@ -258,7 +307,7 @@ class Volume:
         self.snapvaults = []
         self.snapmirrors = []
 
-        self.qtrees = []
+        self.qtrees = {}
 
         # Set default volume options
         if len(voloptions) == 0:
@@ -279,27 +328,15 @@ class Volume:
 
     def __str__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw)
+ 
 
     def get_create_size(self):
         """
         Get the raw size in a format acceptable to the vol create command,
         ie: integer amounts, and the appropriate scale (0.02g == 20m)
         """
-        # Figure out if the raw volume size is fractional.
-        # NetApps won't accept fractional numbers for the vol create command,
-        # so we convert it from the default gigabytes to megabytes.
-        if 0 < float(self.raw) - int(self.raw) < 1:
-            log.debug("Vol size %s is fractional gigabytes, using megabytes for create command", self.raw)
-            # Note: This uses 1000 megabytes per gigabytes, which is not true.
-            # It should be base 2, not base 10, == 1024, but most humans prefer base 10.
-            size = round(self.raw * 1000)
-            if size == 0:
-                log.error("Volume size error: %s", self)
-                raise ValueError("Attempting to create volume of size 0!")
-            return '%dm' % size
+        return get_create_size(self.raw)
         
-        return '%dg' % round(self.raw)
-
     def shortpath(self):
         """
         The short path for the volume, eg: /vol/myproj_vol03
@@ -317,10 +354,10 @@ class Volume:
         Similar to the name path, but using the storage IP of the filer as the target.
         """
         return '%s:%s' % ( self.filer.name, self.shortpath() )
-    
-class Qtree:
 
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[]):
+class Qtree:
+    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], qtreenode=None):
+
         """
         A Qtree representation
         """
@@ -333,13 +370,15 @@ class Qtree:
         self.comment = comment
         self.rwhostlist = rwhostlist
         self.rohostlist = rohostlist
+        self.qtreenode = qtreenode
         
         # Any additional mount options that may be required, over the base ones
         #self.mountoptions = mountoptions
 
         log.debug("Created qtree: %s", self)
-
-        self.volume.qtrees.append(self)
+        
+        self.volume.qtrees[self.name] = self
+        #self.volume.qtrees.append(self)
 
     def __str__(self):
         return '<Qtree: type: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.name, self.volume.proto, self.security, [ str(x) for x in self.rwhostlist ], [ str(x) for x in self.rohostlist])
@@ -363,10 +402,19 @@ class LUN:
 
     lunid = 0
 
-    def __init__(self, name, lunid, size, ostype, initlist, lunnode):
+    def __init__(self, name, qtree, lunid, size, ostype, initlist, lunnode):
 
         self.name = name
+        self.qtree = qtree
         self.size = size
+
+        if ostype.lower().startswith('solaris'):
+            ostype = 'solaris'
+        elif ostype.lower().startswith('windows'):
+            ostype = 'windows'
+        else:
+            raise ValueError("Unsupported LUN type: '%s'", ostype)
+
         self.ostype = ostype
         self.lunid = lunid
         self.lunnode = lunnode
@@ -375,6 +423,17 @@ class LUN:
         self.igroup = None
 
         log.debug("Created lun: %s", self.name)
+
+        qtree.luns.append(self)
+
+    def full_path(self):
+        """
+        Return the full path string for LUN creation
+        """
+        return self.name
+
+    def get_create_size(self):
+        return get_create_size(self.size)
 
 class Vlan:
     """
@@ -565,7 +624,11 @@ class ProjectConfig:
             if vol.proto not in self.allowed_protocols and vol.proto is not None:
                 self.allowed_protocols.append(vol.proto)
 
-        self.qtrees = self.load_qtrees()
+        self.qtrees = self.load_qtrees('primary')
+        self.qtrees.extend( self.load_qtrees('secondary') )
+
+        self.luns = self.load_luns()
+        self.igroups = self.load_igroups()
 
     def load_revisions(self):
         """
@@ -675,6 +738,11 @@ class ProjectConfig:
             except IndexError:
                 description = ''
 
+            try:
+                iscsi_initiator = node.find('iscsi_initiator').text
+            except AttributeError:
+                iscsi_initiator = None
+
             drhostnodes = node.findall('drhost')
             drhosts = [ host.attrib['name'] for host in drhostnodes ]
 
@@ -733,7 +801,8 @@ class ProjectConfig:
                                    location=host_attribs['location'],
                                    description=description,
                                    drhosts=drhosts,
-                                   interfaces=ifaces)
+                                   interfaces=ifaces,
+                                   iscsi_initiator=iscsi_initiator)
         return hosts
 
     def sanity_check_hosts(self, hostdict):
@@ -845,7 +914,19 @@ class ProjectConfig:
 
             vfiler_key = '%s:%s' % (filer.name, name)
             vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
-            
+
+            for vlanip in node.xpath("vlanip"):
+                # Find the vlan object that relates to the vlan mentioned here
+                log.debug("found additional VLAN ip for vlan %s", vlanip.attrib['vlan'])
+                try:
+                    vlan_node = vlanip.xpath("ancestor::site/vlan[@type = 'services' and @number = '%s']" % vlanip.attrib['vlan'])[0]
+                except IndexError:
+                    raise ValueError("vlanip references non-existant VLAN '%s'" % vlanip.attrib['vlan'])
+                log.debug("vlan_node is: %s", vlan_node)
+                vlan = [ x for x in self.vlans if x.node == vlan_node ][0]
+                vfilers[vfiler_key].add_service_ip( vlan, vlanip.find('ipaddr').text )
+                pass
+
         return vfilers
 
     def load_volumes(self):
@@ -983,8 +1064,14 @@ class ProjectConfig:
                         try:
                             qtree_security = qtree_node.xpath("@security")[0]
                         except IndexError:
-                            qtree_security = 'unix'
-                            pass
+                            # If qtree security isn't set manually, use defaults for
+                            # the kind of volume
+                            log.debug("Determining qtree security mode: %s, %s", vol.name, vol.proto)
+                            if vol.proto == 'cifs':
+                                log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
+                                qtree_security = 'ntfs'
+                            else:
+                                qtree_security = 'unix'
 
                         if qtree_node.text is None:
                             qtree_comment = ''
@@ -999,7 +1086,7 @@ class ProjectConfig:
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
 
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist)
+                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist, qtreenode=qtree_node)
 
                         # Build mountoptions for the qtree
 ##                         mountoptions.extend( self.get_qtree_mountoptions(qtree) )
@@ -1073,12 +1160,25 @@ class ProjectConfig:
                                 qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
                                 #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
+                                pass
+                            pass
+                        pass
+                    #
+                    # Not an Oracle volume, so this is a standard data volume
+                    #
 
                     else:
+                        if vol.proto == 'cifs':
+                            log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
+                            qtree_security = 'ntfs'
+                        else:
+                            qtree_security = 'unix'
+                            pass
+
                         # Figure out the hostlist by checking for volume based export definitions
                         rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
 
-                        qtree = Qtree(vol, rwhostlist=rwhostlist, rohostlist=rohostlist)
+                        qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist)
                         #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
@@ -1090,7 +1190,7 @@ class ProjectConfig:
             # permissions at the remote side as they do on the local side
             if len(vol.snapmirrors) > 0:
 
-                for qtree in vol.qtrees:
+                for qtree in vol.qtrees.values():
                     dr_rwhostlist = []
                     dr_rohostlist = []
 
@@ -1178,6 +1278,108 @@ class ProjectConfig:
         log.debug("mountoptions are: %s", mountoptions)
         return mountoptions
 
+    def load_luns(self):
+        """
+        Load LUN definitions.
+        """
+        lunlist = []
+
+        for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi']:
+            log.debug("Found iSCSI volume for LUNs...")
+
+            # check to see if any LUN nodes are defined.
+            luns = vol.volnode.xpath("descendant-or-self::lun")
+            if len(luns) > 0:
+                log.debug("found lun nodes: %s", luns)
+
+                # If you specify LUN sizes, the system will use exactly
+                # what you define in the config file.
+                # If you don't specify the LUN size, then the system will
+                # divide up however much storage is left in the volume evenly
+                # between the number of LUNs that don't have a size specified.
+
+                lun_total = 0
+
+                for lunnode in vol.volnode.xpath("descendant-or-self::lun"):
+                    try:
+                        lunsize = float(lunnode.xpath("@size")[0])
+                    except IndexError:
+                        log.debug("No LUN size specified. Figuring it out...")
+                        lunsize = ( vol.usable - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+                        log.debug("calculated lun size of: %s", lunsize)
+                        pass
+
+                    log.info("Allocating %sg storage to LUN", lunsize)
+                    lun_total += lunsize
+
+                    lunid = len(lunlist)
+
+                    rwhostlist, rohostlist = self.get_export_hostlists(lunnode)
+                    hostlist = rwhostlist + rohostlist
+
+                    # See if a qtree parent node exists
+                    try:
+                        qtree_parent_node = lunnode.xpath('parent::qtree')[0]
+                        qtree_parent = [ qtree for qtree in vol.qtrees.values() if qtree_parent_node == qtree.qtreenode ][0]
+                    except IndexError:
+                        # No qtree node defined, so use the first one in the volume.
+                        # Technically, there should only be one.
+                        qtree_parent = vol.qtrees.values()[0]
+                    try:
+                        lunname = lunnode.xpath("@name")[0]
+                    except IndexError:
+                        if hostlist[0].iscsi_initiator is None:
+                            raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
+
+                        lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
+                        #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
+                        pass
+
+                    # The LUN ostype defaults to the same type as the first one in its initiator list
+                    lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
+                    pass
+                pass
+            pass
+        log.info("Loaded all LUNs")
+        return lunlist
+
+    def load_igroups(self):
+        """
+        Load iGroup definitions based on previously loaded LUN definitions
+        """
+        # For each LUN in the lunlist, create an iGroup for its initlist.
+        # If multiple LUNs are exported to the same initlist, they are
+        # exported to the same iGroup, so a new one is not created.
+        igroups = []
+        
+        for lun in self.luns:
+            if lun.initlist not in [ x.initlist for x in igroups ]:
+                log.debug("initlist %s has not had a group created for it yet", lun.initlist)
+                igroup_name = '%s_igroup%02d' % ( self.shortname, len(igroups) )
+
+                # Add a list of one LUN to a brand new iGroup with this LUN's initlist
+                # The iGroup type defaults the same as the first LUN type that it contains.
+                group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
+                lun.igroup = group
+                igroups.append(group)
+                
+            else:
+                log.debug("Aha! An iGroup with this initlist already exists!")
+                for group in igroups:
+                    if group.initlist == lun.initlist:
+                        log.info("Appending LUN to iGroup %s", group.name)
+                        if group.type != lun.ostype:
+                            log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
+                        else:
+                            lun.igroup = group
+                            group.lunlist.append(lun)
+                        break
+                    pass
+                pass
+            pass
+
+        return igroups
+
     def __get_qtree_mountoptions(self, qtree):
         """
         DEPRECATED
@@ -1246,7 +1448,12 @@ class ProjectConfig:
 
                 # check to see if the network is defined with slash notation for a netmask
                 if network.find('/') > 0:
-                    network, netmask, maskbits = self.str2net(network)
+                    try:
+                        network, netmask, maskbits = self.str2net(network)
+                    except:
+                        log.error("Error with network number for VLAN %s", number)
+                        raise
+
                     log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
                 
             except IndexError:
@@ -1358,10 +1565,16 @@ class ProjectConfig:
         # the list of possible protocols for the vfiler.
         # If neither of these are set, it will default to nfs.
         try:
-            proto = node.xpath("@proto | ancestor::*/vfiler/protocol/text()")[0].lower()
-            log.debug("Found proto for volume: %s", proto)
+            proto = node.xpath("@proto")[0].lower()
+            log.debug("Proto defined for volume: %s", proto)
+
         except IndexError:
-            proto = 'nfs'
+            try:
+                proto = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
+                log.debug("Found proto in vfiler ancestor: %s", proto)
+            except IndexError:
+                proto = 'nfs'
+                log.debug("Proto set to default: %s", proto)
 
         try:
             voltype = node.xpath("@type")[0]
@@ -1373,7 +1586,7 @@ class ProjectConfig:
             snapreserve = node.xpath("@snapreserve")[0]
         except IndexError:
             #log.debug("No snapreserve specified.")
-            if voltype == 'iscsi':
+            if proto == 'iscsi':
                 snapreserve = 0
             elif voltype in ['oraundo', 'oraarch', ]:
                 snapreserve = 50
@@ -1534,110 +1747,22 @@ class ProjectConfig:
         qtrees = [ x for x in self.qtrees if x.volume.filer.site == site ]
         return qtrees
 
-    def get_site_iscsi_igroups(self, ns, site='primary'):
+    def get_filer_iscsi_igroups(self, filer):
         """
-        Fetch the iSCSI iGroups for a site
+        Fetch the iSCSI iGroups for a filer
         """
-        if hasattr(self, 'igroups'):
-            return self.igroups
+        igroups = [ igroup for igroup in self.igroups if igroup.filer == filer ]
         
-        igroups = []
-        lunlist = []
-        
-        vols = [ x for x in self.get_volumes(site, 'primary') if x.type == 'iscsi' ]
-        for vol in vols:
-            log.debug("iSCSI vol: %s", vol)
-
-            # If a volume has multiple LUNs defined, put each one in its own
-            # qtree, unless they are defined within qtrees, in which case,
-            # use the exact layout that is specified in the config file.
-
-            # check to see if any LUN nodes are defined.
-            luns = vol.volnode.xpath("descendant-or-self::lun")
-
-            if len(luns) > 0:
-                log.debug("found lun nodes: %s", luns)
-
-                # If you specify LUN sizes, the system will use exactly
-                # what you define in the config file.
-                # If you don't specify the LUN size, then the system will
-                # divide up however much storage is left in the volume evenly
-                # between the number of LUNs that don't have a size specified.
-
-                lun_total = 0
-                
-                # Define all the LUNs that have sizes specified
-                for lunnode in vol.volnode.xpath("descendant-or-self::lun[@size]"):
-                    lunsize = float(lunnode.xpath("@size")[0])
-                    log.info("Allocating %sg storage to LUN", lunsize)
-                    lun_total += lunsize
-
-                    lunid = len(lunlist)
-
-                    initlist = self.get_iscsi_initiators(lunnode)
-
-                    # We use the hostname component of the first entry in the initiator list
-                    # to name the lun if a lun name is not specified.
-                    try:
-                        lunname = lunnode.xpath("@name")[0]
-                    except IndexError:
-                        lunname = '%s_%s_lun%02d.lun' % (ns['vfiler_name'], initlist[0][0], lunid)
-
-                    # The LUN ostype defaults to the same type as the first one in its initiator list
-                    lunlist.append( LUN( lunname, lunid, lunsize, initlist[0][2], initlist, lunnode) )
-
-                for lunnode in vol.volnode.xpath("descendant-or-self::lun[not(@size)]"):
-                    lunsize = ( vol.usable - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
-                    log.info("calculated lun size of: %s", lunsize)
-
-                    lunid = len(lunlist)
-                    
-                    initlist = self.get_iscsi_initiators(lunnode)
-
-                    try:
-                        lunname = lunnode.xpath("@name")[0]
-                    except IndexError:
-                        lunname = '%s_%s_lun%02d.lun' % (ns['vfiler_name'], initlist[0][0], lunid)
-
-                    lunlist.append( LUN( lunname, lunid, lunsize, initlist[0][2], initlist, lunnode) )
-                pass
-
-            pass
-
-        # For each LUN in the lunlist, create an iGroup for its initlist.
-        # If multiple LUNs are exported to the same initlist, they are
-        # exported to the same iGroup, so a new one is not created.
-
-        self.lunlist = lunlist
-
-        for lun in lunlist:
-            if lun.initlist not in [ x.initlist for x in igroups ]:
-                log.debug("initlist %s has not had a group created for it yet", lun.initlist)
-                igroup_name = '%s_%s_igroup%02d' % ( ns['vfiler_name'], lun.initlist[0][0], len(igroups) )
-
-                # Add a list of one LUN to a brand new iGroup with this LUN's initlist
-                # The iGroup type defaults the same as the first LUN type that it contains.
-                group = iGroup(igroup_name, lun.initlist, [lun,], type=lun.ostype)
-                lun.igroup = group
-                igroups.append(group)
-                
-            else:
-                log.debug("Aha! An iGroup with this initlist already exists!")
-                for group in igroups:
-                    if group.initlist == lun.initlist:
-                        log.info("Appending LUN to iGroup %s", group.name)
-                        if group.type != lun.ostype:
-                            log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
-                        else:
-                            lun.igroup = group
-                            group.lunlist.append(lun)
-                        break
-                    pass
-                pass
-            pass
-
-        self.igroups = igroups
         return igroups
+
+    def get_filer_luns(self, filer):
+        """
+        Fetch all the LUNs on a certain filer
+        """
+        log.debug("getting luns on %s", filer)
+        luns = [ lun for lun in self.luns if lun.qtree.volume.filer == filer ]
+        log.debug("luns are: %s", luns)
+        return luns
 
     def get_iscsi_initiators(self, node):
         """
@@ -1652,9 +1777,10 @@ class ProjectConfig:
         """
         log.debug("finding initiators for LUN: %s", node.xpath("@name"))
         initlist = []
-        exports = self.get_export_nodes(node)
 
-        for export in exports:
+        rwhostlist, rohostlist = self.get_export_hostlists(node)
+
+        for host in rwhostlist:
             hostname = export.xpath("@to")[0]
             initname = self.tree.xpath("host[@name = '%s']/iscsi_initiator" % hostname)[0].text
             operatingsystem = self.tree.xpath("host[@name = '%s']/operatingsystem" % hostname)[0].text
@@ -1936,15 +2062,15 @@ class ProjectConfig:
         Build the qtree creation commands for qtrees on volumes on filers at site and type.
         """
         cmdset = []
-        for vol in filer.volumes:
-            for qtree in vol.qtrees:
+        for vol in [ vol for vol in filer.volumes if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
+            for qtree in vol.qtrees.values():
                 cmdset.append( "qtree create /vol/%s/%s" % (qtree.volume.name, qtree.name) )
                 cmdset.append( "qtree security /vol/%s/%s %s" % (qtree.volume.name, qtree.name, qtree.security) )
                 pass
             pass
         return cmdset
 
-    def vlan_create_commands(self, filer):
+    def vlan_create_commands(self, filer, vfiler):
         """
         Find the project VLAN for the filer's site,
         and return the command for how to create it.
@@ -1952,6 +2078,10 @@ class ProjectConfig:
         cmdset = []
         vlan = self.get_project_vlan(filer.site)
         cmdset.append("vlan add svif0 %s" % vlan.number)
+
+        for vlan,ipaddr in vfiler.services_ips:
+            cmdset.append("vlan add svif0 %s" % vlan.number)
+
         return cmdset
 
     def ipspace_create_commands(self, filer, ns):
@@ -1962,6 +2092,11 @@ class ProjectConfig:
         vlan = self.get_project_vlan(filer.site)
         cmdset.append("ipspace create ips-%s" % self.shortname)
         cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
+
+        for vlan in self.get_services_vlans(filer.site):
+            cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
+            pass
+        
         return cmdset
 
     def vfiler_create_commands(self, filer, vfiler, ns):
@@ -1971,6 +2106,8 @@ class ProjectConfig:
                                                                             vfiler.ipaddress,
                                                                             vfiler.name,
                                                                             ) )
+        for vlan,ipaddr in vfiler.services_ips:
+            cmdset.append("vfiler add %s -i %s" % (vfiler.name, ipaddr,) )
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
@@ -2004,6 +2141,25 @@ class ProjectConfig:
             cmd += " partner svif0-%s" % self.get_project_vlan(filer.site).number
         cmdset.append(cmd)
 
+        #
+        # Services VLAN interfaces
+        #
+        for vlan,ipaddr in vfiler.services_ips:
+            if filer.type == 'secondary':
+                cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 1500 up" % ( vlan.number, vlan.netmask)
+                pass
+            else:
+                cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number,
+                                                                           ipaddr,
+                                                                           vlan.netmask)
+                pass
+
+            # Add partner clause if this is a primary or secondary filer
+            if filer.type in [ 'primary', 'secondary' ]:
+                cmd += " partner svif0-%s" % vlan.number
+                cmdset.append(cmd)
+                pass
+            
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
@@ -2033,22 +2189,47 @@ class ProjectConfig:
         Return a list of all vlans of type 'services'
         """
         return [ vlan for vlan in self.vlans if vlan.type == 'services' and vlan.site == site ]
-            
-    def services_vlan_route_commands(self, site, vfiler):
+
+    def default_route_command(self, filer, vfiler):
         """
-        Because we use VRFs to route into other services VLANs, we only need
-        a single default route, iff services VLANs are defined. The route will
-        use the gateway address for the project VLAN.
+        The default route points to the VRF address for the primary VLAN.
+        It may not exist yet, but having this here means no additional
+        routing needs to be configured if the VRF is configured at some point.
         """
         cmdset = []
-
-        if len(self.get_services_vlans(site)) > 0:
-            proj_vlan = self.get_project_vlan(site)
-            cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
-            pass
-        
-        return cmdset
+        title = "Default Route"
+        proj_vlan = self.get_project_vlan(filer.site)
+        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
+        return title, cmdset
     
+    def services_vlan_route_commands(self, vfiler):
+        """
+        Services VLANs are different from VRFs. Services VLANs are actual VLANs
+        that are routed via firewalls into the main corporate network to provide
+        access to services, such as Active Directory.
+        """
+        cmdset = []
+        log.debug("vfiler services vlans: %s", vfiler.services_ips)
+
+        known_dests = []
+        for (vlan, ipaddress) in vfiler.services_ips:
+            log.debug("Adding services routes: %s", vlan)
+            for ipaddr in vfiler.nameservers:
+                if ipaddr not in known_dests:
+                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
+                    known_dests.append(ipaddr)
+                    pass
+                pass
+            
+            for ipaddr in vfiler.winsservers:
+                if ipaddr not in known_dests:
+                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
+                    known_dests.append(ipaddr)
+                    pass
+                pass
+            pass
+        return cmdset
+            
     def vfiler_set_allowed_protocols_commands(self, vfiler, ns):
         cmdset = []
 
@@ -2137,7 +2318,7 @@ class ProjectConfig:
         
     def vfiler_quota_enable_commands(self, filer, vfiler):
         cmdset = []
-        for vol in filer.volumes:
+        for vol in [x for x in filer.volumes if x.type not in ['snapmirrordst']]:
             if not vol.name.endswith('root'):
                 cmdset.append("vfiler run %s quota on %s" % (vfiler.name, vol.name))
                 pass
@@ -2154,7 +2335,7 @@ class ProjectConfig:
         log.debug("Finding NFS exports for filer: %s", filer.name)
         for vol in [ x for x in filer.volumes if x.proto == 'nfs' ]:
             log.debug("Found volume: %s", vol)
-            for qtree in vol.qtrees:
+            for qtree in vol.qtrees.values():
                 log.debug("exporting qtree: %s", qtree)
 
                 # Find read/write exports
@@ -2227,7 +2408,7 @@ class ProjectConfig:
         cmds = []
         volumes = [ x for x in vfiler.filer.volumes if x.proto == 'cifs' ]
         for vol in volumes:
-            for qtree in vol.qtrees:
+            for qtree in vol.qtrees.values():
                 log.debug("Determining CIFS config commands for %s", qtree)
                 cmds.append("vfiler run %s cifs shares -add %s %s" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
                 #cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
@@ -2238,6 +2419,44 @@ class ProjectConfig:
 ##                     cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
 
         return cmds
+
+    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler):
+        """
+        Return the commands required to enable the vfiler configuration
+        """
+        title = "iSCSI CHAP Configuration for %s" % filer.name
+        cmds = []
+        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p sensis%s123" % (vfiler.name, vfiler.name, vfiler.name) )
+        return title, cmds
+
+    def vfiler_igroup_enable_commands(self, filer, vfiler):
+        """
+        Return the commands required to enable the vfiler iGroup configuration
+        """
+        title = "iSCSI iGroup Configuration for %s" % filer.name
+        cmds = []
+        for igroup in self.get_filer_iscsi_igroups(filer):
+            cmds.append("vfiler run %s igroup create -i -t %s %s %s" % (vfiler.name, igroup.type, igroup.name, igroup.initlist[0].iscsi_initiator) )
+            if len(igroup.initlist) > 1:
+                for host in igroup.initlist[1:]:
+                    cmds.append("vfiler run %s igroup add %s %s" % (vfiler.name, igroup.name, host.iscsi_initiator) )
+        return title, cmds
+
+    def vfiler_lun_enable_commands(self, filer, vfiler):
+        """
+        Return the commands required to enable the vfiler LUN configuration
+        """
+        title = "iSCSI LUN Configuration for %s" % filer.name
+        cmds = []
+        for igroup in self.get_filer_iscsi_igroups(filer):
+            for lun in igroup.lunlist:
+                cmds.append("vfiler run %s lun create -s %s -t %s %s" % (vfiler.name, lun.get_create_size(), lun.ostype, lun.full_path()) )
+                cmds.append("vfiler run %s lun map %s %s" % (vfiler.name, lun.full_path(), igroup.name) )
+                pass
+            pass
+
+        return title, cmds
+
     
     def filer_snapreserve_commands(self, filer, ns):
         cmdset = []
@@ -2320,7 +2539,7 @@ class ProjectConfig:
                                 donelist.append( (snap.sourcevol.filer, snap.sourcevol, 'root') )
 
                         # Snapvault relationships are done at the qtree level
-                        for qtree in snap.sourcevol.qtrees:
+                        for qtree in snap.sourcevol.qtrees.values():
                             if (snap.sourcevol.filer, snap.sourcevol, qtree) not in donelist:
                                 cmdset.append("snapvault start -S %s-svif0-2000:/vol/%s/%s /vol/%s/%s" % (snap.sourcevol.filer.name, snap.sourcevol.name, qtree.name, snap.targetvol.name, qtree.name ))
                                 donelist.append( (snap.sourcevol.filer, snap.sourcevol, qtree) )
@@ -2423,7 +2642,8 @@ class ProjectConfig:
 #
 %s %s-svif0-%s
 """ % (vfiler.name, vfiler.ipaddress, filer.name, vfiler.vlan.number )
-
+        for (vlan, ipaddress) in vfiler.services_ips:
+            file += '\n%s %s-svif0-%s' % (ipaddress, filer.name, vlan.number)
         return file
 
     def vfiler_etc_hosts_commands(self, filer, vfiler):
@@ -2450,10 +2670,10 @@ class ProjectConfig:
         """
         cmdset = []
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
-        cmds += self.vlan_create_commands(filer)
+        cmds += self.vlan_create_commands(filer, vfiler)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
         if filer.type in ['primary', 'nearstore']:
-            cmds += self.services_vlan_route_commands(filer.site, vfiler)
+            cmds += self.services_vlan_route_commands(vfiler)
 
         for line in cmds:
             if len(line) == 0:

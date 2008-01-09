@@ -51,30 +51,30 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # Build the commands for all primary filers
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
-            vfiler = filer.vfilers[self.conf.shortname]
+            vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
-            vfiler = filer.secondary_for.vfilers[self.conf.shortname]
+            vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
-            vfiler = filer.vfilers[self.conf.shortname]
+            vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         # Build the commands for all secondary filers
         for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'primary' ]:
-            vfiler = filer.vfilers[self.conf.shortname]
+            vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
-            vfiler = filer.secondary_for.vfilers[self.conf.shortname]
+            vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
-            vfiler = filer.vfilers[self.conf.shortname]
+            vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         return activation_commands
@@ -102,7 +102,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # Create the vfiler VLAN
         commands.append("\n# VLAN Creation\n")
-        commands.extend( self.conf.vlan_create_commands(filer) )
+        commands.extend( self.conf.vlan_create_commands(filer, vfiler) )
 
         # Create the vfiler IPspace
         commands.append("\n# IP Space Creation\n")
@@ -180,7 +180,7 @@ class IPSANCommandsGenerator(CommandGenerator):
         if filer.type in ['primary', 'nearstore']:
             services_vlans = self.conf.get_services_vlans(filer.site)
             if len(services_vlans) > 0:
-                cmds = self.conf.services_vlan_route_commands(filer.site, vfiler)
+                cmds = self.conf.services_vlan_route_commands(vfiler)
                 commands.append("\n# VLAN routes\n")
                 commands.extend(cmds)
 
