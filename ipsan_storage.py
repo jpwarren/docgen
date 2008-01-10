@@ -311,8 +311,7 @@ the host activation guides.
 ''')
 
         rowlist = []
-        hosts = self.conf.tree.xpath('host')
-        for host in hosts:
+        for host in self.conf.hosts.values():
             row = '''
             <row>
               <entry>%s</entry>
@@ -320,11 +319,11 @@ the host activation guides.
               <entry>%s</entry>
               <entry>%s</entry>
             </row>
-            ''' % ( host.xpath('@name')[0],
-                    host.xpath('platform')[0].text,
-                    host.xpath('operatingsystem')[0].text,
-                    host.xpath('location')[0].text,
-                    host.xpath('storageip/ipaddr')[0].text,
+            ''' % ( host.name,
+                    host.platform,
+                    host.os,
+                    host.location,
+                    host.get_storage_ip(),
                     )
             rowlist.append( row )
             pass
@@ -879,8 +878,8 @@ the host activation guides.
         Build the <para/> entries for the storage protocols cell
         """
         paras = []
-        for node in self.conf.tree.xpath("nas/site[@type = 'primary']/filer[@type = 'primary']/vfiler/protocol"):
-            paras.append('<para>%s</para>' % node.text)
+        for proto in self.conf.allowed_protocols:
+            paras.append('<para>%s</para>' % proto)
 
         return '\n'.join(paras)
 
@@ -1376,9 +1375,11 @@ the host activation guides.
                 pass
             pass
 
-        ns['nfs_exports_tables'] = '\n'.join(nfs_tables)
-        
-        return section.safe_substitute(ns)
+        if len(nfs_tables) > 0:
+            ns['nfs_exports_tables'] = '\n'.join(nfs_tables)
+            return section.safe_substitute(ns)
+        else:
+            return ''
 
     def get_nfs_qtree_rows(self, ns, site):
         """

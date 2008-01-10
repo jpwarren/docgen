@@ -202,6 +202,8 @@ to provide IP connectivity between the project hosts and the storage infrastruct
     <title>Network Design and Configuration</title>
     $core_detail_section
 
+    $services_detail_section
+
     $edge_switch_detail_section
 
     $host_config_section
@@ -212,6 +214,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
 ''')
 
         ns['core_detail_section'] = self.build_core_detail_section(ns)
+        ns['services_detail_section'] = self.build_services_detail_section(ns)
         ns['edge_switch_detail_section'] = self.build_edge_switch_detail_section(ns)
         ns['host_config_section'] = '' #self.build_core_detail_section(ns)
         ns['cabling_section'] = '' #self.build_core_detail_section(ns)
@@ -277,19 +280,19 @@ to provide IP connectivity between the project hosts and the storage infrastruct
                   <row>
                     <entry><para>Physical Filer Primary</para></entry>
                     <entry><para>&primary.filer_name;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
+                    <entry><para></para></entry>
                   </row>
                   
                   <row>
                     <entry><para>Physical Filer Secondary</para></entry>
                     <entry><para>&secondary.filer_name;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
+                    <entry><para></para></entry>
                   </row>
 
                   <row>
                     <entry><para>Primary Storage IP Address</para></entry>
                     <entry><para>&primary.storage_ip;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
+                    <entry><para></para></entry>
                   </row>
                   
                   <row>
@@ -301,7 +304,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
                   <row>
                     <entry><para>&nearstore; IP Address</para></entry>
                     <entry><para>&nearstore.storage_ip;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
+                    <entry><para></para></entry>
                   </row>
                   
                 </tbody>
@@ -328,6 +331,124 @@ to provide IP connectivity between the project hosts and the storage infrastruct
 
         return section.safe_substitute(ns)
 
+    def build_services_detail_section(self, ns):
+        """
+        The Services VLAN information.
+        This is just a table with a bunch of info in it.
+        """
+
+        section = Template('''
+          <section id="services-detail-section">
+          <title>Services Networking Details</title>
+            <para>The following table(s) provide Services VLAN configuration information.</para>
+
+            $networking_tables
+
+          </section>
+            ''')
+        
+        services_networking_table = Template('''
+            <table tabstyle="techtable-01">
+              <title>Services VLAN $vlan_number Details</title>
+              <tgroup cols="3">
+                <colspec colnum="1" align="left" colwidth="1*"/>
+                <colspec colnum="2" align="left" colwidth="1*"/>
+                <colspec colnum="3" align="left" colwidth="2*"/>
+                <thead>
+                  <row>
+                    <entry><para>Attribute</para></entry>
+                    <entry><para>Value</para></entry>
+                    <entry><para>Comment</para></entry>
+                  </row>
+                </thead>
+
+                <tbody>
+
+                  <row>
+                    <entry><para>VLAN Number</para></entry>
+                    <entry><para>$vlan_number</para></entry>
+                    <entry><para></para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>VLAN Name</para></entry>
+                    <entry><para>$vlan_name</para></entry>
+                    <entry><para></para></entry>
+                  </row>
+
+                  <row>
+                    <entry><para>VLAN Subnet</para></entry>
+                    <entry><para>$vlan_subnet</para></entry>
+                    <entry><para></para></entry>
+                  </row>
+                </tbody>
+              </tgroup>
+            </table>
+            ''')
+
+        services_ipaddress_table = Template("""
+            <table tabstyle="techtable-01">
+              <title>Services VLAN $vlan_number IP Address Details</title>
+              <tgroup cols="3">
+                <colspec colnum="1" align="left" colwidth="1*"/>
+                <colspec colnum="2" align="left" colwidth="1*"/>
+                <colspec colnum="3" align="left" colwidth="2*"/>
+                <thead>
+                  <row>
+                    <entry><para>Device</para></entry>
+                    <entry><para>IP Address</para></entry>
+                    <entry><para>Comment</para></entry>
+                  </row>
+                </thead>
+
+                <tbody>
+
+                  $ipaddress_rows
+
+                </tbody>
+              </tgroup>
+            </table>
+        """)
+
+        tblns = {}
+        tables = []
+        for i, vlan in enumerate(self.conf.get_services_vlans()):
+            log.debug("Adding a services VLAN to doco: %s...", vlan)
+            tblns['vlan_name'] = '%s_%02d' % (self.conf.shortname, i+1)
+            tblns['vlan_number'] = vlan.number
+            tblns['vlan_subnet'] = '%s/%s' % (vlan.network, vlan.maskbits)
+
+            tables.append( services_networking_table.safe_substitute(tblns) )
+
+            rows = []
+            for device in [ filer for filer in self.conf.filers.values() if filer.type in ['primary', 'nearstore'] ]:
+                vfiler = device.vfilers.values()[0]
+
+                # For all the devices that will have IP addresses in the VLAN, fetch the
+                # IP of the device from its list of services IPs.
+
+                for vlan, ipaddr in [ (vf_vlan,ipaddr) for (vf_vlan,ipaddr) in vfiler.services_ips if vf_vlan == vlan ]:
+                    log.debug("Services IP: %s for filer %s", ipaddr, device.name)
+                    rows.append("""
+                  <row>
+                    <entry><para>%s</para></entry>
+                    <entry><para>%s</para></entry>
+                    <entry><para></para></entry>
+                  </row>""" % (device.name, ipaddr) )
+                    pass
+                pass
+            
+            if len(rows) > 0:
+                tblns['ipaddress_rows'] = rows
+                tables.append( services_ipaddress_table.safe_substitute( tblns ) )
+                pass
+            pass
+        if len(tables) > 0:
+            ns['networking_tables'] = '\n'.join(tables)
+            return section.safe_substitute(ns)
+        else:
+            return ''
+            
     def build_edge_switch_detail_section(self, ns):
         """
         The edge switch detail section.

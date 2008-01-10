@@ -104,7 +104,10 @@ class Host:
         ifacelist = [ x for x in self.interfaces if x.type == 'storage' and x.mode == 'active' ]
 
         try:
+            if ifacelist[0] is None:
+                raise ValueError("Storage IP for host '%s' is not on the active interface")
             return ifacelist[0].ipaddress
+
         except IndexError:
             log.error("Host '%s' has no storage ipaddresses defined.", self.name)
             raise
@@ -267,9 +270,36 @@ class VFiler:
 
     def netbios_name(self):
         """
-        Return my NetBIOS name
+        Return my NetBIOS name.
+        This is limited to 15 characters, which is a pain, so we
+        have to cobble together yet another naming convention.
+        This once is: XYnn-<vfiler-name>
+        Where:
+          X is 'ex' if the filer is at exhibition st, or 'cl' for clayton.
+          Y is 'a' for filer head a, and 'B' for filer head b
+          nn is the number of the filer.
+        So, a vfiler called 'blah' on exip-fashda-01 would have the following
+        NetBIOS name: exa01-blah
         """
-        return '%s-%s' % (self.filer.name, self.name)
+        site_prefix = self.filer.name[:2]
+        if self.filer.type in [ 'primary', 'secondary' ]:
+            head_prefix = 'f'
+        else:
+            head_prefix = 'n'            
+
+        # Due to the naming convention for NearStores, the 'head_prefix'
+        # ends up as 't'. We swap it to 'n' so that it's more obviously a
+        # NearStore.
+        head_num = self.filer.name[-2:]
+
+        retstr = '%s%s%s-%s' % (site_prefix, head_prefix, head_num, self.name)
+        if len(retstr) > 15:
+            log.error("NetBIOS name of '%s' is longer than 15 characters. Truncating it.")
+            retstr = retstr[:15]
+            pass
+
+        log.debug("NetBIOS name: %s", retstr)
+        return retstr
 
     def fqdn(self):
         """
@@ -2410,7 +2440,7 @@ class ProjectConfig:
         for vol in volumes:
             for qtree in vol.qtrees.values():
                 log.debug("Determining CIFS config commands for %s", qtree)
-                cmds.append("vfiler run %s cifs shares -add %s %s" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
+                cmds.append("vfiler run %s cifs shares -add %s %s -f" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
                 #cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
 
 ##                 for host in qtree.rwhostlist:
@@ -2724,7 +2754,7 @@ class ProjectConfig:
             cmdset.append('! Services VLANs')
             for i, vlan in enumerate(vlans):
                 cmdset.append('Vlan %s' % vlan.number)
-                cmdset.append('  name %s_scv_%02d' % (self.shortname, i+1) )
+                cmdset.append('  name %s_svc_%02d' % (self.shortname, i+1) )
 
         return cmdset
 
