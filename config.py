@@ -89,6 +89,8 @@ class Host:
 
         self.interfaces = interfaces
         #self.filesystems = filesystems
+
+        self.iscsi_initiator = iscsi_initiator
         
         log.debug("Created host: %s", self)
 
@@ -401,6 +403,8 @@ class Qtree:
         self.rwhostlist = rwhostlist
         self.rohostlist = rohostlist
         self.qtreenode = qtreenode
+
+        self.luns = []
         
         # Any additional mount options that may be required, over the base ones
         #self.mountoptions = mountoptions
@@ -432,7 +436,7 @@ class LUN:
 
     lunid = 0
 
-    def __init__(self, name, qtree, lunid, size, ostype, initlist, lunnode):
+    def __init__(self, name, qtree, lunid, size, ostype, initlist, lunnode=None):
 
         self.name = name
         self.qtree = qtree
@@ -494,8 +498,9 @@ class iGroup:
     to the hosts (iSCSI initiators) that can access the LUNs.
     """
 
-    def __init__(self, name, initlist=[], lunlist=[], type='windows'):
+    def __init__(self, name, filer, initlist=[], lunlist=[], type='windows'):
         self.name = name
+        self.filer = filer
         self.type = type
         self.initlist = initlist
         self.lunlist = lunlist
@@ -1098,7 +1103,7 @@ class ProjectConfig:
                             # the kind of volume
                             log.debug("Determining qtree security mode: %s, %s", vol.name, vol.proto)
                             if vol.proto == 'cifs':
-                                log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
+                                log.debug("CIFS volume '%s' qtree requires NTFS security.", vol.name)
                                 qtree_security = 'ntfs'
                             else:
                                 qtree_security = 'unix'
@@ -1199,7 +1204,7 @@ class ProjectConfig:
 
                     else:
                         if vol.proto == 'cifs':
-                            log.debug("CIFS volume '%s' qtree required NTFS security.", vol.name)
+                            log.debug("CIFS volume '%s' qtree requires NTFS security.", vol.name)
                             qtree_security = 'ntfs'
                         else:
                             qtree_security = 'unix'
@@ -1317,6 +1322,8 @@ class ProjectConfig:
         for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi']:
             log.debug("Found iSCSI volume for LUNs...")
 
+            lun_total = 0
+
             # check to see if any LUN nodes are defined.
             luns = vol.volnode.xpath("descendant-or-self::lun")
             if len(luns) > 0:
@@ -1328,8 +1335,6 @@ class ProjectConfig:
                 # divide up however much storage is left in the volume evenly
                 # between the number of LUNs that don't have a size specified.
 
-                lun_total = 0
-
                 for lunnode in vol.volnode.xpath("descendant-or-self::lun"):
                     try:
                         lunsize = float(lunnode.xpath("@size")[0])
@@ -1339,7 +1344,7 @@ class ProjectConfig:
                         log.debug("calculated lun size of: %s", lunsize)
                         pass
 
-                    log.info("Allocating %sg storage to LUN", lunsize)
+                    log.debug("Allocating %sg storage to LUN", lunsize)
                     lun_total += lunsize
 
                     lunid = len(lunlist)
@@ -1355,6 +1360,7 @@ class ProjectConfig:
                         # No qtree node defined, so use the first one in the volume.
                         # Technically, there should only be one.
                         qtree_parent = vol.qtrees.values()[0]
+
                     try:
                         lunname = lunnode.xpath("@name")[0]
                     except IndexError:
@@ -1364,13 +1370,39 @@ class ProjectConfig:
                         lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
                         #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
                         pass
-
-                    # The LUN ostype defaults to the same type as the first one in its initiator list
-                    lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
                     pass
                 pass
+
+            # If no LUNs are specified, invent one for the volume.
+            else:
+                log.info("iSCSI volume specified, but no LUNs specified.")
+                lunnode = None
+
+                lunsize = vol.usable
+                log.debug("calculated lun size of: %s", lunsize)
+                lun_total += lunsize
+
+                rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
+                hostlist = rwhostlist + rohostlist
+                
+                lunid = len(lunlist)
+
+                qtree_parent = vol.qtrees.values()[0]
+
+                if hostlist[0].iscsi_initiator is None:
+                    raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
+
+                lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
+
+                
+                pass
+
+            # Add the new LUN to the lunlist
+            # The LUN ostype defaults to the same type as the first one in its initiator list
+            lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
             pass
-        log.info("Loaded all LUNs")
+        
+        log.debug("Loaded all LUNs")
         return lunlist
 
     def load_igroups(self):

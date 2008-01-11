@@ -1796,12 +1796,16 @@ the host activation guides.
                     row = []
 
                     perms = []
+                    # FIXME: Read/write or read-only permissions are not
+                    # properly supported on CIFS as yet.
                     if len(qtree.rwhostlist) > 0:
-                        perms.extend( [ "<para>CORP\%s &lt;full&gt;</para>" % x.name for x in qtree.rwhostlist ] )
+                        perms.append( "<para>everyone Full-Control</para>" )
+                        #perms.extend( [ "<para>CORP\%s &lt;full&gt;</para>" % x.name for x in qtree.rwhostlist ] )
                         pass
                     
                     if len(qtree.rohostlist) > 0:
-                        perms.extend( [ "<para>CORP\%s &lt;read-only&gt;</para>" % x.name for x in qtree.rohostlist ] )
+                        perms.append( "<para>everyone Full-Control</para>" )
+                        #perms.extend( [ "<para>CORP\%s &lt;read-only&gt;</para>" % x.name for x in qtree.rohostlist ] )
                         pass
                     
                     # only add rows if there are permissions set for them.
@@ -2126,11 +2130,11 @@ the host activation guides.
             </section>""" % cmds
 
         # Inter-project routing
-##         cmds = '\n'.join( self.conf.vfiler_add_inter_project_routing(vfiler) )
-##         cmd_ns['commands'] += """<section>
-##         <title>Inter-Project Routing</title>
-##         <screen>%s</screen>
-##         </section>""" % cmds
+        cmds = '\n'.join( self.conf.vfiler_add_inter_project_routing(vfiler) )
+        cmd_ns['commands'] += """<section>
+        <title>Inter-Project Routing</title>
+        <screen>%s</screen>
+        </section>""" % cmds
 
         if filer.type in [ 'primary', 'nearstore' ]:
             cmds = '\n'.join( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )

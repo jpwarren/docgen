@@ -104,11 +104,6 @@
     <onhost name="primhost02"/>
   </database>
 
-  <!--
-      The <nas/> section makes up the bulk of the project definition.
-      There is only one per design.
-  -->
-
     <!-- Every project will have a 'primary' site. This is the site that
 	 the storage is provided from. CoLo or DR could be the primary site
 	 for a project, depending on where the main use of storage is.
@@ -147,6 +142,8 @@
       <switchport>GigabitEthernet1/1</switchport>
       <hostport>PCI 1</hostport>
     </interface>
+
+    <iscsi_initiator>an.iscsi.initname</iscsi_initiator>
 
   </host>
 
@@ -225,7 +222,7 @@
 	       Valid values are: NFS, CIFS, and iSCSI
 	  -->
 	  <protocol>NFS</protocol>
-EI0267.dbx.IPSAN.storage.commands.txt
+
 	  <!--
 	      Each filer must have a primaryip. This is the IP address used to
 	      provide the storage to the hosts.
@@ -250,7 +247,7 @@ EI0267.dbx.IPSAN.storage.commands.txt
 		 
 		 Volume names are defined automatically, based on the
 		 name of the vfiler and the order of the volumes in this
-		 file. A root volume will always be defined for a EI0267.dbx.IPSAN.storage.commands.txtvfiler
+		 file. A root volume will always be defined for a vfiler
 		 using the 'rootaggr' parameter above.
 		 
 		 Volumes can have a 'type' attribute that will enable
