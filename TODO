@@ -1,0 +1,8 @@
+$Id$
+
+* Update DTD to reflect new schema, so that xmllint can work.
+* Do something about ENTITY usage within the 'background' element, since
+  xmllint will fail this, because it won't have loaded the appropriate stylesheets
+  prior to validation.
+* Create a deployment Makefile or equivalent to set up the catalogs, etc. or at
+  least document what is required to set them up.
