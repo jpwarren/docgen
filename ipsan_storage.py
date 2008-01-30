@@ -2130,11 +2130,11 @@ the host activation guides.
             </section>""" % cmds
 
         # Inter-project routing
-        cmds = '\n'.join( self.conf.vfiler_add_inter_project_routing(vfiler) )
-        cmd_ns['commands'] += """<section>
-        <title>Inter-Project Routing</title>
-        <screen>%s</screen>
-        </section>""" % cmds
+##         cmds = '\n'.join( self.conf.vfiler_add_inter_project_routing(vfiler) )
+##         cmd_ns['commands'] += """<section>
+##         <title>Inter-Project Routing</title>
+##         <screen>%s</screen>
+##         </section>""" % cmds
 
         if filer.type in [ 'primary', 'nearstore' ]:
             cmds = '\n'.join( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )

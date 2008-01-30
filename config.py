@@ -920,14 +920,18 @@ class ProjectConfig:
         vfilers = {}
         vfilernodes = self.tree.xpath("site/filer/vfiler")
         for node in vfilernodes:
+
+            filername = node.xpath("parent::*/@name")[0]
+            
             try:
                 name = node.attrib['name']
             except KeyError:
                 name = self.shortname
 
-            rootaggr = node.attrib['rootaggr']
-                
-            filername = node.xpath("parent::*/@name")[0]
+            try:
+                rootaggr = node.attrib['rootaggr']
+            except KeyError:
+                raise KeyError("vfiler '%s' on filer '%s' has no 'rootaggr' specified." % (name, filername) )
 
             filer = self.filers[filername]
             try:
@@ -2225,7 +2229,7 @@ class ProjectConfig:
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
-    def vfiler_add_inter_project_routing(self, vfiler):
+    def _vfiler_add_inter_project_routing(self, vfiler):
         """
         Provide the routing commands required to route to services VLANs
         FIXME: Look at the services VLANs in the configuration. Add to vfiler?

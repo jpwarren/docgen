@@ -47,7 +47,7 @@ class BaseOptions(optparse.OptionParser):
                                                                                        'ipsan-storage-cip',
                                                                                        'ipsan-activation-advice',
                                                                                        'ipsan-modipy-config',
-                                                                                       'ipsan-commands',
+                                                                                       'ipsan-storage-commands',
                                                                                        'vol-sizes',
                                                                                        ], default='ipsan-storage-design', help=help_doctype)
         

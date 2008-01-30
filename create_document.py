@@ -57,7 +57,7 @@ if __name__ == '__main__':
     elif optparser.options.doctype == 'ipsan-modipy-config':
         docgen = IPSANModiPYGenerator(proj)
 
-    elif optparser.options.doctype == 'ipsan-commands':
+    elif optparser.options.doctype == 'ipsan-storage-commands':
         docgen = IPSANCommandsGenerator(proj)
 
     elif optparser.options.doctype == 'vol-sizes':
