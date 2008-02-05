@@ -608,8 +608,6 @@ class ProjectConfig:
 
         self.has_dr = False
 
-        self.verify_config()
-
         self.load_project_details()
 
         # Define a series of attributes that a ProjectConfig can have.
@@ -618,6 +616,8 @@ class ProjectConfig:
         self.primary_project_vlan = self.get_project_vlan('primary').number
         if self.has_dr:
             self.secondary_project_vlan = self.get_project_vlan('secondary').number
+
+        self.verify_config()
 
     def load_project_details(self):
 
@@ -1555,7 +1555,11 @@ class ProjectConfig:
         """
         if self.tree.find('nas'):
             raise ValueError("Old <nas/> node format is now invalid. Please update project definition.")
-        pass
+    
+        # Make sure any oracm volumes are larger than 100m in size.
+        for vol in [ vol for vol in self.volumes if vol.type == 'oracm' ]:
+            if vol.usable < 0.1:
+                raise ValueError("oracm volume must be larger than 100m usable; try <usablestorage>0.4</usablestorage>")
 
     def get_filers(self, site, type):
 
@@ -2740,6 +2744,8 @@ class ProjectConfig:
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
         if filer.type in ['primary', 'nearstore']:
             cmds += self.services_vlan_route_commands(vfiler)
+            title, commands = self.conf.default_route_command(filer, vfiler)
+            cmds += commands
 
         for line in cmds:
             if len(line) == 0:
