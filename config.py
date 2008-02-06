@@ -2744,7 +2744,7 @@ class ProjectConfig:
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
         if filer.type in ['primary', 'nearstore']:
             cmds += self.services_vlan_route_commands(vfiler)
-            title, commands = self.conf.default_route_command(filer, vfiler)
+            title, commands = self.default_route_command(filer, vfiler)
             cmds += commands
 
         for line in cmds:
