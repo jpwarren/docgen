@@ -1525,13 +1525,16 @@ class ProjectConfig:
             except IndexError:
                 log.error("VLAN %s does not have a network number", number)
                 raise
-                pass
 
             # If a slashmask is used, override any netmask that might be set.
             if netmask is None:
                 log.debug("netmask is None. Network is: %s", network)
                 try:
                     netmask = node.xpath("@netmask")[0]
+
+                    # Also, convert netmask to the number of bits in a slash notation
+                    maskbits = self.mask2bits(netmask)
+                    
                 except IndexError:
                     log.error("VLANs must have a netmask defined.")
                     raise
@@ -2778,6 +2781,24 @@ class ProjectConfig:
         addr = addr & mask
 
         return addrstr, maskstr, maskbits
+
+    def mask2bits(self, netmask):
+        """
+        Take a netmask and work out what number it
+        would need on the righthand side of slash notation.
+        eg: A netmask of 255.255.255.0 == /24
+        """
+        mask = socket.inet_aton(netmask)
+        mask = long(struct.unpack('!I', mask)[0])
+
+        bits = 0
+        for byte in range(4):
+            testval = (mask >> (byte * 8)) & 0xff
+            while (testval != 0):
+                if ((testval & 1) == 1):
+                    bits += 1
+                testval >>= 1
+        return bits        
 
     def core_switch_activation_commands(self, switch):
         """
