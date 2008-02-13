@@ -444,10 +444,15 @@ class LUN:
 
         if ostype.lower().startswith('solaris'):
             ostype = 'solaris'
+
         elif ostype.lower().startswith('windows'):
             ostype = 'windows'
+
+        elif ostype.lower().startswith('linux'):
+            ostype = 'linux'
+
         else:
-            raise ValueError("Unsupported LUN type: '%s'", ostype)
+            raise ValueError("Operating system '%s' not support for iSCSI LUNs" % ostype)
 
         self.ostype = ostype
         self.lunid = lunid
@@ -1293,25 +1298,26 @@ class ProjectConfig:
         
         if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
 
-            if osname.startswith('Solaris'):
+            if osname.lower().startswith('solaris'):
                 #log.debug("Solaris mount option required")
                 mountoptions.extend( [ 'forcedirectio', 'noac', 'nointr' ] )
                 
-            elif osname.startswith('Linux'):
+            elif osname.lower().startswith('linux'):
+                
                 #log.debug("Linux mount option required")
                 mountoptions.extend( [ 'actimeo=0', ] )
                 pass
 
             else:
-                log.error("Unknown operating system")
+                log.error("Unknown operating system '%s', cannot set mountoptions.", osname)
                 pass
             pass
 
         # Non Oracle volume options for Solaris
-        elif osname.startswith('Solaris'):
+        elif osname.lower().startswith('solaris'):
             mountoptions.extend([ 'intr', ])
 
-        elif osname.startswith('Linux'):
+        elif osname.lower().startswith('linux'):
             mountoptions.extend([ 'intr', ])
 
         log.debug("mountoptions are: %s", mountoptions)
@@ -1379,7 +1385,7 @@ class ProjectConfig:
 
             # If no LUNs are specified, invent one for the volume.
             else:
-                log.info("iSCSI volume specified, but no LUNs specified.")
+                log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the whole volume.")
                 lunnode = None
 
                 lunsize = vol.usable
@@ -1433,7 +1439,7 @@ class ProjectConfig:
                 log.debug("Aha! An iGroup with this initlist already exists!")
                 for group in igroups:
                     if group.initlist == lun.initlist:
-                        log.info("Appending LUN to iGroup %s", group.name)
+                        log.debug("Appending LUN to iGroup %s", group.name)
                         if group.type != lun.ostype:
                             log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
                         else:
@@ -1469,26 +1475,26 @@ class ProjectConfig:
 
         if qtree.volume.type in [ 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
 
-            if osname.startswith('Solaris'):
+            if osname.lower().startswith('solaris'):
                 #log.debug("Solaris mount option required")
                 mountoptions = [ 'forcedirectio', 'noac', 'nointr' ]
                 
-            elif osname.startswith('Linux'):
+            elif osname.lower().startswith('linux'):
                 #log.debug("Linux mount option required")
                 mountoptions = [ 'actimeo=0', ]
                 pass
 
             else:
-                log.error("Unknown operating system")
+                log.error("Unsupported NFS operating system '%s'", osname)
                 mountoptions = []
                 pass
             pass
 
         # Non Oracle volume options for Solaris
-        elif osname.startswith('Solaris'):
+        elif osname.lower().startswith('solaris'):
             mountoptions = [ 'intr', ]
 
-        elif osname.startswith('Linux'):
+        elif osname.loewr().startswith('linux'):
             mountoptions = [ 'intr', ]
 
         return mountoptions
@@ -1745,7 +1751,10 @@ class ProjectConfig:
                 #log.info("Total usable database storage: %s", usable)
 
             except IndexError:
-                usable = float(node.xpath("usablestorage")[0].text)                
+                try:
+                    usable = float(node.xpath("usablestorage")[0].text)
+                except IndexError:
+                    raise ValueError("Usable storage not specified for volumeset!")
 
             # config and quorum volume
             # This is shared between all databases for the project, and is a constant size
@@ -1857,10 +1866,15 @@ class ProjectConfig:
             hostname = export.xpath("@to")[0]
             initname = self.tree.xpath("host[@name = '%s']/iscsi_initiator" % hostname)[0].text
             operatingsystem = self.tree.xpath("host[@name = '%s']/operatingsystem" % hostname)[0].text
-            if operatingsystem.startswith('Solaris'):
-                ostype = 'Solaris'
-            elif operatingsystem.startswith('Windows'):
-                ostype = 'Windows'
+            if operatingsystem.lower().startswith('solaris'):
+                ostype = 'solaris'
+
+            elif operatingsystem.lower().startswith('windows'):
+                ostype = 'windows'
+
+            elif operatingsystem.lower().startswith('linux'):
+                ostype = 'linux'
+
             else:
                 log.error("Operating system '%s' is not supported for iSCSI", operatingsystem)
 
