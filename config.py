@@ -111,8 +111,7 @@ class Host:
             return ifacelist[0].ipaddress
 
         except IndexError:
-            log.error("Host '%s' has no storage ipaddresses defined.", self.name)
-            raise
+            raise ValueError("Host '%s' has no storage IP addresses defined." % self.name)
 
 class Filesystem:
 
@@ -1329,12 +1328,12 @@ class ProjectConfig:
         """
         lunlist = []
 
-        for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi']:
-            log.debug("Found iSCSI volume for LUNs...")
-
+        for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi' and vol.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]:
+            log.debug("Found iSCSI volume for LUNs: %s", vol)
             lun_total = 0
 
             # check to see if any LUN nodes are defined.
+
             luns = vol.volnode.xpath("descendant-or-self::lun")
             if len(luns) > 0:
                 log.debug("found lun nodes: %s", luns)
