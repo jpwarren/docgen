@@ -122,13 +122,14 @@ class Filesystem:
 
 class Switch:
 
-    def __init__(self, name, type, site, location, connected_switches=[]):
+    def __init__(self, name, type, sitename, location, connected_switches=[]):
 
         self.name = name
         if type not in ['core', 'edge']:
             raise ValueError("Switch '%s' has unknown type '%s'" % (name, type))
         self.type = type
-        self.site = site
+        self.site = None # site is 'primary' or 'secondary'
+        self.sitename = sitename
         self.location = location
 
         self.connected_switches = connected_switches
@@ -713,8 +714,8 @@ class ProjectConfig:
             
             if row[0].startswith('#'):
                 continue
-            (switchname, type, site, location, core01, core02) = row
-            switch = Switch(switchname, type, site, location, [ core01, core02 ])
+            (switchname, type, sitename, location, core01, core02) = row
+            switch = Switch(switchname, type, sitename, location, [ core01, core02 ])
 
             known_switches[switchname] = switch
             pass
@@ -756,7 +757,7 @@ class ProjectConfig:
             # find some mandatory attributes
             hostname = node.attrib['name']
 
-            site = node.xpath('ancestor::*/site')[0].attrib['type']
+            site = node.xpath('ancestor::site')[0].attrib['type']
 
             # check to see if the host has already been defined
             if hostname in hosts.keys():
@@ -810,7 +811,9 @@ class ProjectConfig:
                     switch = self.known_switches[switchname]
                 except KeyError:
                     raise KeyError("Switch '%s' is not defined. Is it in switches.conf?" % switchname)
-                
+
+                log.debug("Adding switch '%s' to project switch list at site '%s'", switch, site)
+                switch.site = site
                 self.project_switches[switchname] = switch
 
                 # If this is an edge, make sure its connected cores are added to the
@@ -819,6 +822,7 @@ class ProjectConfig:
                     for coreswitch in switch.connected_switches:
                         if coreswitch not in self.project_switches:
                             self.project_switches[coreswitch] = self.known_switches[coreswitch]
+                            self.project_switches[coreswitch].site = site
                             pass
                         pass
                     pass
@@ -2825,7 +2829,7 @@ class ProjectConfig:
         # These aren't added on edges, which is why the commands go here,
         # and not in switch_vlan_activation_commands()
         log.warn("Services vlans are only detected at the primary site for now.")
-        vlans = self.get_services_vlans()
+        vlans = self.get_services_vlans(switch.site)
         if len(vlans) > 0:
             cmdset.append('! Services VLANs')
             for i, vlan in enumerate(vlans):
@@ -2841,7 +2845,7 @@ class ProjectConfig:
         cmdset = []
 
         # Add the main project VLAN
-        cmdset.append('Vlan %s' % self.get_project_vlan('primary').number)
+        cmdset.append('Vlan %s' % self.get_project_vlan(switch.site).number)
         cmdset.append('  name %s_01' % self.shortname)
 
         return cmdset
@@ -2860,7 +2864,8 @@ class ProjectConfig:
         """
         Return a list of edge port ACL commands used to build an edge switch configuration.
         """
-        vlan = self.get_project_vlan('primary')
+        log.debug("Fetching vlan for site: %s", switch.site)
+        vlan = self.get_project_vlan(switch.site)
         cmdset = []
 
         cmdset.append("mac access-list extended FilterL2")
@@ -2889,7 +2894,7 @@ class ProjectConfig:
         """
         cmdset = []
 
-        vlan = self.get_project_vlan('primary')
+        vlan = self.get_project_vlan(switch.site)
         
         for host in self.hosts.values():
             for iface in host.interfaces:

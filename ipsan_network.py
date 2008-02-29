@@ -551,7 +551,6 @@ to provide IP connectivity between the project hosts and the storage infrastruct
                 pass
             pass
 
-        log.debug("rows: %s", rows)
         if len(rows) < 1:
             log.error("No hosts have storage interfaces.")
             ns['edge_networking_table'] = ''
@@ -590,7 +589,6 @@ to provide IP connectivity between the project hosts and the storage infrastruct
 
             activation_commands += self.build_firewall_activation_commands()
 
-        log.debug("activation commands: %s", activation_commands)
         return activation_commands
 
     def build_switch_activation_commands(self, switch):
