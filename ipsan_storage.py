@@ -2073,15 +2073,14 @@ the host activation guides.
             </section>""" % cmds
 
         #
-        # Only create qtrees on primary filers
+        # Create qtrees
         #
-        if filer.type == 'primary':
-            cmds = self.conf.filer_qtree_create_commands(filer)
-            if len(cmds) > 0:
-                cmd_ns['commands'] += """<section>
-                <title>Qtree Creation</title>
-                <screen>%s</screen>
-                </section>""" % '\n'.join(cmds)
+        cmds = self.conf.filer_qtree_create_commands(filer)
+        if len(cmds) > 0:
+            cmd_ns['commands'] += """<section>
+            <title>Qtree Creation</title>
+            <screen>%s</screen>
+            </section>""" % '\n'.join(cmds)
 
         # Create the vfiler VLAN
         cmds = '\n'.join( self.conf.vlan_create_commands(filer, vfiler) )
