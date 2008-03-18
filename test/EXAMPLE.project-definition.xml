@@ -109,7 +109,7 @@
 	 for a project, depending on where the main use of storage is.
 	 The 'secondary' site is always the SnapMirror destination site.
     -->
-    <site type="primary">
+    <site type="primary" location="PrimarySite">
 
   <host name="primhost01">
 
@@ -271,7 +271,7 @@
 		 will need one of these. It isn't backed up or mirrored.
 	    -->
 	    <volume type="oracm" snapreserve="0">
-	      <usablestorage>0.02</usablestorage>
+	      <usablestorage>1</usablestorage>
 	    </volume>
 
 	    <!--
@@ -450,7 +450,7 @@
 	 The site type is 'secondary' for the DR site.
     -->
 
-    <site type="secondary">
+    <site type="secondary" location="DisasterRecoverySite">
 
   <!-- Some hosts that are purportedly at DR -->
   <host name="drtesthost01">

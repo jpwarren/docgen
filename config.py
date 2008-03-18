@@ -739,8 +739,6 @@ class ProjectConfig:
             pass
         return sites
 
-
-
     def load_hosts(self):
         """
         Load all the hosts
@@ -859,8 +857,9 @@ class ProjectConfig:
             for host_iface in host.interfaces:
                 for known_iface in ifaces:
                     # Check the same switchport isn't allocated to different hosts
+                    # Multiple zones on a single physical host will use the same physical ports, though.
                     if host_iface.switchname == known_iface.switchname and host_iface.switchport == known_iface.switchport:
-                        raise ValueError("Host '%s' is using the same switchport as another host in the project." % host.name)
+                        log.warn("Host '%s' is using the same switchport as another host in the project." % host.name)
 
                     # Check that IP addresses aren't duplicated
                     if host_iface.ipaddress is not None and host_iface.ipaddress == known_iface.ipaddress:
