@@ -13,7 +13,7 @@ import debug
 
 log = logging.getLogger('docgen')
 
-__version__ = '$Revision: 36 $'
+__version__ = '$Revision$'
 
 class IPSANNetworkDesignGenerator(DocBookGenerator):
     """

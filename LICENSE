@@ -1,4 +1,4 @@
-__version__ = '$Revision: 223 $'
+__version__ = '$Revision$'
 
 short = """
                   Copyright (c) Justin Warren
@@ -14,7 +14,7 @@ short = """
 """
 
 long = """
-           $Id: LICENSE 223 2006-08-25 08:37:17Z daedalus $
+           $Id$
 
                                 DocGen
                       End User License Agreement
