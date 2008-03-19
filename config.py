@@ -323,6 +323,34 @@ class Volume:
         self.aggregate = aggr
         self.usable = float(usable)
 
+        # iSCSI LUN sizing is... interesting
+        # Best practice is to have no snapreserve for volumes
+        # used for iscsi, but we need to have some storage
+        # available for snapshots. Because LUNs are just files full
+        # of blocks, we have to allocate enough storage for all
+        # of the blocks to change, so we need 2 * LUNsize GiB to
+        # store the snapshots.
+        # If you're not using snapshots, you will need a little extra
+        # space in the volume so the LUN can fit within it. The LUN
+        # can't take up 100% of the volume (i.e.: A LUN of 100GiB
+        # will require a volume of 101GiB in size)
+
+        if proto == 'iscsi':
+            log.debug("volume proto is iscsi")
+            # If snapshots are configured, double the usable storage to allow for 50% 'snapreserve'
+##             log.debug("snapref: %s", snapref)
+##             log.debug("snapvaultref: %s", snapvaultref)
+##             log.debug("snapvaultmirrorref: %s", snapvaultmirrorref)
+##             log.debug("snapmirrorref: %s", snapmirrorref)
+            if len(snapref) > 0 or len(snapvaultref) > 0 or len(snapmirrorref) > 0 or len(snapvaultmirrorref) > 0:
+                log.debug("snapshots present. doubling usable space '%s' for iscsi volume", self.usable)
+                self.usable = self.usable * 2.0
+                log.debug("usable is now: %s", usable)
+            else:
+                # If no snapshots are configured, make the raw slightly more than usable
+                log.debug("No snapshots, adding 1 GiB usable to volume size.")
+                raw = self.usable + 1
+
         if raw is None:
             raw = self.usable / ( (100 - float(snapreserve) )/100 )
         self.raw = raw
@@ -1290,11 +1318,11 @@ class ProjectConfig:
         osname = host.os
 
         if host in qtree.rwhostlist:
-            log.debug("Read/Write host")
+            #log.debug("Read/Write host")
             mountoptions.append('rw')
 
         if host in qtree.rohostlist:
-            log.debug("Read-only host")
+            #log.debug("Read-only host")
             mountoptions.append('ro')
             pass
         
@@ -1321,8 +1349,9 @@ class ProjectConfig:
 
         elif osname.lower().startswith('linux'):
             mountoptions.extend([ 'intr', ])
-
-        log.debug("mountoptions are: %s", mountoptions)
+            pass
+        
+        #log.debug("mountoptions are: %s", mountoptions)
         return mountoptions
 
     def load_luns(self):
@@ -1352,7 +1381,9 @@ class ProjectConfig:
                         lunsize = float(lunnode.xpath("@size")[0])
                     except IndexError:
                         log.debug("No LUN size specified. Figuring it out...")
-                        lunsize = ( vol.usable - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+
+                        
+                        lunsize = ((vol.usable/2.0) - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
                         log.debug("calculated lun size of: %s", lunsize)
                         pass
 
@@ -1390,7 +1421,7 @@ class ProjectConfig:
                 log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the whole volume.")
                 lunnode = None
 
-                lunsize = vol.usable
+                lunsize = vol.usable / 2.0
                 log.debug("calculated lun size of: %s", lunsize)
                 lun_total += lunsize
 
@@ -1548,11 +1579,9 @@ class ProjectConfig:
                     raise
                     pass
 
-            # FIXME: Add the ability to add a description
             description = node.text
             if description is None:
                 description = ''
-            #site = 'primary'
             
             vlan = Vlan(number, site, type, network, netmask, maskbits, gateway, description, node)
             vlans.append(vlan)
@@ -1632,13 +1661,6 @@ class ProjectConfig:
         snapmirrorref = node.xpath("snapmirrorsetref/@name")
         snapvaultmirrorref = node.xpath("snapvaultmirrorsetref/@name")
 
-        try:
-            usable = node.xpath("usablestorage")[0].text
-        except IndexError:
-            log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
-            usable = 100
-            pass
-        
         voloptions = [ x.text for x in node.xpath("option") ]
 
         # The volume protocol is either a protocol set in the volume definition
@@ -1675,7 +1697,18 @@ class ProjectConfig:
                 snapreserve = 20
                 pass
             pass
-            
+
+        # Set the amount of usable space in the volume
+        try:
+            usable = float(node.xpath("usablestorage")[0].text)
+
+                    
+
+        except IndexError:
+            log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
+            usable = 100
+            pass
+        
         vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
         volnum += 1
         return vol, volnum

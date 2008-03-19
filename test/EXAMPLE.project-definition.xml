@@ -22,12 +22,12 @@
   <code>EI1007</code>
 
   <!-- A short name for the project. This is used for the vfiler name. -->
-  <shortname>wpcams</shortname>
+  <shortname>myproj</shortname>
 
   <!-- A longer, more descriptive name. This is used on the title page of
        documents, and in the page headers.
   -->
-  <longname>WPCAMS Database</longname>
+  <longname>My Project</longname>
 
   <!-- The background tag contains verbatim DocBook XML markup that is inserted
        into the Background section of the design document. Use this to insert some
@@ -69,7 +69,7 @@
       <date>4 October 2007</date>
       <authorinitials>JPW</authorinitials>
       <revremark>
-	Addition of extra server and storage for Morph Quality Centre databases.
+	Addition of extra server and storage for other things
       </revremark>
     </revision>
 
@@ -99,7 +99,7 @@
 
        This will likely be used with automated backup designs in the future.
   -->
-  <database id="HTPD01" type="Oracle">
+  <database id="MYDB01" type="Oracle">
     <onhost name="primhost01"/>
     <onhost name="primhost02"/>
   </database>
@@ -296,8 +296,8 @@
 		 if required.
 	    -->
 
-	    <!-- HTPD01 database -->
-	    <volume oracle="HTPD01" type="oradata">
+	    <!-- MYDB01 database -->
+	    <volume oracle="MYDB01" type="oradata">
 	      <!-- The 'oradata' volume type is used for the Oracle data area -->
 	      <usablestorage>60</usablestorage>
 
@@ -307,7 +307,7 @@
 		   when creating a snapvault for this volume. More information on
 		   snapvaultsets can be found below.
 	      -->
-	      <snapvaultsetref name="HTPD01-data"/>
+	      <snapvaultsetref name="MYDB01-data"/>
 
 	      <!-- A 'snapmirrorsetref' is similar to a snapvaultsetref. It refers
 		   to a snapmirrorset definition later in the file, and is used to
@@ -317,10 +317,10 @@
 	      <snapmirrorsetref name="default_sm"/>
 	    </volume>
 
-	    <volume oracle="HTPD01" type="oraindx">
+	    <volume oracle="MYDB01" type="oraindx">
 	      <!-- The 'oraindx' type is for an oracle index volume. -->
 	      <usablestorage>30</usablestorage>
-	      <snapvaultsetref name="HTPD01-data"/>
+	      <snapvaultsetref name="MYDB01-data"/>
 	      <snapmirrorsetref name="default_sm"/>
 
 	      <!--
@@ -333,28 +333,12 @@
 
 	    </volume>
 
-	    <!-- 
-		 This is an example of an Oracle redo logs area with a manual qtree
-		 definition. If you supply manualy qtree definitions, all automatic
-		 qtree definitions will be turned off, so you need to make sure you
-		 specify all of them.
-		 
-		 The text inside the <qtree/> node is used as a description of the
-		 qtree, which is provided in some tables in the design documentation.
-	    -->
-	    <volume oracle="HTPD01" type="oraredo">
+	    <volume oracle="MYDB01" type="oraredo">
 	      <usablestorage>8</usablestorage>
-	      <qtree name="ora_HTPD01_redo01">Oracle redo qtree</qtree>
 	    </volume>
 
-	    <!-- 
-		 An Oracle temp volume, with custom qtree definitions. Normally
-		 the undo qtree is automatically added to the oraredo volume.
-	    -->
-	    <volume oracle="HTPD01" type="oratemp">
+	    <volume oracle="MYDB01" type="oratemp">
 	      <usablestorage>20</usablestorage>
-	      <qtree name="ora_HTPD01_temp01">Oracle temp qtree</qtree>
-	      <qtree name="ora_HTPD01_undo01">Oracle undo qtree</qtree>
 	    </volume>
 
 	    <!-- The Oracle archivelogs volume for the database.
@@ -364,9 +348,9 @@
 		 snapvault is done, so that all in flight transactions during
 		 hot backup mode are captured in the archivelog backup.
 	    -->
-	    <volume oracle="HTPD01" type="oraarch">
+	    <volume oracle="MYDB01" type="oraarch">
 	      <usablestorage>20</usablestorage>
-	      <snapvaultsetref name="HTPD01-arch"/>
+	      <snapvaultsetref name="MYDB01-arch"/>
 	      <snapmirrorsetref name="default_sm"/>
 	    </volume>
 
@@ -388,8 +372,21 @@
 	      <usablestorage>50</usablestorage>
 	    </volume>
 
+	    <!-- This is a volume with some manual qtree definitions -->
 	    <volume>
+	      <usablestorage>120</usablestorage>
+	      <qtree name="my_first_qtree_01">Demo Manual Qtree 1</qtree>
+	      <qtree name="my_first_qtree_02">Demo Manual Qtree 2</qtree>
+	    </volume>
+
+	    <!-- This is an iSCSI volume that contains a couple of LUNs -->
+
+	    <volume proto="iscsi">
 	      <usablestorage>50</usablestorage>
+	      <snapvaultsetref name="MYDB01-arch"/>
+	      <lun />
+	      <lun />
+	      <export to="primhost01"/>
 	    </volume>
 
 
@@ -590,7 +587,7 @@
   </snapvaultset>
 
 
-  <!-- backup snapshots for HTPD01 -->
+  <!-- backup snapshots for MYDB01 -->
   <!-- Here we have some example database snapshots. In order to correctly back up
        an Oracle database, the data must be snapshotted before the archivelogs
        are snapshotted. This has to do with the way hotbackup mode works with
@@ -598,7 +595,7 @@
        In general, the <snapschedule/> for the data snapvaults should be an hour
        before the one used for the archivelogs.
   -->
-  <snapvaultset id="HTPD01-data" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset id="MYDB01-data" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@mon-sat@1</snapschedule>
       <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
@@ -610,7 +607,7 @@
   </snapvaultset>
 
   <!-- This is the corresponding archivelog snapvaultset for the data snapvaultset above -->
-  <snapvaultset id="HTPD01-arch" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset id="MYDB01-arch" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@mon-sat@2</snapschedule>
       <snapvaultschedule>8@mon-sat@3</snapvaultschedule>

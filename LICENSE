@@ -1,0 +1,129 @@
+__version__ = '$Revision: 223 $'
+
+short = """
+                  Copyright (c) Justin Warren
+                                                                       
+                      All Rights Reserved                            
+                                                                       
+                   http://www.eigenmagic.com
+                                                                        
+ The licensing of this software is controlled by the DocGen End User  
+ License Agreement. The license may be viewed using the "--license"   
+ option on DocGen programs or as the LICENSE file supplied with the       
+ source code.                                                          
+"""
+
+long = """
+           $Id: LICENSE 223 2006-08-25 08:37:17Z daedalus $
+
+                                DocGen
+                      End User License Agreement
+
+                     Software License for DocGen
+
+        IMPORTANT -- READ CAREFULLY BEFORE USING THIS SOFTWARE
+
+
+This License Agreement is a legal agreement between you (either an
+individual or an entity) and Justin Warren and its suppliers and
+licensors ("Justin Warren") for the DocGen software, related documentation
+and explanatory materials ("Software").
+
+IF YOU DO NOT AGREE TO THE TERMS OF THIS LICENSE AGREEMENT, DO NOT
+INSTALL OR USE THE SOFTWARE.
+
+YOU AGREE THAT YOUR USE OF THE SOFTWARE ACKNOWLEDGES THAT YOU HAVE
+READ THIS LICENSE, UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS
+AND CONDITIONS.
+
+USE OF ANY THIRD PARTY SOFTWARE THAT MAY BE PROVIDED WITH THE SOFTWARE
+IS GOVERNED BY SUCH THIRD PARTY'S LICENSE AGREEMENT, AN ELECTRONIC
+COPY OF WHICH WILL BE INSTALLED IN THE APPROPRIATE DIRECTORY UPON
+INSTALLATION OF THE SOFTWARE. JUSTIN WARREN IS NOT RESPONSIBLE FOR ANY THIRD
+PARTY'S SOFTWARE AND SHALL HAVE NO LIABILITY FOR YOUR USE OF THIRD
+PARTY SOFTWARE.
+
+1. GRANT OF LICENSE
+
+Justin Warren hereby grants to you a non-exclusive license to use the
+Software subject to the payment of any licensing and registration
+fees required under the pricing schedule in operation at the
+time that you accept this license.
+
+You may:
+
+  a) install and use the Software on any computer or computing
+     system on which you are legally permitted to do so.
+
+  b) modify, adapt or translate the Software for your own
+     personal use.
+
+  c) create derivative works based on the Software for your
+     own personal use.
+
+2. RESTRICTIONS
+
+You may not:
+
+  a) distribute any modifications you make to the Software;
+
+  b) distribute any derivative works based on the Software;
+
+  c) rent, lease or otherwise transfer rights to the Software;
+
+  d) remove any proprietary notices or labels on the Software;
+
+  The determination of whether or not an action by you
+  constitutes a breach of these restrictions shall be at the
+  sole discretion of Justin Warren.
+
+3. TITLE
+
+Title, ownership, rights and intellectual property rights in and to
+the Software shall remain in Justin Warren and/or its suppliers.  The
+Software is protected by Australian Copyright Law and International
+Treaty provisions. You may use trademarks only insofar as required to
+comply with Section 1 of this License Agreement and to identify output
+produced by the Software, in accordance with accepted trademark
+practice, including identification of the trademark owner's name. Such
+use of any trademark does not give you any rights of ownership in that
+trademark.  Except as stated above, this License Agreement does not
+grant you any intellectual property rights in the Software.
+
+4. DISCLAIMER OF WARRANTY & LIMIT OF LIABILITY
+
+The Software is provided to you AS IS without warranty of any kind.
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW JUSTIN WARREN AND ITS
+SUPPLIERS DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. THE ENTIRE RISK ARISING OUT OF
+THE USE OR PERFORMANCE OF THE SOFTWARE REMAINS WITH YOU. IN NO EVENT
+WILL JUSTIN WARREN OR ITS SUPPLIERS BE LIABLE TO YOU FOR ANY CONSEQUENTIAL,
+INCIDENTAL INDIRECT, SPECIAL OR PUNITIVE DAMAGES INCLUDING WITHOUT
+LIMITATION ANY LOST PROFITS OR LOST SAVINGS, EVEN IF JUSTIN WARREN HAS BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR FOR ANY CLAIM BY ANY
+THIRD PARTY.
+
+5. TERMINATION
+
+This License Agreement will automatically terminate if you fail to
+comply with any term hereof. No notice shall be required from Justin Warren
+to effect such termination. You may also terminate this License
+Agreement at any time by notifying Justin Warren in writing of
+termination. Upon any termination of this License Agreement, you shall
+immediately discontinue use of the Software.
+
+6. MISCELLANEOUS
+
+This License Agreement shall be governed by the laws of the State of
+Victoria, Australia. This License Agreement constitutes the complete
+agreement between you and Justin Warren. If any part of this License
+Agreement is found void and unenforceable, it will not affect the
+validity of the balance of the License Agreement, which shall remain
+valid and enforceable according to its terms. This License Agreement
+may only be modified in writing signed by an authorised officer of
+Justin Warren.
+
+Copyright (c) Justin Warren
+DocGen is a trademark of Justin Warren
+"""
