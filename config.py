@@ -563,9 +563,15 @@ class SnapVault:
     A SnapVault is a special kind of snapshot that requires a baseline
     to be taken on the source volume, which is then transferred to a
     SnapVault secondary device at some later time.
+
+    A variant of the SnapVault is a destination only SnapVault snapshot,
+    which assumes there is another SnapVault defined that will cause
+    data to be transferred from a primary device. This destination only
+    SnapVault is the mechanism recommended in the NetApp Best Practices Guide
+    for doing weekly snapshots when you transfer data daily.
     """
 
-    def __init__(self, sourcevol, targetvol, basename, src_schedule, dst_schedule):
+    def __init__(self, sourcevol, targetvol, basename, src_schedule=None, dst_schedule=None):
 
         self.sourcevol = sourcevol
         self.targetvol = targetvol
@@ -2037,10 +2043,18 @@ class ProjectConfig:
             
             for svnode in set_node.findall("snapvault"):
                 basename = svnode.attrib['basename']
-                snapsched = svnode.find('snapschedule')
-                svsched = svnode.find('snapvaultschedule')
-
-                sv = SnapVault(srcvol, targetvol, basename, snapsched.text, svsched.text)
+                try:
+                    snapsched = svnode.find('snapschedule').text
+                except AttributeError:
+                    snapsched = None
+                    pass
+                
+                try:
+                    svsched = svnode.find('snapvaultschedule').text
+                except AttributeError:
+                    svsched = None
+                    
+                sv = SnapVault(srcvol, targetvol, basename, snapsched, svsched)
                 self.snapvaults.append(sv)
                 #log.debug("Added snapvault: %s", sv)
 
@@ -2617,11 +2631,24 @@ class ProjectConfig:
                 for snap in vol.snapvaults:
                     # If the snapvault sourcevol == the volume, this is a source snapvault schedule
                     if snap.sourcevol == vol:
-                        cmdset.append("snapvault snap sched %s %s %s" % (vol.name, snap.basename, snap.src_schedule))
+                        # Only create a snapvault on the source if a source schedule exists
+                        if snap.src_schedule is not None:
+                            cmdset.append("snapvault snap sched %s %s %s" % (vol.name, snap.basename, snap.src_schedule))
                         
                     elif snap.targetvol == vol:
-                        # Use a transfer schedule
-                        cmdset.append("snapvault snap sched -x %s %s %s" % (vol.name, snap.basename, snap.dst_schedule))
+                        if snap.dst_schedule is not None:
+                            # Use a transfer schedule if the snapvault has a corresponding snapschedule
+                            if snap.src_schedule is not None:
+                                cmdset.append("snapvault snap sched -x %s %s %s" % (vol.name, snap.basename, snap.dst_schedule))
+                                pass
+
+                            # Otherwise, do a local snapvault snap on the device
+                            else:
+                                cmdset.append("snapvault snap sched %s %s %s" % (vol.name, snap.basename, snap.dst_schedule))
+                                pass
+                            pass
+                        pass
+                            
                     else:
                         log.error("snapvault target and source are not for '%s'" % vol.name)
                         pass

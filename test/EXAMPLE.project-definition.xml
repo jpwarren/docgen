@@ -565,7 +565,6 @@
       <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
     </snapvault>
     <snapvault basename="sv_weekly">
-      <snapschedule>1@sun@1</snapschedule>
       <snapvaultschedule>13@sun@2</snapvaultschedule>
     </snapvault>
   </snapvaultset>
