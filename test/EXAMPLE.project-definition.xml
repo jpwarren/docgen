@@ -556,16 +556,37 @@
        The schedule is of the form: number@days_of_the_week@hour
        Make sure the snapvaultschedule happens after the snapschedule, so that the data
        changes are snapshotted on the primary before the transfer is attempted.
+       
+       If you configure a snapvaultset with a snapvaultschedule, but no snapschedule,
+       instead of performing a snapvault transfer, the design will be configured to take
+       a local snapvault snapshot on the sceondary device. This assumes that you do have
+       a snapvault that contains both a snapschedule and a snapvaultschedule, so that
+       some form of transfer takes place, otherwise the local snapvault snapshot won't
+       have any changed data to snapshot.
+       
+       eg: To back up a primary volume every day to a secondary, and to take a weekly
+       snapshot locally on the secondary, you would configure a snapvault set like this:
+
+       <snapvaultset id="default_primary" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
+         <snapvault basename="sv_daily">
+	   <snapschedule>1@3</snapschedule>
+	   <snapvaultschedule>14@4</snapvaultschedule>
+	 </snapvault>
+	 <snapvault basename="sv_weekly">
+	   <snapvaultschedule>4@sun@5</snapvaultschedule>
+	 </snapvault>
+       </snapvaultset>
+
   -->
 
   <!-- primary site -->
   <snapvaultset id="default_primary" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
-      <snapschedule>1@mon-sat@1</snapschedule>
-      <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
     </snapvault>
     <snapvault basename="sv_weekly">
-      <snapvaultschedule>13@sun@2</snapvaultschedule>
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
     </snapvault>
   </snapvaultset>
 
@@ -576,12 +597,11 @@
   -->
   <snapvaultset id="default_secondary" targetfiler="clip-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
-      <snapschedule>1@mon-sat@1</snapschedule>
-      <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
     </snapvault>
     <snapvault basename="sv_weekly">
-      <snapschedule>1@sun@1</snapschedule>
-      <snapvaultschedule>13@sun@2</snapvaultschedule>
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
     </snapvault>
   </snapvaultset>
 
@@ -596,23 +616,21 @@
   -->
   <snapvaultset id="MYDB01-data" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
-      <snapschedule>1@mon-sat@1</snapschedule>
-      <snapvaultschedule>8@mon-sat@2</snapvaultschedule>
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
     </snapvault>
     <snapvault basename="sv_weekly">
-      <snapschedule>1@sun@1</snapschedule>
-      <snapvaultschedule>13@sun@2</snapvaultschedule>
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
     </snapvault>
   </snapvaultset>
 
   <!-- This is the corresponding archivelog snapvaultset for the data snapvaultset above -->
   <snapvaultset id="MYDB01-arch" targetfiler="exip-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
-      <snapschedule>1@mon-sat@2</snapschedule>
-      <snapvaultschedule>8@mon-sat@3</snapvaultschedule>
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
     </snapvault>
     <snapvault basename="sv_weekly">
-      <snapschedule>1@sun@2</snapschedule>
       <snapvaultschedule>13@sun@3</snapvaultschedule>
     </snapvault>
   </snapvaultset>
