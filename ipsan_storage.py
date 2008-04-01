@@ -1313,10 +1313,10 @@ the host activation guides.
             <title>Default NFS Mount Options</title>
 
             <para>All Linux hosts must use the following mount options when mounting NFS storage:</para>
-            <screen>rw,bg,hard,tcp,vers=3,rsize=65535,wsize=65535,timeo=600</screen>
+            <screen>bg,hard,tcp,vers=3,rsize=65535,wsize=65535,timeo=600</screen>
 
             <para>All Solaris hosts must use the following mount options when mounting NFS storage:</para>
-            <screen>rw,bg,hard,proto=tcp,vers=3,rsize=65535,wsize=65535</screen>
+            <screen>bg,hard,proto=tcp,vers=3,rsize=65535,wsize=65535</screen>
 
             <para>Mount options for ESX NFS datastores will be handled and managed by the ESX server storage configuration subsystem.</para>
           </section>
@@ -2107,10 +2107,11 @@ the host activation guides.
         # Don't add volumes on secondary filers
         if not filer.type == 'secondary':
             cmds = '\n'.join( self.conf.vfiler_add_volume_commands(filer, ns) )
-            cmd_ns['commands'] += """<section>
-            <title>vFiler Volume Addition</title>
-            <screen>%s</screen>
-            </section>""" % cmds
+            if len(cmds) > 0:
+                cmd_ns['commands'] += """<section>
+                <title>vFiler Volume Addition</title>
+                <screen>%s</screen>
+                </section>""" % cmds
 
         # Add interfaces
         cmds = '\n'.join( self.conf.vfiler_add_storage_interface_commands(filer, vfiler) )
@@ -2196,21 +2197,25 @@ the host activation guides.
                 log.debug("initialising snapmirror on %s", filer.name)
 
                 cmds = '\n'.join( self.conf.filer_snapmirror_init_commands(filer) )
-                cmd_ns['commands'] += """<section>
-                <title>SnapMirror Initialisation</title>
-                <screen><?db-font-size 60%% ?>%s</screen>
-                </section>""" % cmds
+                if len(cmds) > 0:
+                    cmd_ns['commands'] += """<section>
+                    <title>SnapMirror Initialisation</title>
+                    <screen><?db-font-size 60%% ?>%s</screen>
+                    </section>""" % cmds
+                else:
+                    log.debug("No SnapMirrors configured to filer '%s' at secondary site." % filer.name)
 
         # /etc/snapmirror additions
         if self.conf.has_dr:
             if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
 
                 cmds = self.conf.filer_etc_snapmirror_conf_commands(filer)
-                cmd_ns['commands'] += """<section>
-                <title>Filer <filename>/etc/snapmirror.conf</filename></title>
-                <para>Use these commands to append to the Filer's /etc/snapmirror.conf file:</para>
-                <screen><?db-font-size 60%% ?>%s</screen>
-                </section>""" % '\n'.join(cmds)
+                if len(cmds) > 0:
+                    cmd_ns['commands'] += """<section>
+                    <title>Filer <filename>/etc/snapmirror.conf</filename></title>
+                    <para>Use these commands to append to the Filer's /etc/snapmirror.conf file:</para>
+                    <screen><?db-font-size 60%% ?>%s</screen>
+                    </section>""" % '\n'.join(cmds)
 
         # Add default route
         if filer.type in ['primary', 'nearstore']:
@@ -2246,11 +2251,12 @@ the host activation guides.
         # The /etc/rc file needs certain pieces of configuration added to it
         # to make the configuration persistent.
         #
-        cmds = self.conf.vlan_create_commands(filer, vfiler)
-        cmds += self.conf.vfiler_add_storage_interface_commands(filer, vfiler)
-        title, cmdlist = self.conf.default_route_command(filer, vfiler)
-        cmds += cmdlist
-        cmds += self.conf.services_vlan_route_commands(vfiler)
+        cmds = self.conf.filer_etc_rc_commands(filer, vfiler)
+##         cmds = self.conf.vlan_create_commands(filer, vfiler)
+##         cmds += self.conf.vfiler_add_storage_interface_commands(filer, vfiler)
+##         title, cmdlist = self.conf.default_route_command(filer, vfiler)
+##         cmds += cmdlist
+##         cmds += self.conf.services_vlan_route_commands(vfiler)
 
         cmd_ns['commands'] += """<section>
         <title>Filer <filename>/etc/rc</filename> Additions</title>

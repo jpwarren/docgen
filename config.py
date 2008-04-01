@@ -2742,25 +2742,26 @@ class ProjectConfig:
         on the filer for this project.
         """
         cmdset = []
-        cmdset.append("#")
-        cmdset.append("# %s" % self.shortname)
         for vol in filer.volumes:
-            if len(vol.snapmirrors) > 0:
-                for snap in vol.snapmirrors:
-                    # If the sourcevol == the volume, this is the source side, so ignore it
-                    if snap.sourcevol == vol:
-                        log.warn("/etc/snapmirror not used on the source filer.")
+            for snap in vol.snapmirrors:
+                # If the sourcevol == the volume, this is the source side, so ignore it
+                if snap.sourcevol == vol:
+                    log.warn("/etc/snapmirror not used on the source filer.")
                         
-                    elif snap.targetvol == vol:
-                        # Use a transfer schedule
-                        cmdset.append("%s-svif0-2000:%s %s:%s %s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.filer.name, snap.targetvol.name, snap.arguments, snap.etc_snapmirror_conf_schedule()))
-                    else:
-                        log.error("snapmirror target and source are not for '%s'" % vol.name)
-                        pass
+                elif snap.targetvol == vol:
+                    # Use a transfer schedule
+                    cmdset.append("%s-svif0-2000:%s %s:%s %s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.filer.name, snap.targetvol.name, snap.arguments, snap.etc_snapmirror_conf_schedule()))
+                else:
+                    log.error("snapmirror target and source are not for '%s'" % vol.name)
                     pass
                 pass
             pass
-        
+
+        if len(cmdset) > 0:
+            cmdset.insert(0, "#")
+            cmdset.insert(0, "# %s" % self.shortname)
+            cmdset.insert(0, "#")
+
         #log.debug('\n'.join(cmdset))
         return cmdset
 
@@ -2771,6 +2772,7 @@ class ProjectConfig:
         """
         cmdset = []
         file_contents = self.filer_etc_snapmirror_contents(filer)
+        
         for line in file_contents:
             if len(line) == 0:
                 continue
@@ -2821,10 +2823,6 @@ class ProjectConfig:
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
         cmds += self.vlan_create_commands(filer, vfiler)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
-        if filer.type in ['primary', 'nearstore']:
-            cmds += self.services_vlan_route_commands(vfiler)
-            title, commands = self.default_route_command(filer, vfiler)
-            cmds += commands
 
         for line in cmds:
             if len(line) == 0:
