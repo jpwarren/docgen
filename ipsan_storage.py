@@ -239,6 +239,8 @@ the host activation guides.
   <chapter>
     <title>Storage Design and Configuration</title>
     $topology_section
+    $resource_sharing_section
+    $operational_maintenance_section
     $connectivity_section
     $vfiler_section
     $project_hosts_section
@@ -253,6 +255,8 @@ the host activation guides.
 
         ns['project_hosts_section'] = self.build_project_hosts_section(ns)
         ns['topology_section'] = self.build_topology_section(ns)
+        ns['resource_sharing_section'] = self.build_resource_sharing_section(ns)
+        ns['operational_maintenance_section'] = self.build_operational_maintenance_section(ns)
         ns['connectivity_section'] = self.build_connectivity_section(ns)
         ns['vfiler_section'] = self.build_vfiler_section(ns)
         ns['volume_section'] = self.build_volume_section(ns)
@@ -386,7 +390,30 @@ the host activation guides.
 
             </itemizedlist>
           </para>
+          </section>
+ ''')
 
+        if len(self.conf.get_services_vlans()) > 0:
+            log.info("Services VLANs are defined.")
+            services_vlan = '''
+              <listitem>
+                <para><emphasis role="bold">Project IP-SAN Services VLANs</emphasis> - Services
+                VLANs will be provided to deliver services to the project.
+                </para>
+              </listitem>
+              '''
+        else:
+            services_vlan = ''
+
+        retstr = section.safe_substitute(services_vlan_item=services_vlan, oracle_database_item='')
+        return retstr
+
+
+    def build_resource_sharing_section(self, ns):
+        """
+        Build the section describing the project's Topology and Storage Model.
+        """
+        section = Template('''
           <section>
             <title>Resource Sharing</title>
             <para>The following components of the design may be shared with other projects:
@@ -436,25 +463,52 @@ the host activation guides.
             </itemizedlist>
 
           </section>
-          
-        </section>
  ''')
+        retstr = section.safe_substitute()
+        return retstr
+    
+    def build_operational_maintenance_section(self, ns):
+        """
+        Build the section informing the reader of the operational maintenance schedule.
+        """
+        section = Template('''
+          <section>
+            <title>Operational Maintenance</title>
+            <para>A regularly scheduled maintenance window exists for the IPSAN, from 03:00 - 07:00 every Wednesday.
+            </para>
 
-        if len(self.conf.get_services_vlans()) > 0:
-            log.info("Services VLANs are defined.")
-            services_vlan = '''
+            <para>Scheduled maintenance tasks are those that are well understood, well tested and have a very
+            low risk of outage. They are used to keep the IPSAN operating efficiently and effectively.
+            </para>
+    
+            <para>As a condition of having storage provided by the IPSAN service, the project
+            accepts that this maintenance window will be used to perform regular, scheduled,
+            non-interruptive maintenance, including, but not limited to:
+
+            <itemizedlist>
               <listitem>
-                <para><emphasis role="bold">Project IP-SAN Services VLANs</emphasis> - Services
-                VLANs will be provided to deliver services to the project.
+                <para>Installation of network switch operating system upgrades in a non-interruptive fashion.
                 </para>
               </listitem>
-              '''
-        else:
-            services_vlan = ''
 
-        retstr = section.safe_substitute(services_vlan_item=services_vlan, oracle_database_item='')
+              <listitem>
+                <para>Installation of storage device operating system upgrades in a non-interruptive fashion.
+                </para>
+              </listitem>
+
+              <listitem>
+                <para>Periodic testing of automated failover mechanisms, to ensure that such mechanisms
+                are correctly configured and will function correctly in an emergency.
+                </para>
+              </listitem>
+            </itemizedlist>
+            </para>
+            
+          </section>
+ ''')
+        retstr = section.safe_substitute()
         return retstr
-
+    
     def build_connectivity_section(self, ns):
         """
         This section describes how the connectivity to the IP-SAN works.
