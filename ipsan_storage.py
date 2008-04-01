@@ -1313,10 +1313,10 @@ the host activation guides.
             <title>Default NFS Mount Options</title>
 
             <para>All Linux hosts must use the following mount options when mounting NFS storage:</para>
-            <screen>bg,hard,tcp,vers=3,rsize=65535,wsize=65535,timeo=600</screen>
+            <screen>bg,hard,tcp,vers=3,rsize=65536,wsize=65536,timeo=600</screen>
 
             <para>All Solaris hosts must use the following mount options when mounting NFS storage:</para>
-            <screen>bg,hard,proto=tcp,vers=3,rsize=65535,wsize=65535</screen>
+            <screen>bg,hard,proto=tcp,vers=3,rsize=65536,wsize=65536</screen>
 
             <para>Mount options for ESX NFS datastores will be handled and managed by the ESX server storage configuration subsystem.</para>
           </section>
