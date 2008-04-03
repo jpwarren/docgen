@@ -415,6 +415,13 @@ class Volume:
         """
         return '%s:%s' % ( self.filer.name, self.shortpath() )
 
+    def has_snaps(self):
+        """
+        If the volume has snapshots of any kind (snapshot, SnapVaults, SnapMirrors), return True
+        """
+        if len(self.snaps) > 0 or len(self.snapvaults) > 0 or len(self.snapmirrors) > 0:
+            return True
+
 class Qtree:
     def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], qtreenode=None):
 
@@ -1178,7 +1185,7 @@ class ProjectConfig:
                     
                     # If no qtrees are defined, invent one
                     if vol.type.startswith('ora'):
-                        #log.info("Oracle volume type detected.")
+                        log.debug("Oracle volume type detected.")
                         # Build oracle qtrees
 
                         # We always number from 1
@@ -1188,15 +1195,23 @@ class ProjectConfig:
                         # Oracle RAC quorum volume doesn't refer to a specific database
                         try:
                             sid=vol.volnode.xpath("@oracle")[0]
+                            log.debug("Found oracle SID: %s", sid)
 
                             # Then find the list of hosts the database is on
                             onhost_names = self.tree.xpath("database[@id = '%s']/onhost/@name" % sid)
-                            rwhostlist = []
-                            rohostlist = []
+                            if len(onhost_names) == 0:
+                                log.warn("Database with id '%s' is not defined. Manual exports must be defined for volume '%s'." % (sid, vol.name))
+                            
+                            log.debug("onhost_names are: %s", onhost_names)
+
+                            # Add manually defined exports
+                            rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
+
                             for hostname in onhost_names:
                                 log.debug("Database %s is on host %s. Adding to rwhostlist." % (sid, hostname) )
                                 try:
-                                    rwhostlist.append(self.hosts[hostname])
+                                    if self.hosts[hostname] not in rwhostlist:
+                                        rwhostlist.append(self.hosts[hostname])
                                 except KeyError:
                                     log.error("Database '%s' is on host '%s', but the host is not defined." % (sid, hostname) )
                                     raise
@@ -1388,9 +1403,24 @@ class ProjectConfig:
                     except IndexError:
                         log.debug("No LUN size specified. Figuring it out...")
 
-                        
-                        lunsize = ((vol.usable/2.0) - lun_total) / len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+                        # Count the number of LUNs with no size specified. Available
+                        # usable storage will be divided evenly between them
+                        nosize_luns = len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+
+                        # total the number of sized luns
+                        sized_luns = vol.volnode.xpath("descendant-or-self::lun[(@size)]")
+                        log.debug("sized luns are: %s", sized_luns)
+                        sized_total = sum([ lun.attrib['size'] for lun in sized_luns ])
+                        log.debug("sized total is: %s", sized_total)
+
+                        log.debug("Available for allocation: %s", vol.usable - sized_total)
+
+                        lunsize = float(vol.usable - sized_total) / nosize_luns
                         log.debug("calculated lun size of: %s", lunsize)
+                        # If backups are required, halve the lun size
+                        if vol.has_snaps():
+                            lunsize = lunsize / 2.0
+                            pass
                         pass
 
                     log.debug("Allocating %sg storage to LUN", lunsize)
@@ -1442,8 +1472,6 @@ class ProjectConfig:
                     raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
                 lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
-
-                
                 pass
 
             # Add the new LUN to the lunlist

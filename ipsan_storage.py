@@ -1652,7 +1652,7 @@ the host activation guides.
         lunlist = self.conf.get_filer_luns(filer)
         for lun in lunlist:
             entries = "<entry><para>%s</para></entry>\n" % lun.name
-            entries += "<entry><para>%s</para></entry>\n" % lun.size
+            entries += "<entry><para>%.2f</para></entry>\n" % lun.size
             entries += "<entry><para>%s</para></entry>\n" % lun.ostype
             entries += "<entry><para>%s</para></entry>\n" % lun.igroup.name
             entries += "<entry><para>%02d</para></entry>\n" % lun.lunid

@@ -382,13 +382,37 @@
 	    <!-- This is an iSCSI volume that contains a couple of LUNs -->
 
 	    <volume proto="iscsi">
-	      <usablestorage>50</usablestorage>
+	      <usablestorage>100</usablestorage>
 	      <snapvaultsetref name="MYDB01-arch"/>
 	      <lun />
 	      <lun />
 	      <export to="primhost01"/>
 	    </volume>
 
+	    <!-- A volume with a specific qtree name, and a LUN automatically placed inside it. -->
+	    <volume proto="iscsi">
+	      <usablestorage>100</usablestorage>
+	      <snapvaultsetref name="MYDB01-arch"/>
+	      <lun/>
+	      <qtree name="my_custom_name">A custom qtree with a LUN in it</qtree>
+	      <export to="primhost01"/>
+	    </volume>
+
+	    <!-- A volume with multiple qtrees, a LUN defined outside the qtree, and
+		 a LUN inside one of the qtrees. Only the LUN inside the qtree, and
+		 that qtree, will be included in the configuration, as the 'external'
+		 style of defining the LUN will be overridden by the more specific method.
+	    -->
+	    <volume proto="iscsi">
+	      <usablestorage>100</usablestorage>
+	      <snapvaultsetref name="MYDB01-arch"/>
+	      <lun/> <!-- this lun will be ignored -->
+	      <qtree name="my_custom_name">A custom qtree with a LUN in it</qtree> <!-- this qtree will be ignored -->
+
+	      <qtree name="lun_inside"><lun/>A custom qtree with 2 LUNs in it<lun/></qtree>
+
+	      <export to="primhost01"/>
+	    </volume>
 
 	  </aggregate>
 
