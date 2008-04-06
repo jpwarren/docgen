@@ -13,7 +13,6 @@ from lxml import etree
 
 from docgen import DocBookGenerator
 from config import ProjectConfig
-from modipy import IPSANModiPYGenerator
 from commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
 from activation_advice import IPSANActivationAdvice
 

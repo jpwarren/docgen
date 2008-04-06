@@ -32,6 +32,7 @@ class BaseOptions(optparse.OptionParser):
         help_outfile = "Write output to this file, instead of STDOUT"
         help_versioned = "Enable auto-versioning of output filenames"
         help_doctype = "What sort of document to create"
+        help_modipy_templates = "Path to ModiPy templates"
 
         self.add_option('', '--license',       dest='license', action='store_true', help=help_license)    
         self.add_option('', '--debug',         dest='debug', type='choice', choices=('debug', 'info', 'warn', 'error', 'critical'), metavar='LEVEL', default='info', help=help_debug)
@@ -41,12 +42,13 @@ class BaseOptions(optparse.OptionParser):
         self.add_option('-c', '--config',      dest='configfile', type='string', help=help_config)
         self.add_option('-o', '--outfile',     dest='outfile', type='string', help=help_outfile)
         self.add_option('', '--versioned',     dest='versioned', action='store_true', default=False, help=help_versioned)
-#        self.add_option('', '--not-versioned', dest='versioned', action='store_false', default=True, help=help_not_versioned)
+        #self.add_option('', '--not-versioned', dest='versioned', action='store_false', default=True, help=help_not_versioned)
+        self.add_option('', '--modipy-templates',     dest='modipy_templates', type='string', help=help_modipy_templates)
         self.add_option('-d', '--doctype',     dest='doctype', type='choice', choices=['ipsan-storage-design',
                                                                                        'ipsan-network-design',
                                                                                        'ipsan-storage-cip',
                                                                                        'ipsan-activation-advice',
-                                                                                       'ipsan-modipy-config',
+                                                                                       'ipsan-storage-modipy',
                                                                                        'ipsan-storage-commands',
                                                                                        'vol-sizes',
                                                                                        ], default='ipsan-storage-design', help=help_doctype)

@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is a test project definition file for testing ModiPY autoconfiguration
+     output from DocGen.
+-->
+
+<!-- The DOCTYPE for the project contains a computer readable Document Type Definition
+     that can be used by programs such as 'xmllint' to verify that your defintion
+     file is well-formed and also a valid file.
+-->
+<!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
+
+<!-- All projects contain one, and only one, 'project' tag -->
+<project>
+
+  <!-- A document prefix. This isn't really used at the moment. -->
+  <prefix>DocGen</prefix>
+
+  <!-- Project Code. Should be unique. -->
+  <code>DG0001</code>
+
+  <!-- A short name for the project. This is used for the vfiler name. -->
+  <shortname>modipy</shortname>
+
+  <!-- A longer, more descriptive name. This is used on the title page of
+       documents, and in the page headers.
+  -->
+  <longname>ModiPy Test Project</longname>
+
+  <!-- The background tag contains verbatim DocBook XML markup that is inserted
+       into the Background section of the design document. Use this to insert some
+       explanatory background text about the project, of required.
+  -->
+  <background>
+    <para>The &project.name; is a test project for testing auto-provisioning of
+    DocGen created projects using ModiPy.
+    </para>
+  </background>
+
+  <!-- Design revision history -->
+  <revhistory>
+
+    <!-- Every time you modify the design, you should add a revision, to track
+	 who makes changes, a summary of what they were, and when they were made.
+    -->
+
+    <revision>
+      <majornumber>1</majornumber>
+      <minornumber>0</minornumber>
+      <date>06 April 2008</date>
+      <authorinitials>JPW</authorinitials>
+      <revremark>
+	First version of project definition.
+      </revremark>
+    </revision>
+
+  </revhistory>
+
+<!--
+  <database id="MYDB01" type="Oracle">
+    <onhost name="primhost01"/>
+    <onhost name="primhost02"/>
+  </database>
+-->
+
+    <!-- Every project will have a 'primary' site. This is the site that
+	 the storage is provided from. CoLo or DR could be the primary site
+	 for a project, depending on where the main use of storage is.
+	 The 'secondary' site is always the SnapMirror destination site.
+    -->
+  <site type="primary" location="PrimarySite">
+
+    <host name="primhost01">
+
+      <platform>Intel</platform>
+
+      <!-- The operating system. Starts with 'Solaris', 'Windows' or 'Linux' -->
+      <operatingsystem>Linux</operatingsystem>
+
+      <!-- Descriptive text for where the server is located -->
+      <location>Melbourne Testlab</location>
+
+      <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
+      <description>Test Client</description>
+
+      <!-- The IP address assigned to the host on the IP-SAN. This is usually
+	   assigned by the network team from a network range specifically for
+	   this project, tracked in the solution control spreadsheets.
+      -->
+
+      <interface type='storage' mode='active'>
+	<switchname>sitea-swtedg-0101</switchname>
+	<switchport>GigabitEthernet1/1</switchport>
+	<hostport>PCI 0</hostport>
+	<ipaddr>10.200.1.1</ipaddr>
+      </interface>
+
+      <interface type='storage' mode='passive'>
+	<switchname>sitea-swtedg-0102</switchname>
+	<switchport>GigabitEthernet1/1</switchport>
+	<hostport>PCI 1</hostport>
+      </interface>
+
+      <iscsi_initiator>an.iscsi.initname</iscsi_initiator>
+
+    </host>
+
+    <vlan type="project" number="3008" network="10.200.1.0/24" gateway="10.200.1.254"/>
+
+    <filer type="primary" name="sitea-fashda-01">
+
+      <vfiler rootaggr="aggr01">
+
+	<protocol>NFS</protocol>
+
+	<primaryip>
+	  <ipaddr>10.200.1.10</ipaddr>
+	  <netmask>255.255.255.0</netmask>
+	</primaryip>
+
+	<aggregate name="aggr01">
+
+	  <!-- This is a standard volume, which will default to being
+	       exported to all hosts via NFS.
+	  -->
+	  <volume>
+	    <usablestorage>0.5</usablestorage>
+	    <snapvaultsetref name="default_primary"/>
+	  </volume>
+
+	  <!-- This is an iSCSI volume that contains a couple of LUNs -->
+
+	  <volume proto="iscsi" restartnumbering="05">
+	    <usablestorage>0.6</usablestorage>
+	    <snapvaultsetref name="MYDB01-arch"/>
+	    <lun />
+	    <lun />
+	    <export to="primhost01"/>
+	  </volume>
+
+	</aggregate>
+
+      </vfiler>
+
+    </filer>
+
+    <filer type="secondary" name="sitea-fashdb-01"/>
+
+    <filer type="nearstore" name="sitea-fasnst-01">
+
+      <vfiler rootaggr="aggr01">
+
+	<!-- The NearStore has its own IP address in the project VLAN -->
+	<primaryip>
+	  <ipaddr>10.200.1.11</ipaddr>
+	  <netmask>255.255.255.0</netmask>
+	</primaryip>
+      </vfiler>
+    </filer>
+
+  </site>
+
+  <!-- primary site -->
+  <snapvaultset id="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr01">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <snapvaultset id="MYDB01-data" targetfiler="sitea-fasnst-01" targetaggregate="aggr01">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <!-- This is the corresponding archivelog snapvaultset for the data snapvaultset above -->
+  <snapvaultset id="MYDB01-arch" targetfiler="sitea-fasnst-01" targetaggregate="aggr01">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <!--
+      SnapMirrors
+      
+      SnapMirrors are a bit different to SnapVaults, though the underlying technology is
+      very similar. They are defined on the filer by establishing a relationship in a
+      very similar way to SnapVaults, which is why the attributes for the <snapmirrorset/>
+      are the same as for SnapVaults. SnapMirrors use a configuration file on the filer,
+      /etc/snapmirror.conf, to provide the schedules for the snapmirrors on the filer.
+      
+      The <snapmirror/> child node is used to define these schedules. There should only be one
+      <snapmirror/> child node for each <snapmirrorset/>, except in unique circumstances.
+      The <snapmirror/> node has 4 parameters:
+      - minute: the minute(s) of the hour to perform the snapmirror
+      - hour: the hour(s) to perform the snapmirror
+      - dayofmonth: The day(s) of the month to perform the snapmirror
+      - dayofweek: The day(s) of the week to perform the snapmirror.
+      
+      If any of the parameters are omitted, it will default to '*', ie: all/any
+
+  -->
+
+  <!-- snapmirrors -->
+  <snapmirrorset id="default_sm" targetfiler="siteb-fashda-01" targetaggregate="aggr01">
+    <snapmirror>
+      <minute>0</minute>
+      <hour>6</hour>
+      <dayofmonth>*</dayofmonth>
+      <dayofweek>*</dayofweek>
+    </snapmirror>
+  </snapmirrorset>
+
+  <!-- snapvault snapmirrors -->
+  <!-- SnapVault snapmirrors are defined the same as regular snapmirrors.
+       It is the way they are referenced by a volume that alters the way they
+       are set up.
+  -->
+  <snapmirrorset id="default_svm" targetfiler="siteb-fasnst-01" targetaggregate="aggr01">
+    <snapmirror>
+      <minute>0</minute>
+      <hour>6</hour>
+      <dayofmonth>*</dayofmonth>
+      <dayofweek>*</dayofweek>
+    </snapmirror>
+  </snapmirrorset>
+
+</project>

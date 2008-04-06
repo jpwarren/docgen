@@ -13,7 +13,7 @@ from lxml import etree
 from config import ProjectConfig
 from ipsan_storage import IPSANStorageDesignGenerator
 from ipsan_network import IPSANNetworkDesignGenerator
-from modipy import IPSANModiPYGenerator
+from modipy import IPSANStorageModiPYGenerator
 from commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
 from activation_advice import IPSANActivationAdvice
 
@@ -54,8 +54,8 @@ if __name__ == '__main__':
         docgen = IPSANNetworkDesignGenerator(proj)
         ns['title'] = 'IPSAN Network Design'
     
-    elif optparser.options.doctype == 'ipsan-modipy-config':
-        docgen = IPSANModiPYGenerator(proj)
+    elif optparser.options.doctype == 'ipsan-storage-modipy':
+        docgen = IPSANStorageModiPYGenerator(proj, template_path=optparser.options.modipy_templates)
 
     elif optparser.options.doctype == 'ipsan-storage-commands':
         docgen = IPSANCommandsGenerator(proj)
