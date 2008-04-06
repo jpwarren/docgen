@@ -1,0 +1,30 @@
+$Id$
+
+DocGen is software to automatically generate DocBook format XML documents from
+high level descriptions of IPSAN project implementations based on the OmniPresenceII
+model originally developed at Telstra circa 2005.
+
+DocGen is Copyright (c) Justin Warren <daedalus@eigenmagic.com>.
+All Rights Reserved.
+
+History
+-------
+
+Some media coverage of the OmniPresence project, and related projects:
+
+  * http://media.netapp.com/documents/telstra.pdf
+  * http://www.netapp.com/us/company/news/news_rel_20061024.html
+  * http://www.australianit.news.com.au/story/0,,23351320-24171,00.html?from=public_rss
+
+DocGen was created by Justin Warren <daedalus@eigenmagic.com> in his spare time 2006 to
+assist in the automated creation of complex, yet repetative, documents for the Enterprise
+Backup and Recovery (EBR) project, which used the same IP network as the OmniPresence storage
+infrastructure. I found manually cutting and pasting into Word documents mindlessly tedious,
+and by abstracting the process with DocGen I could create in a couple of hours what used to
+take anything from a full day to an entire week.
+
+The original software was written in XSLT 1.0 to assist with portability. This proved complex,
+due to the lack of certain features (like loops!) in XSLT 1.0. DocGen was then completely
+rewritten in Python around June of 2007 which substantially increased its flexibility, ease
+of maintenance, and the ability to quickly add new features.
+

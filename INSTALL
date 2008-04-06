@@ -1,0 +1,33 @@
+Platforms
+---------
+DocBook is known to work on the following platforms:
+- Linux (Ubuntu 7.04 and above, Debian)
+- Solaris 10 (x86 and SPARC)
+
+Pre-requisites
+--------------
+* DocGen requires the following software to be installed:
+
+- Python 2.4 or higher. 2.5 is preferred.
+- libxml2
+- docbook-xml
+- docbook-xsl
+- docbook-utils
+
+Installing DocGen
+-----------------
+
+DocGen is currently somewhat manual to install.
+
+Copy all the files into a directory: /usr/local/docgen
+
+You will then need to set up XML catalogs, by adding the following to
+your /etc/xml/catalog file, or equivalent:
+
+<!-- Old company specific paths -->
+<delegateURI uriStartString="http://docbook.sensis.com.au/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
+<delegateSystem systemIdStartString="http://docbook.sensis.com.au/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
+
+<!-- New generic paths -->
+<delegateURI uriStartString="http://docgen.eigenmagic.com/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
+<delegateSystem systemIdStartString="http://docgen.eigenmagic.com/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
