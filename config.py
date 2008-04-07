@@ -2039,7 +2039,8 @@ class ProjectConfig:
         if srcvol.type in ['oraredo', 'oracm' ]:
             log.info("Not backing up volume '%s' of type '%s'", srcvol.name, srcvol.type)
             return
-        
+
+        # Create target volumes based on the snapvault definition
         for ref in srcvol.snapvaultref:
             try:
                 set_node = self.tree.xpath("snapvaultset[@id = '%s']" % ref)[0]
@@ -2047,6 +2048,7 @@ class ProjectConfig:
                 log.error("Cannot find snapvaultset definition '%s'" % ref)
                 raise ValueError("snapvaultset not defined: '%s'" % ref)
 
+            # Set the target filer for the snapvault
             try:
                 target_filername = set_node.attrib['targetfiler']
             except KeyError:
@@ -2059,7 +2061,8 @@ class ProjectConfig:
             except KeyError:
                 log.error("Snapvault target is an unknown filer name: '%s'", target_filername)
                 raise
-                
+
+            # Find the target aggregate for the snapvault
             try:
                 targetaggr = set_node.attrib['targetaggregate']
             except:
@@ -2071,11 +2074,27 @@ class ProjectConfig:
                     pass
                 pass
 
+            # Set a storage multiplier for the SnapVault destination volume.
+            # This number is used to size the destination volume as a multiple
+            # of the primary usable space.
+            # This defaults to 2.5 based on historical averages.
+            try:
+                multiplier = float(set_node.attrib['multiplier'])
+            except KeyError:
+                multiplier = 2.5
+
+            # SnapVault destination volumes are identified by having
+            # a suffix appended to the volume name
+            try:
+                target_suffix = set_node.attrib['target_suffix']
+            except KeyError:
+                target_suffix = 'b'
+                
             # target volume name is the src volume name with a 'b' suffix
-            targetvol = Volume( '%sb' % srcvol.name,
+            targetvol = Volume( '%s%s' % (srcvol.name, target_suffix),
                                 self.filers[target_filername],
                                 targetaggr,
-                                srcvol.usable * 2.5,
+                                srcvol.usable * multiplier,
                                 snapreserve=0,
                                 type='snapvaultdst',
                                 proto=None,
@@ -2083,7 +2102,8 @@ class ProjectConfig:
                                 )
             self.volumes.append(targetvol)
             #log.debug("target volume filer type: %s", targetvol.filer.type)
-            
+
+            # Add the snapvaults themselves
             for svnode in set_node.findall("snapvault"):
                 basename = svnode.attrib['basename']
                 try:
@@ -2150,8 +2170,13 @@ class ProjectConfig:
                     pass
                 pass
 
+            try:
+                target_suffix = set_node.attrib['target_suffix']
+            except KeyError:
+                target_suffix = 'r'
+
             # target volume name is the src volume name with a 'r' suffix
-            targetvol = Volume( '%sr' % srcvol.name,
+            targetvol = Volume( '%s%s' % (srcvol.name, target_suffix), 
                                 self.filers[target_filername],
                                 targetaggr,
                                 srcvol.usable,
