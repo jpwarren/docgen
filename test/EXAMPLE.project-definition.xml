@@ -359,6 +359,7 @@
 	    -->
 	    <volume>
 	      <usablestorage>50</usablestorage>
+	      <snapvaultsetref name="custom-multiplier"/>	      
 	    </volume>
 
 	    <!-- We might want to restart the automatic volume numbering
@@ -370,6 +371,7 @@
 	    -->
 	    <volume restartnumbering="19">
 	      <usablestorage>50</usablestorage>
+	      <snapvaultsetref name="custom-storage"/>
 	    </volume>
 
 	    <!-- This is a volume with some manual qtree definitions -->
@@ -665,6 +667,33 @@
       <snapvaultschedule>13@sun@3</snapvaultschedule>
     </snapvault>
   </snapvaultset>
+
+  <!-- This is a custom snapvault relationship that uses specific multiplier
+       to define how much storage should be created on the target volume
+       instead of the default (2.5, usually).
+  -->
+  <snapvaultset id="custom-multiplier" multiplier='6'
+		targetfiler="exip-fasnst-01" targetaggregate="aggr09">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <snapvaultset id="custom-storage" targetusable='2244'
+		targetfiler="exip-fasnst-01" targetaggregate="aggr09">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
 
   <!--
       SnapMirrors

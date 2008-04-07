@@ -1,4 +1,4 @@
-##
+## $Id$
 
 """
 Configuration of the Document Generator
@@ -2083,18 +2083,34 @@ class ProjectConfig:
             except KeyError:
                 multiplier = 2.5
 
+            # Set a specific amount to be created for SnapVault destination
+            # volume. This value (in gigabytes) will be used for all volumes
+            # created as a result of applying the snapvault/snapvaultmirror
+            # to volumes, so it will often only be useful for applying to a
+            # single volume. This gives very fine grained control over storage
+            # allocation for backups.
+            try:
+                targetusable = float(set_node.attrib['targetusable'])
+            except KeyError:
+                targetusable = None
+
             # SnapVault destination volumes are identified by having
             # a suffix appended to the volume name
             try:
                 target_suffix = set_node.attrib['target_suffix']
             except KeyError:
                 target_suffix = 'b'
+
+            # Figure out how much usable storage to allocate to the target volume
+            if targetusable is None:
+                targetusable = srcvol.usable * multiplier
+                pass
                 
             # target volume name is the src volume name with a 'b' suffix
             targetvol = Volume( '%s%s' % (srcvol.name, target_suffix),
                                 self.filers[target_filername],
                                 targetaggr,
-                                srcvol.usable * multiplier,
+                                targetusable,
                                 snapreserve=0,
                                 type='snapvaultdst',
                                 proto=None,
