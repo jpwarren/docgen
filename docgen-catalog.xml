@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <!-- XML Catalog for DocGen -->
+
+  <!-- New, official URIs -->
+  <rewriteURI
+      uriStartString="http://docgen.eigenmagic.com/"
+      rewritePrefix="file:///usr/local/docgen/"/>
+
+  <rewriteSystem
+      systemIdStartString="http://docgen.eigenmagic.com/"
+      rewritePrefix="file:///usr/local/docgen/"/>
+
+  <!-- old, customer specific configuration method. DEPRECATED. -->
+  <rewriteURI
+      uriStartString="http://docbook.sensis.com.au/sensis-docgen/"
+      rewritePrefix="file:///usr/local/docgen/"/>
+
+  <rewriteSystem
+      systemIdStartString="http://docbook.sensis.com.au/sensis-docgen/"
+      rewritePrefix="file:///usr/local/docgen/"/>
+
+</catalog>
