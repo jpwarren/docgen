@@ -402,8 +402,15 @@
 		 a LUN inside one of the qtrees. Only the LUN inside the qtree, and
 		 that qtree, will be included in the configuration, as the 'external'
 		 style of defining the LUN will be overridden by the more specific method.
+		 
+		 The attribute 'iscsi_snapspace' is used to define an area of usable
+		 space that will be used for storing snapshots. This parameter defaults
+		 to 30 for iscsi volumes that have snapshots, and is ignored for non-iscsi
+		 volumes, or iscsi volumes that do not have snapshots.
+		 The value is a percentage (eg: 25 == 25%) of the usablestorage value for
+		 the volume.
 	    -->
-	    <volume proto="iscsi">
+	    <volume proto="iscsi" iscsi_snapspace='50'>
 	      <usablestorage>100</usablestorage>
 	      <snapvaultsetref name="MYDB01-arch"/>
 	      <lun/> <!-- this lun will be ignored -->
