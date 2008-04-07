@@ -35,6 +35,9 @@ if __name__ == '__main__':
     # Dynamic namespace information that is passed into document generators
     ns = {}
 
+    # Load localisation configuration from a file (copyright holder, etc)
+    
+
     try:
         # load the configuration from a config file
         proj = ProjectConfig(optparser.options.configfile)

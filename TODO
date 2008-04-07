@@ -6,3 +6,10 @@ $Id$
   prior to validation.
 * Create a deployment Makefile or equivalent to set up the catalogs, etc. or at
   least document what is required to set them up.
+* Parameterise organisational specific configuration instead of having to update the
+  codebase with the company name, specific legalese, etc. docgen.conf?
+* Add the ability to parameterise the .xsl templates for things like the corp_logo
+  on the left and right, instead of having to build a custom .xsl yourself. A
+  config file will be easier for end users to update.
+* Make the colour scheme configurable. Maybe something sortof CSS based?
+* Maybe add font selection to docgen.conf?

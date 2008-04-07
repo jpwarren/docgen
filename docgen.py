@@ -4,6 +4,7 @@
 
 from zope.interface import Interface
 from string import Template
+from datetime import datetime
 
 import sys
 import os.path
@@ -66,7 +67,7 @@ class DocBookGenerator(FileOutputMixin):
 [
 <!-- include standard entities -->
 
-<!ENTITY % entities SYSTEM "http://docbook.sensis.com.au/sensis-docgen/entities.ent">
+<!ENTITY % entities SYSTEM "http://docgen.eigenmagic.com/entities.ent">
 %entities;
 
 <!ENTITY docgen.revision "$docgen_revision">
@@ -123,7 +124,7 @@ $book_content
       <email>storagemanagement@sensis.com.au</email>
     </author>
     <authorinitials>JPW</authorinitials>
-    <corpauthor>Sensis</corpauthor>
+    <corpauthor>eigenmagic.com</corpauthor>
 ${legalnotice}
 ${copyright}
 ${releaseinfo}
@@ -136,21 +137,21 @@ ${abstract}
     <legalnotice>
       <para><emphasis role="bold">CONFIDENTIALITY STATEMENT</emphasis></para>
       <para>This document contains copyright material and/or confidential and proprietary
-      information of Sensis Pty Ltd (ABN 30 007 423 912). This document must not be used
-      or reproduced with the prior consent of Sensis Pty Ltd.</para>
+      information of $copyright_holder. This document must not be used
+      or reproduced with the prior consent of $copyright_holder.</para>
 
       <para>ALL INFORMATION CONTAINED IN THIS DOCUMENT MUST BE KEPT IN CONFIDENCE.</para>
 
-      <para>None of this information may be divulged to any person other than Sensis Pty Ltd
-      employees, or individuals or organisations authorised by Sensis Pty Ltd to
+      <para>None of this information may be divulged to any person other than $copyright_holder
+      employees, or individuals or organisations authorised by $copyright_holder to
       receive such information.</para>
     </legalnotice>
 ''')
                         
     copyright = Template('''
     <copyright>
-      <year>2007</year>
-      <holder>Sensis Pty Ltd</holder>
+      <year>$copyright_year</year>
+      <holder>$copyright_holder</holder>
     </copyright>
 ''')
 
@@ -427,6 +428,8 @@ ${abstract}
         return self.legalnotice.safe_substitute(ns)
 
     def build_copyright(self, ns={}):
+        ns['copyright_holder'] = "Sensis Pty Ltd"
+        ns['copyright_year'] = datetime.now().strftime('%Y')
         return self.copyright.safe_substitute(ns)
 
     def build_revhistory(self, ns={}):
