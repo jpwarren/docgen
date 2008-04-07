@@ -315,13 +315,14 @@ class VFiler:
 
 class Volume:
 
-    def __init__(self, name, filer, aggr, usable, snapreserve=20, raw=None, type="fs", proto="nfs", voloptions=[], volnode=None, snapref=[], snapvaultref=[], snapmirrorref=[], snapvaultmirrorref=[]):
+    def __init__(self, name, filer, aggr, usable, snapreserve=20, raw=None, type="fs", proto="nfs", voloptions=[], volnode=None, snapref=[], snapvaultref=[], snapmirrorref=[], snapvaultmirrorref=[], iscsi_snapspace=0):
         self.name = name
         self.filer = filer
         self.type = type
         self.proto = proto
         self.aggregate = aggr
         self.usable = float(usable)
+        self.iscsi_snapspace = iscsi_snapspace
 
         # iSCSI LUN sizing is... interesting
         # Best practice is to have no snapreserve for volumes
@@ -344,7 +345,7 @@ class Volume:
 ##             log.debug("snapmirrorref: %s", snapmirrorref)
             if len(snapref) > 0 or len(snapvaultref) > 0 or len(snapmirrorref) > 0 or len(snapvaultmirrorref) > 0:
                 log.debug("snapshots present. doubling usable space '%s' for iscsi volume", self.usable)
-                self.usable = self.usable * 2.0
+                self.usable = (self.usable * 2.0) + (self.usable / (100 - float(iscsi_snapspace))/100)
                 log.debug("usable is now: %s", usable)
             else:
                 # If no snapshots are configured, make the raw slightly more than usable
@@ -1725,12 +1726,26 @@ class ProjectConfig:
             #log.debug("No snapreserve specified.")
             if proto == 'iscsi':
                 snapreserve = 0
+                # iSCSI volumes need the ability to define space used for storing
+                # snapshots, but without turning on snapreserve, which functions
+                # differently. This is usable space allocated as overhead for
+                # snapshots, because snapreserve is set to 0, but won't be used
+                # by the LUNs, because they are files of fixed size created inside
+                # the usable space.
+                # This percentage value will be added to the raw space provided for
+                # the volume.
+                try:
+                    iscsi_snapspace = node.xpath("@iscsi_snapspace")[0]
+                except IndexError:
+                    iscsi_snapspace = 30
+
             elif voltype in ['oraundo', 'oraarch', ]:
                 snapreserve = 50
             else:
                 snapreserve = 20
                 pass
             pass
+
 
         # Set the amount of usable space in the volume
         try:
