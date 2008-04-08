@@ -870,7 +870,7 @@ class ProjectConfig:
                 # Sanity check the interface parameters. The combination of switchname+switchport should
                 # only occur once.
                 for iface in self.interfaces:
-                    log.debug("checking interface: %s", iface)
+                    #log.debug("checking interface: %s", iface)
                     if iface.switchname == switchname and iface.switchport == switchport:
                         raise ValueError("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
                 
@@ -921,8 +921,8 @@ class ProjectConfig:
         #log.info("%d vfilers exist.", len(vfiler_dict.values()))
         known_ips = []
         for vfiler in vfiler_dict.values():
-            log.debug("checking %s", vfiler.name)
-            log.debug("ipaddress is: %s", vfiler.ipaddress)
+            #log.debug("checking %s", vfiler.name)
+            #log.debug("ipaddress is: %s", vfiler.ipaddress)
             if vfiler.ipaddress in known_ips:
                 raise ValueError("Duplicate IP address '%s' used on filer '%s'" % ( vfiler.ipaddress, vfiler.filer.name) )
 
@@ -1205,9 +1205,10 @@ class ProjectConfig:
                             
                             log.debug("onhost_names are: %s", onhost_names)
 
-                            # Add manually defined exports
-                            rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
-
+                            # Add manually defined exports, if any exist
+                            rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode, default_to_all=False)
+                            log.debug("database hostlists: %s, %s", rwhostlist, rohostlist)
+                            
                             for hostname in onhost_names:
                                 log.debug("Database %s is on host %s. Adding to rwhostlist." % (sid, hostname) )
                                 try:
@@ -1223,7 +1224,10 @@ class ProjectConfig:
 
                         # If the hostlist is empty, assume qtrees are available to all hosts
                         if len(rwhostlist) == 0 and len(rohostlist) == 0:
+                            log.debug("rwhostlist and rohostlist are both empty. Adding all hosts...")
                             rwhostlist = self.hosts.values()
+
+                        log.debug("hostlists are now: %s, %s", rwhostlist, rohostlist)
                             
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
@@ -1709,10 +1713,10 @@ class ProjectConfig:
         except IndexError:
             try:
                 proto = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
-                log.debug("Found proto in vfiler ancestor: %s", proto)
+                #log.debug("Found proto in vfiler ancestor: %s", proto)
             except IndexError:
                 proto = 'nfs'
-                log.debug("Proto set to default: %s", proto)
+                #log.debug("Proto set to default: %s", proto)
 
         try:
             voltype = node.xpath("@type")[0]
@@ -1985,10 +1989,14 @@ class ProjectConfig:
             log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
             return exports
 
-    def get_export_hostlists(self, node):
+    def get_export_hostlists(self, node, default_to_all=True):
         """
         Find the list of hosts for read/write and readonly mode based
         on the particular qtree or volume node supplied.
+
+        If default_to_all is set to True, this will set the rwhostlist
+        to all known hosts if both rwhostlist and rohostlist would
+        otherwise be empty.
         """
         rohostnames = node.xpath("ancestor-or-self::*/export[@ro = 'yes']/@to")
         log.debug("rohostnames for %s: %s", node, rohostnames)
@@ -2003,8 +2011,9 @@ class ProjectConfig:
             raise KeyError("Hostname '%s' in <export/> is not defined." % hostname)
 
         # If both lists are empty, default to exporting read/write to all hosts
-        if len(rwhostlist) == 0 and len(rohostlist) == 0:
-            rwhostlist = self.hosts.values()
+        if default_to_all:
+            if len(rwhostlist) == 0 and len(rohostlist) == 0:
+                rwhostlist = self.hosts.values()
         
         return rwhostlist, rohostlist
 
@@ -2511,7 +2520,7 @@ class ProjectConfig:
 #
 """ % vfiler.name
 
-        for vol in filer.volumes:
+        for vol in [x for x in filer.volumes if x.type not in ['snapmirrordst']]:
             if not vol.name.endswith('root'):
                 quota_file += '*    tree@/vol/%s    -    -    -    -    -\n' % vol.name
                 pass
