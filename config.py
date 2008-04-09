@@ -1457,6 +1457,9 @@ class ProjectConfig:
                         lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
                         #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
                         pass
+
+                    # Add a LUN for each one found within the volume
+                    lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
                     pass
                 pass
 
@@ -1480,11 +1483,11 @@ class ProjectConfig:
                     raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
                 lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
-                pass
 
-            # Add the new LUN to the lunlist
-            # The LUN ostype defaults to the same type as the first one in its initiator list
-            lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
+                # Add the new LUN to the lunlist
+                # The LUN ostype defaults to the same type as the first one in its initiator list
+                lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
+                pass
             pass
         
         log.debug("Loaded all LUNs")
