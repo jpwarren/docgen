@@ -344,9 +344,12 @@ class Volume:
 ##             log.debug("snapvaultmirrorref: %s", snapvaultmirrorref)
 ##             log.debug("snapmirrorref: %s", snapmirrorref)
             if len(snapref) > 0 or len(snapvaultref) > 0 or len(snapmirrorref) > 0 or len(snapvaultmirrorref) > 0:
-                log.debug("snapshots present. doubling usable space '%s' for iscsi volume", self.usable)
-                self.usable = (self.usable * 2.0) + (self.usable / (100 - float(iscsi_snapspace))/100)
-                log.debug("usable is now: %s", usable)
+                log.debug("snapshots present. doubling usable space of %s GiB for iscsi volume", self.usable)
+                #snapdiv = (100 - float(iscsi_snapspace))/100
+                snapspace = self.usable * ( (100 - float(iscsi_snapspace))/100 )
+                log.debug("Adding iscsi_snapspace (%s%%) of %s GiB", iscsi_snapspace, snapspace)
+                self.usable = (self.usable * 2.0) + snapspace
+                log.debug("usable is now: %s GiB", self.usable)
             else:
                 # If no snapshots are configured, make the raw slightly more than usable
                 log.debug("No snapshots, adding 1 GiB usable to volume size.")
@@ -1724,6 +1727,8 @@ class ProjectConfig:
             voltype = 'fs'
 
         # Default snap reserve to 20 unless specified otherwise
+        # Default iscsi_snapspace to 0 unless specified otherwise
+        iscsi_snapspace=0
         try:
             snapreserve = node.xpath("@snapreserve")[0]
         except IndexError:
@@ -1755,14 +1760,12 @@ class ProjectConfig:
         try:
             usable = float(node.xpath("usablestorage")[0].text)
 
-                    
-
         except IndexError:
             log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
             usable = 100
             pass
         
-        vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref)
+        vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
         volnum += 1
         return vol, volnum
     
