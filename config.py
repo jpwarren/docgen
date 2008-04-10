@@ -462,11 +462,15 @@ class Qtree:
         """
         return '/vol/%s/%s' % (self.volume.name, self.name)
 
-    def cifs_share_name(self):
+    def cifs_share_name(self, hidden=True):
         """
         Get the CIFS share name for the qtree.
         """
-        return '%s_%s$' % (self.volume.name, self.name)
+        retstr = '%s_%s' % (self.volume.name, self.name)
+        if hidden:
+            retstr += '$'
+            pass
+        return retstr
 
 class LUN:
     """
@@ -2646,7 +2650,9 @@ class ProjectConfig:
             for qtree in vol.qtrees.values():
                 log.debug("Determining CIFS config commands for %s", qtree)
                 cmds.append("vfiler run %s cifs shares -add %s %s -f" % (vfiler.name, qtree.cifs_share_name(), qtree.full_path()) )
-                #cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
+                cmds.append("vfiler run %s cifs access -delete %s everyone" % (vfiler.name, qtree.cifs_share_name() ) )
+
+                cmds.append('vfiler run %s cifs access %s \"domain admins\" rwx' % (vfiler.name, qtree.cifs_share_name() ) )
 
 ##                 for host in qtree.rwhostlist:
 ##                     cmds.append("vfiler run %s cifs access %s CORP\%s Full Control" % (vfiler.name, qtree.cifs_share_name(), host.name ) )

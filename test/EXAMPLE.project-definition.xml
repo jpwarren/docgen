@@ -423,6 +423,10 @@
 	      <export to="primhost01"/>
 	    </volume>
 
+	    <volume proto="cifs">
+	      <usablestorage>50</usablestorage>
+	    </volume>
+
 	  </aggregate>
 
 	  <!-- Here we can define some volumes on a different aggregate from the
