@@ -1852,12 +1852,12 @@ the host activation guides.
                     # FIXME: Read/write or read-only permissions are not
                     # properly supported on CIFS as yet.
                     if len(qtree.rwhostlist) > 0:
-                        perms.append( "<para>everyone Full-Control</para>" )
+                        perms.append( "<para>Domain Admins rwx</para>" )
                         #perms.extend( [ "<para>CORP\%s &lt;full&gt;</para>" % x.name for x in qtree.rwhostlist ] )
                         pass
                     
                     if len(qtree.rohostlist) > 0:
-                        perms.append( "<para>everyone Full-Control</para>" )
+                        perms.append( "<para>Domain Admins rwx</para>" )
                         #perms.extend( [ "<para>CORP\%s &lt;read-only&gt;</para>" % x.name for x in qtree.rohostlist ] )
                         pass
                     
