@@ -322,6 +322,10 @@ class Volume:
         self.proto = proto
         self.aggregate = aggr
         self.usable = float(usable)
+
+        # A special kind of usable that is used for the actual iscsi LUN space
+        # iSCSI really is a pain to allocate on WAFL
+        self.iscsi_usable = self.usable
         self.iscsi_snapspace = iscsi_snapspace
 
         # iSCSI LUN sizing is... interesting
@@ -346,10 +350,10 @@ class Volume:
             if len(snapref) > 0 or len(snapvaultref) > 0 or len(snapmirrorref) > 0 or len(snapvaultmirrorref) > 0:
                 log.debug("snapshots present. doubling usable space of %s GiB for iscsi volume", self.usable)
                 #snapdiv = (100 - float(iscsi_snapspace))/100
-                snapspace = self.usable * ( (100 - float(iscsi_snapspace))/100 )
+                snapspace = self.usable * ( float(iscsi_snapspace)/100 )
                 log.debug("Adding iscsi_snapspace (%s%%) of %s GiB", iscsi_snapspace, snapspace)
                 self.usable = (self.usable * 2.0) + snapspace
-                log.debug("usable is now: %s GiB", self.usable)
+                log.debug("usable is now: %s GiB, iscsi_usable is: %s GiB", self.usable, self.iscsi_usable)
             else:
                 # If no snapshots are configured, make the raw slightly more than usable
                 log.debug("No snapshots, adding 1 GiB usable to volume size.")
@@ -1425,16 +1429,12 @@ class ProjectConfig:
                         sized_total = sum([ lun.attrib['size'] for lun in sized_luns ])
                         log.debug("sized total is: %s", sized_total)
 
-                        log.debug("Available for allocation: %s", vol.usable - sized_total)
+                        log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)
 
-                        lunsize = float(vol.usable - sized_total) / nosize_luns
+                        lunsize = float(vol.iscsi_usable - sized_total) / nosize_luns
                         log.debug("calculated lun size of: %s", lunsize)
-                        # If backups are required, halve the lun size
-                        if vol.has_snaps():
-                            lunsize = lunsize / 2.0
-                            pass
                         pass
-
+                    
                     log.debug("Allocating %sg storage to LUN", lunsize)
                     lun_total += lunsize
 
@@ -2122,7 +2122,11 @@ class ProjectConfig:
 
             # Figure out how much usable storage to allocate to the target volume
             if targetusable is None:
-                targetusable = srcvol.usable * multiplier
+                # iSCSI is special, again. Grr.
+                if srcvol.proto == 'iscsi':
+                    targetusable = srcvol.iscsi_usable * multiplier
+                else:
+                    targetusable = srcvol.usable * multiplier
                 pass
                 
             # target volume name is the src volume name with a 'b' suffix

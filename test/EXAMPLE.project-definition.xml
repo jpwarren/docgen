@@ -392,7 +392,7 @@
 	    </volume>
 
 	    <!-- A volume with a specific qtree name, and a LUN automatically placed inside it. -->
-	    <volume proto="iscsi">
+	    <volume proto="iscsi" name='iscsi_test'>
 	      <usablestorage>100</usablestorage>
 	      <snapvaultsetref name="MYDB01-arch"/>
 	      <lun/>
