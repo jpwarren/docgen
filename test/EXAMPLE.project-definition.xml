@@ -375,7 +375,7 @@
 	    </volume>
 
 	    <!-- This is a volume with some manual qtree definitions -->
-	    <volume>
+	    <volume oplocks='no'>
 	      <usablestorage>120</usablestorage>
 	      <qtree name="my_first_qtree_01">Demo Manual Qtree 1</qtree>
 	      <qtree name="my_first_qtree_02">Demo Manual Qtree 2</qtree>

@@ -431,7 +431,7 @@ class Volume:
             return True
 
 class Qtree:
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], qtreenode=None):
+    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], qtreenode=None, oplocks=True):
 
         """
         A Qtree representation
@@ -446,6 +446,8 @@ class Qtree:
         self.rwhostlist = rwhostlist
         self.rohostlist = rohostlist
         self.qtreenode = qtreenode
+
+        self.oplocks = oplocks
 
         self.luns = []
         
@@ -1172,6 +1174,8 @@ class ProjectConfig:
                             else:
                                 qtree_security = 'unix'
 
+                        oplocks = self.get_oplocks_value(qtree_node)
+                        
                         if qtree_node.text is None:
                             qtree_comment = ''
                         else:
@@ -1185,7 +1189,7 @@ class ProjectConfig:
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
 
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist, qtreenode=qtree_node)
+                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist, qtreenode=qtree_node, oplocks=oplocks)
 
                         # Build mountoptions for the qtree
 ##                         mountoptions.extend( self.get_qtree_mountoptions(qtree) )
@@ -1194,7 +1198,9 @@ class ProjectConfig:
 
                 else:
                     log.debug("No qtrees defined. Inventing them for this volume.")
-                    
+
+                    oplocks = self.get_oplocks_value(vol.volnode)
+
                     # If no qtrees are defined, invent one
                     if vol.type.startswith('ora'):
                         log.debug("Oracle volume type detected.")
@@ -1242,13 +1248,13 @@ class ProjectConfig:
                             
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
-                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle configuration qtree', rwhostlist=rwhostlist, rohostlist=rohostlist)
+                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle configuration qtree', rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                             #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
-                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', rwhostlist=rwhostlist, rohostlist=rohostlist)
+                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                             #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
@@ -1257,7 +1263,7 @@ class ProjectConfig:
                             qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
                             comment = 'Oracle %s qtree' % vol.type[3:]
 
-                            qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
+                            qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                             #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                             qtree_list.append(qtree)
 
@@ -1268,7 +1274,7 @@ class ProjectConfig:
                             if vol.type == 'oraredo':
                                 qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
                                 comment = 'Oracle temp qtree'
-                                qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist)
+                                qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                                 #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                                 qtree_list.append(qtree)
                                 pass
@@ -1289,7 +1295,7 @@ class ProjectConfig:
                         # Figure out the hostlist by checking for volume based export definitions
                         rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
 
-                        qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist)
+                        qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                         #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
@@ -1329,6 +1335,7 @@ class ProjectConfig:
                                                     dr_rwhostlist,
                                                     dr_rohostlist,
                                                     #qtree.mountoptions,
+                                                    oplocks=qtree.oplocks
                                                     )
                             qtree_list.append(mirrored_qtree)
                             pass
@@ -2261,6 +2268,30 @@ class ProjectConfig:
         """
         return self.snapmirrors
 
+    def get_oplocks_value(self, node):
+        """
+        Take a node, and determine if qtree oplocks should be enabled.
+        Returns a Boolean.
+        """
+        # qtree oplocks may need to be disabled sometimes
+        try:
+            qtree_oplocks = node.xpath("ancestor-or-self::*/@oplocks")[0].lower()
+            log.debug("qtree oplocks: %s", qtree_oplocks)
+            if qtree_oplocks in [ 'no', 'false' ]:
+                oplocks = False
+                log.debug("oplocks is manually set to false")
+            else:
+                oplocks = True
+                log.debug("oplocks is manually set to true")
+                pass
+            pass
+        except IndexError:
+            oplocks = True
+            log.debug("oplocks is automatically set to true")
+            pass
+
+        return oplocks
+
     #
     # A bunch of handy function to provide the commands that can be used to implement
     # the various aspects of the configuration
@@ -2309,6 +2340,8 @@ class ProjectConfig:
             for qtree in vol.qtrees.values():
                 cmdset.append( "qtree create /vol/%s/%s" % (qtree.volume.name, qtree.name) )
                 cmdset.append( "qtree security /vol/%s/%s %s" % (qtree.volume.name, qtree.name, qtree.security) )
+                if qtree.oplocks == False:
+                    cmdset.append( "qtree oplocks /vol/%s/%s disable" % (qtree.volume.name, qtree.name) )
                 pass
             pass
         return cmdset
