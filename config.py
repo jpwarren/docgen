@@ -328,6 +328,10 @@ class Volume:
         self.iscsi_usable = self.usable
         self.iscsi_snapspace = iscsi_snapspace
 
+        # Check that the filer doesn't already have a volume of this name on it
+        if len([ vol for vol in self.filer.volumes if vol.name == self.name ]) > 0:
+            raise ValueError("Filer '%s' already has a volume named '%s'" % (filer.name, self.name))
+
         # iSCSI LUN sizing is... interesting
         # Best practice is to have no snapreserve for volumes
         # used for iscsi, but we need to have some storage
@@ -386,6 +390,7 @@ class Volume:
         self.voloptions = voloptions
         self.volnode = volnode
 
+        
         if self.name.endswith("root"):
             self.filer.volumes.insert(0, self)
         else:
