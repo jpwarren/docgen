@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE xsl:stylesheet [
+
+  <!ENTITY hsize5 "10pt">
+  <!ENTITY hsize4 "10pt">
+  <!ENTITY hsize3 "10pt">
+  <!ENTITY hsize2 "10pt">
+]>
 <xsl:stylesheet  
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
     xmlns:fo="http://www.w3.org/1999/XSL/Format"

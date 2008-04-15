@@ -415,8 +415,8 @@ ${abstract}
         """
         Build the bookinfo section at the beginning of the book.
         """
-        ns['legalnotice'] = self.build_legalnotice(ns)
         ns['copyright'] = self.build_copyright(ns)
+        ns['legalnotice'] = self.build_legalnotice(ns)
         ns['releaseinfo'] = self.build_releaseinfo(ns)
         ns['revhistory'] = self.build_revhistory(ns)
         ns['abstract'] = self.build_abstract(ns)
