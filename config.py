@@ -2509,6 +2509,12 @@ class ProjectConfig:
                     pass
                 pass
             pass
+
+        if len(vfiler.services_ips) > 0:
+            # add the cifs prefdc commands to prefer domain controllers in the right order
+            cmdset.append( "vfiler run %s cifs prefdc add %s %s" % (vfiler.name, vfiler.dns_domain_name, ' '.join(vfiler.winsservers)))
+            pass
+        
         return cmdset
             
     def vfiler_set_allowed_protocols_commands(self, vfiler, ns):
@@ -2970,6 +2976,7 @@ class ProjectConfig:
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
         cmds += self.vlan_create_commands(filer, vfiler)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
+        cmds += self.services_vlan_route_commands(vfiler)
         title, routecmds = self.default_route_command(filer, vfiler)
         cmds += routecmds
         

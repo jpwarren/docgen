@@ -220,8 +220,21 @@
 
 	  <!-- Each protocol supported by the vfiler should be specified here.
 	       Valid values are: NFS, CIFS, and iSCSI
+	       
+	       This will automatically add any protocols you may have missed, so
+	       this tag is optional.
 	  -->
 	  <protocol>NFS</protocol>
+	  <protocol>CIFS</protocol>
+
+	  <!-- Define vlanip tags if you need a services VLAN.
+	       This IP address will be added to the vfiler on an interface
+	       in the services VLAN so you can access external services, such
+	       as ActiveDirectory for doing CIFS authentication.
+	  -->
+	  <vlanip vlan='3544'>
+	    <ipaddr>10.10.10.15</ipaddr>
+	  </vlanip>
 
 	  <!--
 	      Each filer must have a primaryip. This is the IP address used to
