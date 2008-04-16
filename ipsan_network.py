@@ -575,11 +575,17 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         activation_commands = ''
 
         # build core switch configs
-        for switch in [ x for x in self.conf.project_switches.values() if x.type == 'core' ]:
+        # sort the cores by site
+        switchlist = [ (x.site,x) for x in self.conf.project_switches.values() if x.type == 'core' ]
+        switchlist.sort()
+        for site,switch in switchlist:
             log.debug("Adding core switch activation commands for %s...", switch.name)
             activation_commands += self.build_switch_activation_commands(switch)
-            
-        for switch in [ x for x in self.conf.project_switches.values() if x.type == 'edge' ]:
+            pass
+        
+        switchlist = [ (x.site,x) for x in self.conf.project_switches.values() if x.type == 'edge' ]
+        switchlist.sort()
+        for site,switch in switchlist:            
             log.debug("Adding edge switch activation commands for %s...", switch.name)
             activation_commands += self.build_switch_activation_commands(switch)
             pass
