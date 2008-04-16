@@ -2970,7 +2970,9 @@ class ProjectConfig:
         cmds = [ '#', '# %s' % vfiler.name, '#' ] 
         cmds += self.vlan_create_commands(filer, vfiler)
         cmds += self.vfiler_add_storage_interface_commands(filer, vfiler)
-
+        title, routecmds = self.default_route_command(filer, vfiler)
+        cmds += routecmds
+        
         for line in cmds:
             if len(line) == 0:
                 continue
