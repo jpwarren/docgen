@@ -314,7 +314,13 @@ the host activation guides.
 ''')
 
         rowlist = []
-        for host in self.conf.hosts.values():
+
+        # Sort the list of hosts by site, then ipaddress
+        hostlist = [ (host.location, host.get_storage_ip(), host) for host in self.conf.hosts.values() ]
+        hostlist.sort()
+
+        for location, storage_ip, host in hostlist:
+        #for host in self.conf.hosts.values():
             row = '''
             <row>
               <entry>%s</entry>
