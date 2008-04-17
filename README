@@ -16,15 +16,35 @@ Some media coverage of the OmniPresence project, and related projects:
   * http://www.netapp.com/us/company/news/news_rel_20061024.html
   * http://www.australianit.news.com.au/story/0,,23351320-24171,00.html?from=public_rss
 
-DocGen was created by Justin Warren <daedalus@eigenmagic.com> in his spare time 2006 to
-assist in the automated creation of complex, yet repetative, documents for the Enterprise
-Backup and Recovery (EBR) project, which used the same IP network as the OmniPresence storage
-infrastructure. I found manually cutting and pasting into Word documents mindlessly tedious,
-and by abstracting the process with DocGen I could create in a couple of hours what used to
-take anything from a full day to an entire week.
+DocGen was created by Justin Warren <daedalus@eigenmagic.com> in his
+spare time in 2006 to assist in the automated creation of complex, yet
+repetative, documents for the Enterprise Backup and Recovery (EBR)
+project, which used the same IP network as the OmniPresence storage
+infrastructure. I found manually cutting and pasting into Word
+documents mindlessly tedious, and by abstracting the process with
+DocGen I could create in a couple of hours what used to take anything
+from a full day to an entire week.
 
-The original software was written in XSLT 1.0 to assist with portability. This proved complex,
-due to the lack of certain features (like loops!) in XSLT 1.0. DocGen was then completely
-rewritten in Python around June of 2007 which substantially increased its flexibility, ease
-of maintenance, and the ability to quickly add new features.
+DocGen is a personal obsession with documentation combined with a
+dislike for mindless, tedious busywork. I knew that no company would
+fund such a project internally, because they would not see the value
+up front. So, I built it at home, on weekends and at night when I
+should probably have been having a life or something. On the plus
+side, I own the code, so who knows, I might make some money from it
+one day.
+
+The original software was written in XSLT 1.0 to assist with
+portability. This proved complex, due to the lack of certain features
+(like loops!) in XSLT 1.0. DocGen was then completely rewritten in
+Python around April/May of 2007 which substantially increased its
+flexibility, ease of maintenance, and the ability to quickly add new
+features. 
+
+DocGen is gradually being made more abstract so that the same codebase
+can be used for multiple organisations without having to modify the
+code, as it was originally built with hardcoded values for
+organisation specific functions (such as IP addresses). This made it
+easier to implement features, but required significant modifcations to
+adapt the software from one organisation to another.
+
 

@@ -136,7 +136,7 @@ class Switch:
 
 class Interface:
 
-    def __init__(self, type, mode, switchname, switchport, hostport=None, ipaddress=None):
+    def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None):
 
         self.type = type
         self.mode = mode
@@ -849,9 +849,19 @@ class ProjectConfig:
             interface_nodes = node.findall('interface')
             log.debug("found host interfaces: %s", interface_nodes)
             for ifnode in interface_nodes:
-                switchname = ifnode.find('switchname').text
-                switchport = ifnode.find('switchport').text
-                hostport = ifnode.find('hostport').text
+                try:
+                    switchname = ifnode.find('switchname').text
+                    switchport = ifnode.find('switchport').text
+                except AttributeError, e:
+                    log.warn("Host switch configuration not present for %s: %s", hostname, e)
+                    switchname = None
+                    switchport = None
+
+                try:
+                    hostport = ifnode.find('hostport').text
+                except AttributeError, e:
+                    log.warn("No host port defined for host: %s", hostname)
+                    hostport = None
 
                 try:
                     ipaddr = ifnode.find('ipaddr').text
@@ -865,32 +875,33 @@ class ProjectConfig:
                     mode = 'passive'
 
                 # Add the required switch to the project switches list
-                try:
-                    switch = self.known_switches[switchname]
-                except KeyError:
-                    raise KeyError("Switch '%s' is not defined. Is it in switches.conf?" % switchname)
+                if switchname is not None:
+                    try:
+                        switch = self.known_switches[switchname]
+                    except KeyError:
+                        raise KeyError("Switch '%s' is not defined. Is it in switches.conf?" % switchname)
 
-                log.debug("Adding switch '%s' to project switch list at site '%s'", switch, site)
-                switch.site = site
-                self.project_switches[switchname] = switch
+                    log.debug("Adding switch '%s' to project switch list at site '%s'", switch, site)
+                    switch.site = site
+                    self.project_switches[switchname] = switch
 
-                # If this is an edge, make sure its connected cores are added to the
-                # list of project switches.
-                if switch.type == 'edge':
-                    for coreswitch in switch.connected_switches:
-                        if coreswitch not in self.project_switches:
-                            self.project_switches[coreswitch] = self.known_switches[coreswitch]
-                            self.project_switches[coreswitch].site = site
+                    # If this is an edge, make sure its connected cores are added to the
+                    # list of project switches.
+                    if switch.type == 'edge':
+                        for coreswitch in switch.connected_switches:
+                            if coreswitch not in self.project_switches:
+                                self.project_switches[coreswitch] = self.known_switches[coreswitch]
+                                self.project_switches[coreswitch].site = site
+                                pass
                             pass
                         pass
-                    pass
 
                 # Sanity check the interface parameters. The combination of switchname+switchport should
                 # only occur once.
                 for iface in self.interfaces:
                     #log.debug("checking interface: %s", iface)
                     if iface.switchname == switchname and iface.switchport == switchport:
-                        raise ValueError("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
+                        log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
                 
                 iface = Interface(type, mode, switchname, switchport, hostport, ipaddr)
                 ifaces.append(iface)

@@ -184,6 +184,22 @@
 
   </host>
 
+  <host name="virtualhost-01">
+    <platform>Sun</platform>
+    <operatingsystem>Solaris 10</operatingsystem>
+    <location>CoLo Level 5</location>
+    <description>Virtual Host on primhost02</description>
+
+    <interface type='storage' mode='active'>
+<!--      <switchname>exip-swtedg-0103</switchname>
+      <switchport>GigabitEthernet1/3</switchport>
+      <hostport>PCI 0</hostport> -->
+      <ipaddr>10.240.4.238</ipaddr>
+    </interface>
+
+    <drhost name="drtesthost02"/>
+
+  </host>
 
 
       <!-- Every site requires a VLAN for the project, at a minimum.
