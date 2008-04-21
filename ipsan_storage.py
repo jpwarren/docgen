@@ -1472,7 +1472,8 @@ the host activation guides.
 
             # Read Only mounts
             for host in qtree.rohostlist:
-                filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
+                filerip = qtree.volume.filer.vfilers.values()[0].ipaddress
+                #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
                 mountopts = self.conf.get_host_qtree_mountoptions(host, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
 
