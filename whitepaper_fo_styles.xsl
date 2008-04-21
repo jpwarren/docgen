@@ -1,281 +1,53 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE xsl:stylesheet [
-
-  <!ENTITY hsize5 "10pt">
-  <!ENTITY hsize4 "10pt">
-  <!ENTITY hsize3 "10pt">
-  <!ENTITY hsize2 "10pt">
-]>
 <xsl:stylesheet  
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
     xmlns:fo="http://www.w3.org/1999/XSL/Format"
     version="1.0">
 
-<xsl:import href="http://docgen.eigenmagic.com/base_styles.xsl"/>
-<xsl:import href="http://docgen.eigenmagic.com/admon_graphics.xsl" />
-<xsl:import href="http://docgen.eigenmagic.com/titlepage.xsl"/>
+<xsl:import href="http://docgen.eigenmagic.com/book_fo_styles.xsl"/>
 
-<xsl:param name="corp.logo" select="'/usr/local/docgen/sensis-logo.png'"/>
-<xsl:param name="corp.logo.top.right" select="'/usr/local/docgen/sensis-logo-small.png'"/>
+<!-- Disable Table of Contents output for whitepapers -->
+<xsl:param name="generate.toc">
+/appendix toc,title
+article/appendix  nop
+/article  toc,title
+book      title
+/chapter  toc,title
+part      toc,title
+/preface  toc,title
+qandadiv  toc
+qandaset  toc
+reference toc,title
+/sect1    toc
+/sect2    toc
+/sect3    toc
+/sect4    toc
+/sect5    toc
+/section  toc
+set       toc,title
+</xsl:param>
 
-<xsl:param name="sensis.color.sand">#f2e8bb</xsl:param>
-<xsl:param name="sensis.color.aqua">#26bcd6</xsl:param>
-<xsl:param name="sensis.color.sensis.blue.40">#95b8e1</xsl:param>
-<!--
-    Sensis colours:
-    Sensis Blue: #0055c3 RGB: 0,85,195
-    Sensis Blue 40%: #95b8e1 RGB: 149,184,225
-    Sand: #f2e8bb RGB: 242,232,187
-    Aqua: #26bcd6 RGB: 38,188,214
-    Turquoise: #2dafa4 RGB: 45,175,164
--->
-
-
-<!-- Enable PDF bookmarks to be generated -->
-<xsl:param name="fop1.extensions">1</xsl:param>
-
-<xsl:param name="xep.extensions">1</xsl:param>
-
-<!-- Don't use draft mode. May need to replace this with a runtime
-     parameter to xsltproc if we want to use draft/publish workflow.
--->
-<xsl:param name="draft.mode">no</xsl:param>
-
-<xsl:param name="page.margin.inner">2cm</xsl:param>
-<xsl:param name="page.margin.outer">2cm</xsl:param>
-<xsl:param name="body.start.indent">2pc</xsl:param>
-
-
-<!-- Make all URL links coloured blue for FO output (eg: PDFs) -->
-<xsl:attribute-set name="xref.properties">
-  <xsl:attribute name="color">
-    <xsl:choose>
-      <xsl:when test="self::ulink">blue</xsl:when>
-      <xsl:otherwise>inherit</xsl:otherwise>
-    </xsl:choose>
-  </xsl:attribute>
-</xsl:attribute-set>
+<!-- turn of section auto-numbering -->
+<xsl:param name='section.autolabel'>0</xsl:param>
 
 <!-- Turn off the Chapter prefix for numbered chapter titles -->
 <xsl:param name="local.l10n.xml" select="document('')"/>
 <l:i18n xmlns:l="http://docbook.sourceforge.net/xmlns/l10n/1.0">
   <l:l10n language="en">
     <l:context name="title-numbered">
-      <l:template name="chapter" text="%n.&#160;%t"/>
+      <l:template name="chapter" text="%t"/>
     </l:context>    
   </l:l10n>
 </l:i18n>
 
-<!-- Wrap long lines in program listings -->
-<xsl:attribute-set name="monospace.verbatim.properties">
-  <xsl:attribute name="wrap-option">wrap</xsl:attribute>
-</xsl:attribute-set>
-
-<!-- Make program listing background color yellow -->
-<xsl:param name="shade.verbatim">1</xsl:param>
-<xsl:attribute-set name="shade.verbatim.style">
-  <xsl:attribute name="border">0.5pt solid gray</xsl:attribute>
+<!-- Style the chapter titles -->
+<xsl:attribute-set name="component.title.properties">
   <xsl:attribute name="background-color"><xsl:value-of select="$sensis.color.sand"/></xsl:attribute>
-  <xsl:attribute name="padding-left">0.5em</xsl:attribute>
-  <xsl:attribute name="padding-right">0.5em</xsl:attribute>
-  <xsl:attribute name="font-weight">normal</xsl:attribute>
-  <xsl:attribute name="font-size">
-    <xsl:choose>
-      <xsl:when test="processing-instruction('db-font-size')">
-	<xsl:value-of select="processing-instruction('db-font-size')"/>
-      </xsl:when>
-      <xsl:otherwise>75%</xsl:otherwise>
-    </xsl:choose>
-  </xsl:attribute>
+<!--#E0E0E0</xsl:attribute> -->
+  <xsl:attribute name="border-bottom-color">black</xsl:attribute>
+  <xsl:attribute name="border-bottom-width">0.5pt</xsl:attribute>
+  <xsl:attribute name="border-bottom-style">solid</xsl:attribute>
 </xsl:attribute-set>
-
-<!-- Work around a bug in fop that causes an extra blank
-     page to be generated after the title pages.
--->
-<xsl:template name="book.titlepage.separator"/>
-
-<!-- Allow long tables to span pages -->
-<xsl:attribute-set name="table.properties">
-  <xsl:attribute name="keep-together.within-column">auto</xsl:attribute>
-</xsl:attribute-set>
-
-<!-- Custom table style -->
-<xsl:template name="table.cell.properties"> 
-  <xsl:param name="bgcolor.pi" select="''"/>
-  <xsl:param name="rowsep.inherit" select="1"/>
-  <xsl:param name="colsep.inherit" select="1"/>
-  <xsl:param name="col" select="1"/>
-  <xsl:param name="valign.inherit" select="''"/>
-  <xsl:param name="align.inherit" select="''"/>
-  <xsl:param name="char.inherit" select="''"/>
-
-<!--
-  <xsl:message>Column number is: <xsl:value-of select="$col"/>
-  </xsl:message>
--->
-
-  <xsl:variable name="tabstyle" select="ancestor::table[1]/@tabstyle
-                          | ancestor::informaltable[1]/@tabstyle"/>
-
-  <xsl:variable name="bgcolor">
-    <xsl:choose>
-
-      <!-- Make header background coloured for table style 'techtable-01' -->
-      <xsl:when test="$tabstyle = 'techtable-01'
-                     and ancestor::thead">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
-      </xsl:when>
-
-      <!-- Make header background coloured for table style 'techtable-02' -->
-      <xsl:when test="$tabstyle = 'techtable-02'
-                     and ancestor::thead">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
-      </xsl:when>
-
-      <!-- Make header background coloured for table style 'techtable-03' -->
-      <xsl:when test="$tabstyle = 'techtable-03'
-                     and ancestor::thead">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
-      </xsl:when>
-
-      <!-- Make left column background yellow for table style 'techtable-03' -->
-      <xsl:when test="$tabstyle = 'techtable-03'
-                     and $col = 1">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
-      </xsl:when>
-
-      <xsl:when test="$bgcolor.pi != ''">
-        <xsl:value-of select="$bgcolor.pi"/>
-      </xsl:when>
-    </xsl:choose>
-  </xsl:variable>
-
-  <xsl:if test="$bgcolor != ''">
-    <xsl:attribute name="background-color">
-      <xsl:value-of select="$bgcolor"/>
-    </xsl:attribute>
-  </xsl:if>
-
-  <!-- make left column text bold for techtable-03 -->
-  <xsl:if test="$tabstyle = 'techtable-03'
-		and $col = 1">
-    <xsl:attribute name="font-weight">bold</xsl:attribute>
-  </xsl:if>
-	  
-
-<!-- style pieces from the original template -->
-
-        <xsl:if test="$rowsep.inherit &gt; 0">
-          <xsl:call-template name="border">
-            <xsl:with-param name="side" select="'bottom'"/>
-          </xsl:call-template>
-        </xsl:if>
-
-        <xsl:if test="$colsep.inherit &gt; 0 and
-                      $col &lt; ancestor::tgroup/@cols">
-          <xsl:call-template name="border">
-            <xsl:with-param name="side" select="'right'"/>
-          </xsl:call-template>
-        </xsl:if>
-
-        <xsl:if test="$valign.inherit != ''">
-          <xsl:attribute name="display-align">
-            <xsl:choose>
-              <xsl:when test="$valign.inherit='top'">before</xsl:when>
-              <xsl:when test="$valign.inherit='middle'">center</xsl:when>
-              <xsl:when test="$valign.inherit='bottom'">after</xsl:when>
-              <xsl:otherwise>
-                <xsl:message>
-                  <xsl:text>Unexpected valign value: </xsl:text>
-                  <xsl:value-of select="$valign.inherit"/>
-                  <xsl:text>, center used.</xsl:text>
-                </xsl:message>
-                <xsl:text>center</xsl:text>
-              </xsl:otherwise>
-            </xsl:choose>
-          </xsl:attribute>
-        </xsl:if>
-
-        <xsl:if test="$align.inherit != ''">
-          <xsl:attribute name="text-align">
-            <xsl:value-of select="$align.inherit"/>
-          </xsl:attribute>
-        </xsl:if>
-
-        <xsl:if test="$char.inherit != ''">
-          <xsl:attribute name="text-align">
-            <xsl:value-of select="$char.inherit"/>
-          </xsl:attribute>
-        </xsl:if>
-
-</xsl:template>
-
-<!-- make headers and footers for tables bold -->
-<xsl:template name="table.cell.block.properties">
-  <xsl:if test="ancestor::thead">
-    <xsl:attribute name="font-weight">bold</xsl:attribute>
-  </xsl:if>
-  <xsl:if test="ancestor::tfoot">
-    <xsl:attribute name="font-weight">bold</xsl:attribute>
-  </xsl:if>
-
-</xsl:template>
-
-<!-- row colouring based on row position and table style -->
-<xsl:template match="row">
-  <xsl:param name="spans"/>
-
-  <xsl:variable name="tabstyle" select="ancestor::table[1]/@tabstyle
-                          | ancestor::informaltable[1]/@tabstyle"/>
-
-  <xsl:variable name="bgcolor">
-    <xsl:variable name="rownum" select="count(preceding-sibling::*)"/>
-    <xsl:choose>
-      <!-- colour even rows in table style techtable-01 -->
-      <xsl:when test="$tabstyle = 'techtable-01' and $rownum mod 2">
-        <xsl:value-of select="$sensis.color.sand"/>
-      </xsl:when>
-
-      <!-- colour every even group of 3 rows in techtable-02 -->
-      <xsl:when test="$tabstyle = 'techtable-02' and ($rownum mod 6 >= 3)">
-        <xsl:value-of select="$sensis.color.sand"/>
-      </xsl:when>
-
-      <!-- otherwise, do the usual template thing -->
-      <xsl:otherwise>
-	<xsl:call-template name="dbfo-attribute">
-	  <xsl:with-param name="pis" select="processing-instruction('dbfo')"/>
-	  <xsl:with-param name="attribute" select="'bgcolor'"/>
-	</xsl:call-template>
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:variable>
-
-  <fo:table-row>
-    <xsl:call-template name="anchor"/>
-    <xsl:if test="$bgcolor != ''">
-      <xsl:attribute name="background-color">
-        <xsl:value-of select="$bgcolor"/>
-      </xsl:attribute>
-    </xsl:if>
-
-    <xsl:apply-templates select="(entry|entrytbl)[1]">
-      <xsl:with-param name="spans" select="$spans"/>
-    </xsl:apply-templates>
-  </fo:table-row>
-
-  <xsl:if test="following-sibling::row">
-    <xsl:variable name="nextspans">
-      <xsl:apply-templates select="(entry|entrytbl)[1]" mode="span">
-        <xsl:with-param name="spans" select="$spans"/>
-      </xsl:apply-templates>
-    </xsl:variable>
-
-    <xsl:apply-templates select="following-sibling::row[1]">
-      <xsl:with-param name="spans" select="$nextspans"/>
-    </xsl:apply-templates>
-  </xsl:if>
-</xsl:template>
 
 <!--
  Custom titlepage layout using fo:table
@@ -291,11 +63,11 @@
           <fo:table-cell column-number="1">
             <fo:block text-align="right"
 		      padding-top="4pc">
-	      <xsl:if test="$corp.logo.top.right">
+	      <xsl:if test="$corp.logo">
 	      <fo:external-graphic width="auto" height="auto">
 		<xsl:attribute name="src">
 		  <xsl:text>url(</xsl:text>
-		  <xsl:value-of select="$corp.logo.top.right" />
+		  <xsl:value-of select="$corp.logo" />
 		  <xsl:text>)</xsl:text>
 		</xsl:attribute>
 	      </fo:external-graphic>
@@ -346,9 +118,57 @@
           </fo:table-cell>
         </fo:table-row>
 
-<!-- Build this into a table with a single row and cell, with a border
-     centered in the middle of the page, near the bottom.
- -->
+	<!-- Author information -->
+        <fo:table-row>
+          <fo:table-cell column-number="1">
+            <fo:block text-align="right"
+		      padding-top="0.25pc">
+	      
+	      <xsl:choose>
+                <xsl:when test="bookinfo/author">
+                  <xsl:apply-templates 
+                         mode="book.titlepage.recto.auto.mode" 
+                         select="bookinfo/author"/>
+                </xsl:when>
+                <xsl:when test="author">
+                  <xsl:apply-templates 
+                         mode="book.titlepage.recto.auto.mode" 
+                         select="author"/>
+                </xsl:when>
+	      </xsl:choose>
+            </fo:block>
+          </fo:table-cell>
+        </fo:table-row>
+
+	<!-- Author information -->
+        <fo:table-row>
+          <fo:table-cell column-number="1">
+            <fo:block text-align="right"
+		      padding-top="0.25pc">
+	      
+	      <xsl:choose>
+                <xsl:when test="bookinfo/revhistory">
+                  <xsl:apply-templates 
+                         mode="book.titlepage.recto.auto.mode" 
+                         select="bookinfo/revhistory/revision[1]/date"/>
+                </xsl:when>
+                <xsl:when test="revhistory">
+                  <xsl:apply-templates 
+                         mode="book.titlepage.recto.auto.mode" 
+                         select="revhistory/revision[1]/date"/>
+                </xsl:when>
+	      </xsl:choose>
+            </fo:block>
+          </fo:table-cell>
+        </fo:table-row>
+
+
+	<!-- Legal notice at the bottom of the front page.
+	     Build this into a table with a single row and cell, with a border
+	     centered in the middle of the page, near the bottom.
+	-->
+
+	<!--
         <fo:table-row>
           <fo:table-cell column-number="1">
             <fo:block text-align="center"
@@ -391,6 +211,8 @@
           </fo:table-cell> 
         </fo:table-row >  
 
+	-->
+
       </fo:table-body> 
     </fo:table>
   </fo:block>
@@ -404,8 +226,8 @@
 </xsl:template>
 
 <xsl:template match="bookinfo/copyright" mode="book.titlepage.verso.mode">
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" xsl:use-attribute-sets="book.titlepage.verso.style" font-size="14.4pt" font-weight="bold" font-family="{$title.fontset}" space-before="0.5em" space-after="0.5em">Copyright</fo:block>
-
+<!--  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" xsl:use-attribute-sets="book.titlepage.verso.style" font-size="14.4pt" font-weight="bold" font-family="{$title.fontset}" space-before="0.5em" space-after="0.5em">Copyright</fo:block>
+-->
   <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">This document is the property of Sensis Pty Ltd.</fo:block>
   <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">222 Lonsdale St</fo:block>
   <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">MELBOURNE</fo:block>
@@ -421,13 +243,13 @@
 <xsl:param name="header.column.widths" select="'1 4 1'"/>
 <xsl:param name="region.before.extent" select="'3cm'"/>
 <xsl:param name="body.margin.top" select="'3cm'"/>
-<xsl:param name="header.table.height" select="'2cm'"/>
-<xsl:param name="header.rule">0</xsl:param>
+<xsl:param name="header.table.height" select="'1cm'"/>
+<xsl:param name="header.rule">1</xsl:param>
 
 <xsl:attribute-set name="header.content.properties">
   <xsl:attribute name="font-family"><xsl:value-of select="$title.fontset"/></xsl:attribute>
-  <xsl:attribute name="font-weight">bold</xsl:attribute>
-  <xsl:attribute name="font-size">12pt</xsl:attribute>
+  <xsl:attribute name="font-weight">normal</xsl:attribute>
+  <xsl:attribute name="font-size">10pt</xsl:attribute>
 </xsl:attribute-set>
 
 <xsl:template name="header.table">
@@ -461,19 +283,25 @@
   </xsl:variable>
 
   <xsl:variable name="candidate">
-    <fo:table table-layout="fixed" width="100%"
+    <fo:table table-layout="fixed" width="100%">
+<!--
 			border-left-style="solid"
 			border-right-style="solid"
 			border-top-style="solid"
-			border-bottom-style="solid"
+
 			border-left-width="1pt"
 			border-right-width="1pt"
 			border-top-width="1pt"
-			border-bottom-width="1pt"
+
 			border-left-color="black"
 			border-right-color="black"
 			border-top-color="black"
+
+			border-bottom-style="solid"
+			border-bottom-width="0.5pt"
 			border-bottom-color="black">
+
+-->
 
       <xsl:call-template name="head.sep.rule">
         <xsl:with-param name="pageclass" select="$pageclass"/>
@@ -532,7 +360,8 @@
             </fo:block>
           </fo:table-cell>
           <fo:table-cell text-align="center"
-                         display-align="center"
+                         display-align="after">
+<!--
 			 background-color="{$sensis.color.sensis.blue.40}"
 			 border-left-style="solid"
 			 border-left-width="1pt"
@@ -541,6 +370,7 @@
 			 border-right-width="1pt"
 			 border-right-color="black"
 			 >
+-->
             <xsl:if test="$fop.extensions = 0">
               <xsl:attribute name="relative-align">baseline</xsl:attribute>
             </xsl:if>
@@ -599,9 +429,9 @@
     <!-- position can be left, center, right -->
     <xsl:choose>
 
-      <xsl:when test="$position = 'left' or $position = 'right'">
+      <xsl:when test="$position = 'right'">
 	<xsl:if test="$corp.logo.top.right">
-	  <fo:block text-align="center">
+	  <fo:block text-align="right">
 	    <fo:external-graphic width="auto" height="auto">
 	      <xsl:attribute name="src">
 		<xsl:text>url(</xsl:text>
@@ -617,13 +447,13 @@
 
 	<fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">
 	  <xsl:value-of select="ancestor-or-self::book/bookinfo/title"/>
-	</fo:block>
-
-	<fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">for</fo:block>
-
-	<fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">
+	  <xsl:text> </xsl:text>
 	  <xsl:value-of select="ancestor-or-self::book/bookinfo/subtitle"/>
 	</fo:block>
+<!--
+	<fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">
+	</fo:block>
+-->
       </xsl:when>
 
     </xsl:choose>
@@ -1041,7 +871,7 @@
 	  <rdf:Description rdf:about=""
 			   xmlns:xmp="http://ns.adobe.com/xap/1.0/">
 	    <!-- XMP properties go here -->
-	    <xmp:CreatorTool>DocGen $Revision$ by Justin Warren &lt;justin@eigenmagic.com&gt;</xmp:CreatorTool>
+	    <xmp:CreatorTool>DocGen $Revision: 74 $ by Justin Warren &lt;justin@eigenmagic.com&gt;</xmp:CreatorTool>
 	  </rdf:Description>
 	</rdf:RDF>
       </x:xmpmeta>
@@ -1050,5 +880,23 @@
   </xsl:if>
 
 </xsl:template>
+
+<!-- Custom eipgraph formatting -->
+<xsl:template match="epigraph">
+  <fo:block text-align='right'>
+  <fo:inline font-style='italic'>
+    <xsl:call-template name="anchor"/>
+      <xsl:apply-templates select="para|simpara|formalpara|literallayout"/>
+    <xsl:if test="attribution">
+      <fo:inline>
+        <xsl:text>--</xsl:text>
+        <xsl:apply-templates select="attribution"/>
+      </fo:inline>
+    </xsl:if>
+  </fo:inline>  
+  </fo:block>
+  
+</xsl:template>
+
 
 </xsl:stylesheet>
