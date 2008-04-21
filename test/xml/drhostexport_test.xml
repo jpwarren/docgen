@@ -1,0 +1,131 @@
+<!-- An XML document used for testing DR host exports -->
+
+<project>
+
+  <prefix>MyPrefix</prefix>
+  <code>TEST</code>
+  <shortname>test</shortname>
+  <longname>Test Project</longname>
+
+  <site type='primary' location='primary'>
+
+    <host name='testhost01'>
+      <platform>Sun</platform>
+      <operatingsystem>Solaris 10</operatingsystem>
+      <location>testlab</location>
+      <description>Test Host 01</description>
+
+      <interface type='storage' mode='active'>
+	<switchname>sitea-swtedg-0101</switchname>
+	<switchport>GigabitEthernet1/1</switchport>
+	<hostport>PCI 0</hostport>
+	<ipaddr>10.240.4.101</ipaddr>
+      </interface>
+
+      <drhost name='dr_testhost01'/>
+
+    </host>
+
+    <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
+
+    <filer type='primary' name='primary-filer-01'>
+      <vfiler rootaggr='aggr00'>
+	<primaryip>
+	  <ipaddr>10.240.4.225</ipaddr>
+	  <netmask>255.255.255.224</netmask>
+	</primaryip>
+
+	<aggregate name='aggr01'>
+	  <volume name='testvol01'>
+	    <usablestorage>10</usablestorage>
+	    <export to='testhost01'/>
+	    <snapmirrorsetref name="default_sm"/>
+	  </volume>
+
+	</aggregate>
+
+      </vfiler>
+    </filer>
+
+    <filer type="nearstore" name="primary-nearstore-01">
+      <vfiler rootaggr='aggr00'>
+	<primaryip>
+	  <ipaddr>10.240.4.226</ipaddr>
+	  <netmask>255.255.255.224</netmask>
+	</primaryip>
+      </vfiler>
+    </filer>
+
+  </site>
+
+  <site type='secondary' location='secondary'>
+
+    <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
+
+    <host name='dr_testhost01'>
+      <platform>Sun</platform>
+      <operatingsystem>Solaris 10</operatingsystem>
+      <location>testlab</location>
+      <description>Test Host 01</description>
+
+      <interface type='storage' mode='active'>
+	<switchname>sitea-swtedg-0102</switchname>
+	<switchport>GigabitEthernet1/1</switchport>
+	<hostport>PCI 0</hostport>
+	<ipaddr>10.240.4.111</ipaddr>
+      </interface>
+
+    </host>
+
+    <filer type='primary' name='secondary-filer-01'>
+      <vfiler rootaggr='aggr00'>
+	<primaryip>
+	  <ipaddr>10.240.4.231</ipaddr>
+	  <netmask>255.255.255.224</netmask>
+	</primaryip>
+
+      </vfiler>
+    </filer>
+
+    <filer type="nearstore" name="secondary-nearstore-01">
+      <vfiler rootaggr='aggr00'>
+	<primaryip>
+	  <ipaddr>10.240.4.232</ipaddr>
+	  <netmask>255.255.255.224</netmask>
+	</primaryip>
+      </vfiler>
+    </filer>
+
+  </site>
+
+  <snapvaultset id="default_primary" targetfiler="primary-nearstore-01" targetaggregate="aggr01">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+  <snapvaultset id="default_secondary" targetfiler="secondary-nearstore-01" targetaggregate="aggr01">
+    <snapvault basename="sv_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="sv_weekly">
+      <snapvaultschedule>13@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
+
+
+  <snapmirrorset id="default_sm" targetfiler="secondary-filer-01" targetaggregate="aggr01">
+    <snapmirror>
+      <minute>0</minute>
+      <hour>6</hour>
+      <dayofmonth>*</dayofmonth>
+      <dayofweek>*</dayofweek>
+    </snapmirror>
+  </snapmirrorset>
+
+</project>

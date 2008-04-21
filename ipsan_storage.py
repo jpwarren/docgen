@@ -1425,7 +1425,7 @@ the host activation guides.
         for sitetype in ['primary', 'secondary']:
             tblns = {}
             # Only include the NFS qtree section if there are NFS qtrees
-            nfs_qtree_rows = self.get_nfs_qtree_rows(ns, sitetype)
+            nfs_qtree_rows = '\n'.join(self.get_nfs_qtree_rows(ns, sitetype))
             if len(nfs_qtree_rows) > 0:
                 #log.debug("Found NFS qtrees: '%s'", nfs_qtree_rows)
                 tblns['sitetype'] = sitetype.capitalize()
@@ -1447,15 +1447,18 @@ the host activation guides.
         """
         rows = []
 
-        # only create export definition for nfs volumes
-        qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
+        # only create export definition for nfs volumes on primary filers
+        qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.filer.type in [ 'primary', ] ]
+        
+        #qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
         for qtree in qtree_list:
             #log.debug("Adding NFS export definition for %s", qtree)
             # For each qtree, add a row for each host that needs to mount it
 
             # Read/Write mounts
             for host in qtree.rwhostlist:
-                filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
+                filerip = qtree.volume.filer.vfilers.values()[0].ipaddress
+                #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
                 mountopts = self.conf.get_host_qtree_mountoptions(host, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
                 entries = """
@@ -1484,7 +1487,7 @@ the host activation guides.
                 pass
 
             pass
-        return '\n'.join(rows)
+        return rows
 
     def build_iscsi_config_section(self, ns):
         """

@@ -1,0 +1,27 @@
+<!-- An XML document used for testing DR host exports -->
+
+<project>
+
+  <prefix>MyPrefix</prefix>
+  <code>TEST</code>
+  <shortname>test</shortname>
+  <longname>Test Project</longname>
+
+  <site type='primary' location='primary'>
+
+    <host name='testhost01'>
+      <platform>Sun</platform>
+      <operatingsystem>Solaris 10</operatingsystem>
+      <location>testlab</location>
+      <description>Test Host 01</description>
+
+    </host>
+
+    <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
+
+  </site>
+
+  <site type='secondary' location='secondary'>
+  </site>
+
+</project>
