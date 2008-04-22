@@ -2,7 +2,8 @@
 
 <!-- Sensis document generator Document Type Definition for <project/> -->
 
-<!ELEMENT project (prefix, code, shortname, longname, revhistory, host*, nas*, snapvaultset*, backuppolicy*, backupscheduleset*, backupmedia*)>
+<!ELEMENT project (prefix, code, shortname, longname, background,
+revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backupscheduleset*, backupmedia*)>
 
   <!ELEMENT prefix (#PCDATA)>
   <!ELEMENT code (#PCDATA)>
@@ -12,7 +13,14 @@
   <!-- <background/> element contains verbatim DocBook XML to be
     included in the background section of the document
   -->
-  <!ELEMENT background (#PCDATA)>  
+  <!ELEMENT background ANY>
+    <!-- These are here so that things inside the background tag are passed as valid
+         What this should really do is import the DocBook schema and use it for anything
+	 inside the background element. No idea how to do that yet.
+    -->
+    <!ELEMENT para ANY>
+    <!ELEMENT itemizedlist ANY>
+    <!ELEMENT listitem ANY>
 
   <!-- Revision History elements -->
   <!ELEMENT revhistory (revision+)>
@@ -22,6 +30,129 @@
       <!ELEMENT date (#PCDATA)>
       <!ELEMENT authorinitials (#PCDATA)>
       <!ELEMENT revremark (#PCDATA)>
+
+  <!ELEMENT database (name?, onhost*, filesystem*, backup*)>
+    <!ATTLIST database id ID #IMPLIED>
+    <!ATTLIST database type CDATA #REQUIRED>
+
+    <!ELEMENT onhost EMPTY>
+      <!ATTLIST onhost name IDREF #REQUIRED>
+    <!ELEMENT backup EMPTY>
+      <!ATTLIST backup type (streaming | vnas) #REQUIRED
+                       online ( yes | no ) #IMPLIED
+		       scheduleset IDREF #REQUIRED>
+
+  <!ELEMENT site (host+, vlan+, filer+)>
+    <!ATTLIST site type (primary|secondary) 'primary'
+                   location CDATA #IMPLIED>
+
+    <!ELEMENT filer (name?, vfiler?)>
+      <!ATTLIST filer type (primary | secondary | nearstore) #REQUIRED
+                      name ID #REQUIRED>
+
+      <!ELEMENT vfiler (name?, protocol*, primaryip?, vlanip*, testip?, aggregate*, volumeset*)>
+        <!ATTLIST vfiler rootaggr CDATA #REQUIRED>
+        <!ELEMENT protocol (#PCDATA)>
+        <!ELEMENT primaryip (ipaddr, netmask)>
+	  <!ELEMENT ipaddr (#PCDATA)>
+	  <!ELEMENT netmask (#PCDATA)>
+
+        <!ELEMENT vlanip (ipaddr, netmask?)>
+	  <!ATTLIST vlanip vlan CDATA #REQUIRED>
+
+        <!ELEMENT testip (ipaddr, netmask)>
+
+        <!ELEMENT aggregate (volume+)>
+         <!ATTLIST aggregate name CDATA #REQUIRED>
+
+	<!-- The volume declaration -->
+	<!ELEMENT volume (usablestorage?, description?, qtree*, lun*, export*,
+                          snapsetref*, snapvaultsetref*, snapmirrorsetref*, snapvaultmirrorsetref*)>
+	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oratemp | oraarch ) #IMPLIED
+	                   name ID #IMPLIED
+			   snapreserve CDATA #IMPLIED
+			   proto CDATA #IMPLIED
+			   oracle IDREF #IMPLIED
+			   restartnumbering CDATA #IMPLIED
+			   oplocks (yes|no) 'no'
+			   iscsi_snapspace CDATA #IMPLIED>
+	  <!ELEMENT usablestorage (#PCDATA)>
+	  <!ELEMENT qtree (description?, lun*)>
+	    <!ATTLIST qtree name CDATA #IMPLIED
+	              oplocks (yes|no) 'no'>
+
+          <!ELEMENT lun EMPTY>
+	    <!ATTLIST lun size CDATA #IMPLIED>		 
+
+          <!ELEMENT export EMPTY>
+	    <!ATTLIST export to IDREF #IMPLIED
+	                     ro (yes|no) 'no'>		 
+
+	  <!ELEMENT snapsetref EMPTY>
+	    <!ATTLIST snapsetref name IDREF #REQUIRED>
+
+	  <!ELEMENT snapvaultsetref EMPTY>
+	    <!ATTLIST snapvaultsetref name IDREF #REQUIRED>
+
+	  <!ELEMENT snapmirrorsetref EMPTY>
+	    <!ATTLIST snapmirrorsetref name IDREF #REQUIRED>
+
+	  <!ELEMENT snapvaultmirrorsetref EMPTY>
+	    <!ATTLIST snapvaultmirrorsetref name IDREF #REQUIRED>
+
+  <!ELEMENT host (platform, operatingsystem, location,
+    filesystem*, description?, interface*, backup*, drhost*, iscsi_initiator?)>
+    <!ATTLIST host name ID #REQUIRED>
+
+    <!ELEMENT platform (#PCDATA)>
+    <!ELEMENT operatingsystem (#PCDATA)>
+    <!ELEMENT location (#PCDATA)>
+    <!ELEMENT description (#PCDATA)>
+
+    <!ELEMENT filesystem (name*, storage+) >
+      <!ATTLIST filesystem type ( local | san | nas | database ) #REQUIRED
+                           backup ( yes | no ) #IMPLIED>
+      <!ELEMENT storage (#PCDATA)>
+        <!ATTLIST storage type (binary | data) #REQUIRED>
+
+    <!ELEMENT interface (switchname?, switchport?, hostport?, vlan?, ipaddr?)>
+      <!ATTLIST interface type CDATA #REQUIRED
+                mode (active|passive) 'active'>
+      <!ELEMENT switchname (#PCDATA)>
+      <!ELEMENT switchport (#PCDATA)>
+      <!ELEMENT hostport (#PCDATA)>
+      <!ELEMENT vlan (#PCDATA)>
+        <!ATTLIST vlan type (project|services) 'project'
+	               number CDATA #REQUIRED
+		       network CDATA #REQUIRED
+		       netmask CDATA #IMPLIED
+		       gateway CDATA #REQUIRED>
+
+    <!ELEMENT iscsi_initiator (#PCDATA)>
+    <!ELEMENT drhost EMPTY>
+      <!ATTLIST drhost name IDREF #REQUIRED>
+
+  <!ELEMENT snapvaultset (snapvault*)>
+    <!ATTLIST snapvaultset id ID #REQUIRED
+                           targetfiler IDREF #IMPLIED
+			   targetaggregate CDATA #IMPLIED
+			   targetusable CDATA #IMPLIED
+			   multiplier CDATA #IMPLIED>
+
+    <!ELEMENT snapvault (snapschedule*, snapvaultschedule*)>
+      <!ATTLIST snapvault basename CDATA #REQUIRED>
+      <!ELEMENT snapschedule (#PCDATA)>
+      <!ELEMENT snapvaultschedule (#PCDATA)>
+
+  <!ELEMENT snapmirrorset (snapmirror*)>
+    <!ATTLIST snapmirrorset id ID #REQUIRED
+                            targetfiler CDATA #IMPLIED
+			    targetaggregate CDATA #IMPLIED>
+    <!ELEMENT snapmirror (minute, hour, dayofmonth, dayofweek)>
+      <!ELEMENT minute (#PCDATA)>
+      <!ELEMENT hour (#PCDATA)>
+      <!ELEMENT dayofmonth (#PCDATA)>
+      <!ELEMENT dayofweek (#PCDATA)>
 
   <!--  backup schedule elements -->
   <!ELEMENT backupscheduleset (backupschedule+)>
@@ -34,77 +165,6 @@
     <!ELEMENT starttime (#PCDATA)>
     <!ELEMENT endtime (#PCDATA)>
     <!ELEMENT duration (#PCDATA)>
-
-  <!ELEMENT host (name, platform, operatingsystem, location, filesystem*, description?, interface*, backup*, database*)>
-    <!ELEMENT name (#PCDATA)>
-    <!ELEMENT platform (#PCDATA)>
-    <!ELEMENT operatingsystem (#PCDATA)>
-    <!ELEMENT location (#PCDATA)>
-    <!ELEMENT description (#PCDATA)>
-
-    <!ELEMENT filesystem (name*, storage+) >
-      <!ATTLIST filesystem type ( local | san | nas | database ) #REQUIRED
-                           backup ( yes | no ) #IMPLIED>
-      <!ELEMENT storage (#PCDATA)>
-        <!ATTLIST storage type (binary | data) #REQUIRED>
-
-    <!ELEMENT interface (switchname?, switchport?, vlan, ipaddress)>
-      <!ATTLIST interface type CDATA #REQUIRED>
-      <!ELEMENT switchname (#PCDATA)>
-      <!ELEMENT switchport (#PCDATA)>
-      <!ELEMENT vlan (#PCDATA)>
-      <!ELEMENT ipaddress (#PCDATA)>
-
-
-    <!ELEMENT backup EMPTY>
-      <!ATTLIST backup type (streaming | vnas) #REQUIRED
-                       online ( yes | no ) #IMPLIED
-		       scheduleset IDREF #REQUIRED>
-
-    <!ELEMENT database (name?, filesystem*, backup*)>
-      <!ATTLIST database id ID #IMPLIED>
-      <!ATTLIST database type CDATA #REQUIRED>
-
-  <!-- NAS configuration definitions -->
-  <!ELEMENT nas (site, vlan, filer+)>
-    <!ELEMENT filer (name?, vfiler?)>
-      <!ATTLIST filer type (primary | secondary | nearstore) #REQUIRED>
-
-      <!ELEMENT vfiler (name?, protocol+, primaryip?, testip?, volume+, volumeset+)>
-        <!ELEMENT protocol (#PCDATA)>
-        <!ELEMENT primaryip (ipaddr, netmask)>
-        <!ELEMENT testip (ipaddr, netmask)>
-	  <!ELEMENT ipaddr (#PCDATA)>
-	  <!ELEMENT netmask (#PCDATA)>
-
-	<!ELEMENT volume (aggregate?, usablestorage, (qtree* | dbdata* | dblogs*), snapvaultsetref*, description?)>
-	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oratemp | oraarch ) #IMPLIED
-	                   id ID #IMPLIED>
-	  <!ELEMENT aggregate (#PCDATA)>
-	  <!ELEMENT usablestorage (#PCDATA)>
-	  <!ELEMENT qtree (#PCDATA)>
-	    <!ATTLIST qtree name (#PCDATA) #IMPLIED>
-
-	  <!ELEMENT dbdata EMPTY>
-	    <!ATTLIST dbdata id IDREF #REQUIRED
-	                     dataqtrees CDATA #IMPLIED
-	                     indexqtrees CDATA #IMPLIED>
-
-	  <!ELEMENT dblogs EMPTY>
-	    <!ATTLIST dblogs id IDREF #REQUIRED>
-
-	  <!ELEMENT snapvaultsetref EMPTY>
-	    <!ATTLIST snapvaultsetref name IDREF #REQUIRED>
-
-	  <!ELEMENT description (#PCDATA)>
-
-  <!ELEMENT snapvaultset (snapvault*)>
-    <!ATTLIST snapvaultset id ID #REQUIRED>
-    <!ELEMENT snapvault (snapschedule, snapvaultschedule)>
-      <!ATTLIST snapvault target IDREF #REQUIRED
-	                  basename CDATA #REQUIRED>
-      <!ELEMENT snapschedule (#PCDATA)>
-      <!ELEMENT snapvaultschedule (#PCDATA)>
 
   <!-- change scheduleset to idref -->
   <!ELEMENT backuppolicy (masterserver?, storageunit, advancedclient?)>
