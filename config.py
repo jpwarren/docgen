@@ -2796,7 +2796,9 @@ class ProjectConfig:
         cmds = []
         for igroup in self.get_filer_iscsi_igroups(filer):
             for lun in igroup.lunlist:
-                cmds.append("vfiler run %s lun create -s %s -t %s %s" % (vfiler.name, lun.get_create_size(), lun.ostype, lun.full_path()) )
+                # Don't create LUNs on snapmirror destination volumes
+                if lun.qtree.volume.type not in ['snapmirrordst']:
+                    cmds.append("vfiler run %s lun create -s %s -t %s %s" % (vfiler.name, lun.get_create_size(), lun.ostype, lun.full_path()) )
                 cmds.append("vfiler run %s lun map %s %s" % (vfiler.name, lun.full_path(), igroup.name) )
                 pass
             pass
