@@ -34,7 +34,7 @@
        explanatory background text about the project, of required.
   -->
   <background>
-    <para>The &project.name; environment consists of Solaris servers at Level 5 CoLo.
+    <para>The environment consists of Solaris servers at Level 5 CoLo.
     </para>
 
     <itemizedlist>
@@ -144,6 +144,7 @@
     </interface>
 
     <iscsi_initiator>an.iscsi.initname</iscsi_initiator>
+    <drhost name='drtesthost01'/>
 
   </host>
 
@@ -243,15 +244,6 @@
 	  <protocol>NFS</protocol>
 	  <protocol>CIFS</protocol>
 
-	  <!-- Define vlanip tags if you need a services VLAN.
-	       This IP address will be added to the vfiler on an interface
-	       in the services VLAN so you can access external services, such
-	       as ActiveDirectory for doing CIFS authentication.
-	  -->
-	  <vlanip vlan='3544'>
-	    <ipaddr>10.10.10.15</ipaddr>
-	  </vlanip>
-
 	  <!--
 	      Each filer must have a primaryip. This is the IP address used to
 	      provide the storage to the hosts.
@@ -262,6 +254,16 @@
 	    <ipaddr>10.240.4.225</ipaddr>
 	    <netmask>255.255.255.224</netmask>
 	  </primaryip>
+
+	  <!-- Define vlanip tags if you need a services VLAN.
+	       This IP address will be added to the vfiler on an interface
+	       in the services VLAN so you can access external services, such
+	       as ActiveDirectory for doing CIFS authentication.
+	  -->
+	  <vlanip vlan='3544'>
+	    <ipaddr>10.10.10.15</ipaddr>
+	  </vlanip>
+
 
 	  <!-- volumes exist within aggregates, so for each aggregate you
 	       want to use, define an aggregate like this.
@@ -406,27 +408,35 @@
 	    <!-- This is a volume with some manual qtree definitions -->
 	    <volume oplocks='no'>
 	      <usablestorage>120</usablestorage>
-	      <qtree name="my_first_qtree_01">Demo Manual Qtree 1</qtree>
-	      <qtree name="my_first_qtree_02">Demo Manual Qtree 2</qtree>
+	      <qtree name="my_first_qtree_01">
+		<description>Demo Manual Qtree 1</description>
+	      </qtree>
+	      <qtree name="my_first_qtree_02">
+		<description>Demo Manual Qtree 2</description>
+	      </qtree>
 	    </volume>
 
 	    <!-- This is an iSCSI volume that contains a couple of LUNs -->
 
 	    <volume proto="iscsi">
 	      <usablestorage>100</usablestorage>
-	      <snapvaultsetref name="MYDB01-arch"/>
 	      <lun />
 	      <lun />
 	      <export to="primhost01"/>
+	      <snapvaultsetref name="MYDB01-arch"/>
+	      <snapmirrorsetref name="default_sm"/>
 	    </volume>
 
 	    <!-- A volume with a specific qtree name, and a LUN automatically placed inside it. -->
 	    <volume proto="iscsi" name='iscsi_test'>
 	      <usablestorage>100</usablestorage>
-	      <snapvaultsetref name="MYDB01-arch"/>
-	      <lun/>
-	      <qtree name="my_custom_name">A custom qtree with a LUN in it</qtree>
+	      <qtree name="my_custom_name">
+		<description>A custom qtree with a LUN in it</description>
+		<lun/>
+	      </qtree>
+
 	      <export to="primhost01"/>
+	      <snapvaultsetref name="MYDB01-arch"/>
 	    </volume>
 
 	    <!-- A volume with multiple qtrees, a LUN defined outside the qtree, and
@@ -443,13 +453,22 @@
 	    -->
 	    <volume proto="iscsi" iscsi_snapspace='50'>
 	      <usablestorage>100</usablestorage>
-	      <snapvaultsetref name="MYDB01-arch"/>
-	      <lun/> <!-- this lun will be ignored -->
-	      <qtree name="my_custom_name">A custom qtree with a LUN in it</qtree> <!-- this qtree will be ignored -->
 
-	      <qtree name="lun_inside"><lun/>A custom qtree with 2 LUNs in it<lun/></qtree>
+	      <qtree name="my_custom_name">
+		<description>A custom qtree with a LUN in it</description>
+	      </qtree> <!-- this qtree will be ignored -->
+
+	      <qtree name="lun_inside">
+		<description>A custom qtree with 2 LUNs in it</description>
+		<lun/>
+		<lun/>
+	      </qtree>
+
+	      <lun/> <!-- this lun will be ignored -->
 
 	      <export to="primhost01"/>
+
+	      <snapvaultsetref name="MYDB01-arch"/>
 	    </volume>
 
 	    <volume proto="cifs">
@@ -528,6 +547,8 @@
       <hostport>PCI 0</hostport>
       <ipaddr>10.XXX.123.1</ipaddr>
     </interface>
+
+    <iscsi_initiator>another.iscsi.initname</iscsi_initiator>
 
   </host>
 

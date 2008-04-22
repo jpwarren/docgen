@@ -1660,6 +1660,7 @@ the host activation guides.
         rows = []
         lunlist = self.conf.get_filer_luns(filer)
         for lun in lunlist:
+            log.debug("lun is: %s", lun)
             entries = "<entry><para>%s</para></entry>\n" % lun.name
             entries += "<entry><para>%.2f</para></entry>\n" % lun.size
             entries += "<entry><para>%s</para></entry>\n" % lun.ostype

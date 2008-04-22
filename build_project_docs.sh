@@ -21,11 +21,11 @@ project_defn=$1
 project_name=`basename $project_defn .project-definition.xml`
 
 # Check the project definition for validity against the DTD
-#xmllint --valid --noout $project_defn
-#if [ $? -ne 0 ]; then
-#    echo "Definition file invalid. Please fix the above errors and retry."
-#    exit 1
-#fi
+xmllint --valid --noout $project_defn
+if [ $? -ne 0 ]; then
+    echo "Project definition file doesn't match the DTD."
+    echo "It may be invalid, but check with Justin about any possible bugs."
+fi
 
 # Storage design creation
 echo "Creating DocBook sources..."

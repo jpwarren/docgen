@@ -6,6 +6,7 @@ Test that exports from primary hosts are also provided to DR hosts.
 """
 from twisted.trial import unittest, runner, reporter
 from twisted.internet import reactor
+from twisted.python.util import sibpath
 
 from config import ProjectConfig
 from ipsan_storage import IPSANStorageDesignGenerator
@@ -17,7 +18,7 @@ class DRHostExportTest(unittest.TestCase):
         """
         Load testing XML into a config instance.
         """
-        projfile = '../xml/drhostexport_test.xml'
+        projfile = sibpath(__file__, 'xml/drhostexport_test.xml')
         self.proj = ProjectConfig( projfile )
 
     def test_working(self):

@@ -523,10 +523,14 @@ class LUN:
         """
         Return the full path string for LUN creation
         """
-        return self.name
+        return '%s/%s' % (self.qtree.full_path(), self.name)
+        #return self.name
 
     def get_create_size(self):
         return get_create_size(self.size)
+
+    def __repr__(self):
+        return '<LUN %d: %s, %sg, %s, %s>' % (self.lunid, self.full_path(), self.size, self.ostype, self.igroup)
 
 class Vlan:
     """
@@ -563,6 +567,10 @@ class iGroup:
         self.type = type
         self.initlist = initlist
         self.lunlist = lunlist
+        log.debug("Created iGroup %s", self)
+
+    def __repr__(self):
+        return '<iGroup: %s, %s, %s, %s>' % (self.name, self.type, self.filer.name, self.initlist)
 
 class Snapshot:
     """
@@ -1451,7 +1459,7 @@ class ProjectConfig:
                         log.debug("sized luns are: %s", sized_luns)
                         sized_total = sum([ lun.attrib['size'] for lun in sized_luns ])
                         log.debug("sized total is: %s", sized_total)
-
+                        
                         log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)
 
                         lunsize = float(vol.iscsi_usable - sized_total) / nosize_luns
@@ -1481,15 +1489,22 @@ class ProjectConfig:
                         if hostlist[0].iscsi_initiator is None:
                             raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
-                        lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
+                        lunname = '%s_lun%02d.lun' % (self.shortname, lunid)
+                        #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
                         #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
                         pass
-
+                
                     # Add a LUN for each one found within the volume
-                    lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
-                    pass
-                pass
+                    newlun = LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode)
+                    lunlist.append( newlun )
 
+                    # If the volume has snapmirrors, we will need to create a LUN on the
+                    # snapmirrored volume that is exported to the drhosts for the original
+                    # LUN's hosts.
+                    smlun = self.add_mirrored_luns(newlun, vol)
+                    if smlun is not None:
+                        lunlist.append( smlun )
+                
             # If no LUNs are specified, invent one for the volume.
             else:
                 log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the whole volume.")
@@ -1509,16 +1524,42 @@ class ProjectConfig:
                 if hostlist[0].iscsi_initiator is None:
                     raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
-                lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
+                lunname = '%s_lun%02d.lun' % (self.shortname, lunid)
+                #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
 
                 # Add the new LUN to the lunlist
                 # The LUN ostype defaults to the same type as the first one in its initiator list
-                lunlist.append( LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode) )
+                newlun = LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode)
+                lunlist.append( newlun )
+
+                smlun = self.add_mirrored_luns(newlun, vol)
+                if smlun is not None:
+                    lunlist.append( smlun )
+                    pass
                 pass
             pass
         
-        log.debug("Loaded all LUNs")
+        log.debug("Loaded %d LUNs", len(lunlist))
         return lunlist
+
+    def add_mirrored_luns(self, srclun, srcvol):
+        """
+        Add a LUN to the snapmirror destination for a volume, if one exists.
+        """
+        for sm in srcvol.snapmirrors:
+            qtree_parent = sm.targetvol.qtrees[srclun.qtree.name]
+            #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, srclun.lunid)
+
+            # Figure out which hosts the LUN should be exported to
+            initlist = []
+            for host in srclun.initlist:
+                for drhostname in host.drhosts:
+                    drhost = self.hosts[drhostname]
+                    if drhost not in initlist:
+                        initlist.append(drhost)
+
+            smlun = LUN( srclun.name, qtree_parent, srclun.lunid, srclun.size, srclun.ostype, initlist )
+            return smlun
 
     def load_igroups(self):
         """
@@ -1528,9 +1569,12 @@ class ProjectConfig:
         # If multiple LUNs are exported to the same initlist, they are
         # exported to the same iGroup, so a new one is not created.
         igroups = []
+        log.debug("There are %d luns to process", len(self.luns) )
         
         for lun in self.luns:
-            if lun.initlist not in [ x.initlist for x in igroups ]:
+            log.debug("Building iGroups for LUN: %s", lun)
+            matchedgroups = [ ig for ig in igroups if ig.initlist == lun.initlist ]
+            if len(matchedgroups) == 0:
                 log.debug("initlist %s has not had a group created for it yet", lun.initlist)
                 igroup_name = '%s_igroup%02d' % ( self.shortname, len(igroups) )
 
@@ -1542,16 +1586,13 @@ class ProjectConfig:
                 
             else:
                 log.debug("Aha! An iGroup with this initlist already exists!")
-                for group in igroups:
-                    if group.initlist == lun.initlist:
-                        log.debug("Appending LUN to iGroup %s", group.name)
-                        if group.type != lun.ostype:
-                            log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
-                        else:
-                            lun.igroup = group
-                            group.lunlist.append(lun)
-                        break
-                    pass
+                group = matchedgroups[0]
+                log.debug("Appending LUN to iGroup %s", group.name)
+                if group.type != lun.ostype:
+                    log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
+                else:
+                    lun.igroup = group
+                    group.lunlist.append(lun)
                 pass
             pass
 
@@ -1967,8 +2008,9 @@ class ProjectConfig:
         log.debug("luns are: %s", luns)
         return luns
 
-    def get_iscsi_initiators(self, node):
+    def __get_iscsi_initiators(self, node):
         """
+        DEPRECATED
         Given a node, look for <export to=/> nodes and then look up
         the initiator name for the given host that is listed as
         the export destination for the iSCSI LUN.
@@ -1984,6 +2026,8 @@ class ProjectConfig:
         rwhostlist, rohostlist = self.get_export_hostlists(node)
 
         for host in rwhostlist:
+            log.error("I HAVE A HOST: %s", host)
+            
             hostname = export.xpath("@to")[0]
             initname = self.tree.xpath("host[@name = '%s']/iscsi_initiator" % hostname)[0].text
             operatingsystem = self.tree.xpath("host[@name = '%s']/operatingsystem" % hostname)[0].text
@@ -2736,6 +2780,8 @@ class ProjectConfig:
         title = "iSCSI iGroup Configuration for %s" % filer.name
         cmds = []
         for igroup in self.get_filer_iscsi_igroups(filer):
+            if igroup.initlist[0].iscsi_initiator is None:
+                raise ValueError("Host %s in igroup has no iSCSI initiator defined" % igroup.initlist[0].name)
             cmds.append("vfiler run %s igroup create -i -t %s %s %s" % (vfiler.name, igroup.type, igroup.name, igroup.initlist[0].iscsi_initiator) )
             if len(igroup.initlist) > 1:
                 for host in igroup.initlist[1:]:
