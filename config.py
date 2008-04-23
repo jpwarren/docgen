@@ -154,9 +154,12 @@ class Site:
     A site contains Filers, VLANS, etc.
     """
     def __init__(self, type, location):
-
+        """
+        @param type: type is one of ('primary' | 'secondary') and is unique for a project.
+        @param location: a descriptive string for the site
+        """
         self.type = type
-        self.type = location
+        self.location = location
         
         # Filers, keyed by unique name
         self.filers = {}
@@ -1427,6 +1430,7 @@ class ProjectConfig:
         Load LUN definitions.
         """
         lunlist = []
+        smluns = []
 
         for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi' and vol.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]:
             log.debug("Found iSCSI volume for LUNs: %s", vol)
@@ -1503,7 +1507,7 @@ class ProjectConfig:
                     # LUN's hosts.
                     smlun = self.add_mirrored_luns(newlun, vol)
                     if smlun is not None:
-                        lunlist.append( smlun )
+                        smluns.append( smlun )
                 
             # If no LUNs are specified, invent one for the volume.
             else:
@@ -1534,13 +1538,13 @@ class ProjectConfig:
 
                 smlun = self.add_mirrored_luns(newlun, vol)
                 if smlun is not None:
-                    lunlist.append( smlun )
+                    smluns.append( smlun )
                     pass
                 pass
             pass
         
-        log.debug("Loaded %d LUNs", len(lunlist))
-        return lunlist
+        log.debug("Loaded %d LUNs, %d mirrored LUNs", len(lunlist), len(smluns))
+        return lunlist + smluns
 
     def add_mirrored_luns(self, srclun, srcvol):
         """
@@ -1570,32 +1574,39 @@ class ProjectConfig:
         # exported to the same iGroup, so a new one is not created.
         igroups = []
         log.debug("There are %d luns to process", len(self.luns) )
-        
-        for lun in self.luns:
-            log.debug("Building iGroups for LUN: %s", lun)
-            matchedgroups = [ ig for ig in igroups if ig.initlist == lun.initlist ]
-            if len(matchedgroups) == 0:
-                log.debug("initlist %s has not had a group created for it yet", lun.initlist)
-                igroup_name = '%s_igroup%02d' % ( self.shortname, len(igroups) )
 
-                # Add a list of one LUN to a brand new iGroup with this LUN's initlist
-                # The iGroup type defaults the same as the first LUN type that it contains.
-                group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
-                lun.igroup = group
-                igroups.append(group)
-                
-            else:
-                log.debug("Aha! An iGroup with this initlist already exists!")
-                group = matchedgroups[0]
-                log.debug("Appending LUN to iGroup %s", group.name)
-                if group.type != lun.ostype:
-                    log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
-                else:
+        # Split the LUNs into per-site lists
+        for site in self.sites:
+            siteluns = [ lun for lun in self.luns if lun.qtree.volume.filer.site == site.type ]
+            log.debug("siteluns: %d luns in %s: %s", len(siteluns), site.type, siteluns)
+
+            site_igroups = []
+            for lun in siteluns:
+                log.debug("Building iGroups for LUN: %s", lun)
+                matchedgroups = [ ig for ig in igroups if ig.initlist == lun.initlist ]
+                if len(matchedgroups) == 0:
+                    log.debug("initlist %s has not had a group created for it yet", lun.initlist)
+                    igroup_name = '%s_igroup%02d' % ( self.shortname, len(site_igroups) )
+
+                    # Add a list of one LUN to a brand new iGroup with this LUN's initlist
+                    # The iGroup type defaults the same as the first LUN type that it contains.
+                    group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
                     lun.igroup = group
-                    group.lunlist.append(lun)
+                    site_igroups.append(group)
+
+                else:
+                    log.debug("Aha! An iGroup with this initlist already exists!")
+                    group = matchedgroups[0]
+                    log.debug("Appending LUN to iGroup %s", group.name)
+                    if group.type != lun.ostype:
+                        log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
+                    else:
+                        lun.igroup = group
+                        group.lunlist.append(lun)
+                    pass
                 pass
             pass
-
+        igroups.extend( site_igroups )
         return igroups
 
     def __get_qtree_mountoptions(self, qtree):
