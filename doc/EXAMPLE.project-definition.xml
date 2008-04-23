@@ -202,7 +202,6 @@
 
   </host>
 
-
       <!-- Every site requires a VLAN for the project, at a minimum.
 	   There can only be one 'project' VLAN.
 	   It has the following attributes:
@@ -420,9 +419,15 @@
 
 	    <volume proto="iscsi">
 	      <usablestorage>100</usablestorage>
-	      <lun />
-	      <lun />
-	      <export to="primhost01"/>
+	      <lun>
+		<export to='primhost01'/>
+	      </lun>
+
+<!-- This is an example of how to manually define a LUN
+	      <lun>
+		<mapto igroup='igroup_fred'/>
+	      </lun>
+-->
 	      <snapvaultsetref name="MYDB01-arch"/>
 	      <snapmirrorsetref name="default_sm"/>
 	    </volume>
@@ -493,6 +498,17 @@
 	    </volume>
 
 	  </aggregate>
+
+	  <!-- igroup definitions are optional. The system will work out what
+	       igroups are required automatically, but if you have specific
+	       igroup requirements, you can manually override the system here.
+	  -->
+<!--
+	  <igroup name='igroup_fred' number='5' prefix='myprefix' suffix='jpwsuffix'>
+	    <member name='primhost01'/>
+	    <member name='primhost02'/>
+	  </igroup>
+-->
 
 	</vfiler>
 

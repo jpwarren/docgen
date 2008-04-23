@@ -1202,11 +1202,15 @@ class ProjectConfig:
                                 qtree_security = 'unix'
 
                         oplocks = self.get_oplocks_value(qtree_node)
-                        
-                        if qtree_node.text is None:
-                            qtree_comment = ''
-                        else:
-                            qtree_comment = qtree_node.text
+
+                        try:
+                            qtree_comment = qtree_node.find('description').text
+                        except AttributeError:
+                            if qtree_node.text is None:
+                                qtree_comment = ''
+                            else:
+                                log.warn("Qtree description should be wrapped in <description> tags")
+                                qtree_comment = qtree_node.text
 
                         # Find any mount options we need
                         #mountoptions = qtree_node.xpath("mountoption")
@@ -1567,46 +1571,95 @@ class ProjectConfig:
 
     def load_igroups(self):
         """
-        Load iGroup definitions based on previously loaded LUN definitions
+        Load iGroup definitions based on previously loaded LUN definitions.
+        If manually defined igroups exist, use those instead.
         """
         # For each LUN in the lunlist, create an iGroup for its initlist.
         # If multiple LUNs are exported to the same initlist, they are
         # exported to the same iGroup, so a new one is not created.
         igroups = []
-        log.debug("There are %d luns to process", len(self.luns) )
 
-        # Split the LUNs into per-site lists
-        for site in self.sites:
-            siteluns = [ lun for lun in self.luns if lun.qtree.volume.filer.site == site.type ]
-            log.debug("siteluns: %d luns in %s: %s", len(siteluns), site.type, siteluns)
+        # Find manually defined igroups, if they exist
+        igrouplist = self.tree.xpath('site/filer/vfiler/igroup')
+        log.debug("Found %d igroups: %s", len(igrouplist), igrouplist)
+        if len(igrouplist) > 0:
+            for ig in igrouplist:
+                igroup_name = ig.attrib['name']
+                filername = ig.xpath('ancestor::*/filer[1]')[0].attrib['name']
+                filer = self.filers[filername]
+                
+                # Build the list of hosts this igroup maps to
+                initlist = [ self.hosts[hostname] for hostname in ig.xpath('member/@name') ]
+                log.debug("setting initlist for igroup to: %s", initlist)
+                igroup = iGroup(igroup_name, filer, initlist=initlist)
+                igroups.append(igroup)
+                pass
+        
+            # Find all the LUNs that map to each iGroup
+            lunlist = self.tree.xpath('descendant-or-self::*/lun')
+            log.debug("Need to check %d luns: %s", len(lunlist), lunlist)
+            for lun_node in lunlist:
+                lun = [ lun for lun in self.luns if lun.lunnode == lun_node ][0]
+                mapto_list = lun_node.findall('mapto')
+                if len(mapto_list) == 0:
+                    log.warn("<lun/> has no <mapto/> defined, and igroups are manually defined. <lun/> will be ignored.")
+                    #raise ValueError("lun has no <mapto> defined, and igroups are manually defined.")
+                    pass
 
-            site_igroups = []
-            for lun in siteluns:
-                log.debug("Building iGroups for LUN: %s", lun)
-                matchedgroups = [ ig for ig in igroups if ig.initlist == lun.initlist ]
-                if len(matchedgroups) == 0:
-                    log.debug("initlist %s has not had a group created for it yet", lun.initlist)
-                    igroup_name = '%s_igroup%02d' % ( self.shortname, len(site_igroups) )
+                for mapto in mapto_list:
+                    groupname = mapto.attrib['igroup']
+                    log.debug("Found reference to igroup: %s", groupname)
 
-                    # Add a list of one LUN to a brand new iGroup with this LUN's initlist
-                    # The iGroup type defaults the same as the first LUN type that it contains.
-                    group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
-                    lun.igroup = group
-                    site_igroups.append(group)
+                    # Get the igroup object
+                    igroup = [ ig for ig in igroups if ig.name == groupname ][0]
 
-                else:
-                    log.debug("Aha! An iGroup with this initlist already exists!")
-                    group = matchedgroups[0]
-                    log.debug("Appending LUN to iGroup %s", group.name)
-                    if group.type != lun.ostype:
-                        log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
-                    else:
-                        lun.igroup = group
-                        group.lunlist.append(lun)
+                    # Set the igroup type to the same as the first LUN it has
+                    if len(igroup.lunlist) == 0:
+                        igroup.type = lun.ostype
+                        pass
+                    lun.igroup = igroup
+                    igroup.lunlist.append(lun)
                     pass
                 pass
             pass
-        igroups.extend( site_igroups )
+        else:
+            log.debug("There are %d luns to process", len(self.luns) )
+
+            # Split the LUNs into per-site lists
+            for site in self.sites:
+                siteluns = [ lun for lun in self.luns if lun.qtree.volume.filer.site == site.type ]
+                log.debug("siteluns: %d luns in %s: %s", len(siteluns), site.type, siteluns)
+
+                site_igroups = []
+                for lun in siteluns:
+                    log.debug("Building iGroups for LUN: %s", lun)
+                    matchedgroups = [ ig for ig in igroups if ig.initlist == lun.initlist ]
+                    if len(matchedgroups) == 0:
+                        log.debug("initlist %s has not had a group created for it yet", lun.initlist)
+                        igroup_number = len(site_igroups)
+                        igroup_name = '%s_igroup%02d' % ( self.shortname, igroup_number )
+
+                        # Add a list of one LUN to a brand new iGroup with this LUN's initlist
+                        # The iGroup type defaults the same as the first LUN type that it contains.
+                        group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
+                        lun.igroup = group
+                        site_igroups.append(group)
+
+                    else:
+                        log.debug("Aha! An iGroup with this initlist already exists!")
+                        group = matchedgroups[0]
+                        log.debug("Appending LUN to iGroup %s", group.name)
+                        if group.type != lun.ostype:
+                            log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
+                        else:
+                            lun.igroup = group
+                            group.lunlist.append(lun)
+                        pass
+                    pass
+                pass
+            igroups.extend( site_igroups )
+            pass
+
         return igroups
 
     def __get_qtree_mountoptions(self, qtree):

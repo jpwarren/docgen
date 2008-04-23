@@ -50,7 +50,7 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
       <!ATTLIST filer type (primary | secondary | nearstore) #REQUIRED
                       name ID #REQUIRED>
 
-      <!ELEMENT vfiler (name?, protocol*, primaryip?, vlanip*, testip?, aggregate*, volumeset*)>
+      <!ELEMENT vfiler (name?, protocol*, primaryip?, vlanip*, testip?, aggregate*, igroup*)>
         <!ATTLIST vfiler rootaggr CDATA #REQUIRED>
         <!ELEMENT protocol (#PCDATA)>
         <!ELEMENT primaryip (ipaddr, netmask)>
@@ -61,6 +61,14 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 	  <!ATTLIST vlanip vlan CDATA #REQUIRED>
 
         <!ELEMENT testip (ipaddr, netmask)>
+
+	<!ELEMENT igroup (member+)>
+	  <!ATTLIST igroup name ID #REQUIRED>
+	  <!ATTLIST igroup number CDATA #IMPLIED>
+	  <!ATTLIST igroup prefix CDATA #IMPLIED>
+	  <!ATTLIST igroup suffix CDATA #IMPLIED>
+	  <!ELEMENT member EMPTY>
+	    <!ATTLIST member name IDREF #REQUIRED>
 
         <!ELEMENT aggregate (volume+)>
          <!ATTLIST aggregate name CDATA #REQUIRED>
@@ -81,8 +89,10 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 	    <!ATTLIST qtree name CDATA #IMPLIED
 	              oplocks (yes|no) 'no'>
 
-          <!ELEMENT lun EMPTY>
-	    <!ATTLIST lun size CDATA #IMPLIED>		 
+          <!ELEMENT lun (export*, mapto*)>
+	    <!ATTLIST lun size CDATA #IMPLIED>
+	    <!ELEMENT mapto EMPTY>
+	      <!ATTLIST mapto igroup IDREF #REQUIRED>
 
           <!ELEMENT export EMPTY>
 	    <!ATTLIST export to IDREF #IMPLIED
