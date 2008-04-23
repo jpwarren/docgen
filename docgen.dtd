@@ -100,8 +100,8 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 	  <!ELEMENT snapvaultmirrorsetref EMPTY>
 	    <!ATTLIST snapvaultmirrorsetref name IDREF #REQUIRED>
 
-  <!ELEMENT host (platform, operatingsystem, location,
-    filesystem*, description?, interface*, backup*, drhost*, iscsi_initiator?)>
+  <!ELEMENT host (platform, operatingsystem, location, description?,
+    filesystem*, interface*, backup*, iscsi_initiator?, drhost*)>
     <!ATTLIST host name ID #REQUIRED>
 
     <!ELEMENT platform (#PCDATA)>

@@ -10,7 +10,7 @@
      that can be used by programs such as 'xmllint' to verify that your defintion
      file is well-formed and also a valid file.
 -->
-<!DOCTYPE project SYSTEM "http://docbook.sensis.com.au/sensis-docgen/docgen.dtd">
+<!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
 <project>
