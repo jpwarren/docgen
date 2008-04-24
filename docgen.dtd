@@ -42,7 +42,7 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
                        online ( yes | no ) #IMPLIED
 		       scheduleset IDREF #REQUIRED>
 
-  <!ELEMENT site (host+, vlan+, filer+)>
+  <!ELEMENT site (vlan+, host*, filer+)>
     <!ATTLIST site type (primary|secondary) 'primary'
                    location CDATA #IMPLIED>
 
@@ -76,7 +76,7 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 	<!-- The volume declaration -->
 	<!ELEMENT volume (usablestorage?, description?, qtree*, lun*, export*,
                           snapsetref*, snapvaultsetref*, snapmirrorsetref*, snapvaultmirrorsetref*)>
-	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oratemp | oraarch ) #IMPLIED
+	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
 			   snapreserve CDATA #IMPLIED
 			   proto CDATA #IMPLIED
