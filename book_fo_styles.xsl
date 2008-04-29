@@ -291,11 +291,11 @@
           <fo:table-cell column-number="1">
             <fo:block text-align="right"
 		      padding-top="4pc">
-	      <xsl:if test="$corp.logo.top.right">
+	      <xsl:if test="$corp.logo">
 	      <fo:external-graphic width="auto" height="auto">
 		<xsl:attribute name="src">
 		  <xsl:text>url(</xsl:text>
-		  <xsl:value-of select="$corp.logo.top.right" />
+		  <xsl:value-of select="$corp.logo" />
 		  <xsl:text>)</xsl:text>
 		</xsl:attribute>
 	      </fo:external-graphic>
