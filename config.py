@@ -3153,6 +3153,15 @@ class ProjectConfig:
                 testval >>= 1
         return bits        
 
+    def inverse_mask_str(self, netmaskstr):
+        """
+        Take a netmask and return the inverse mask, used for Cisco ACLs
+        """
+        maskint = long(struct.unpack('!I', socket.inet_aton(netmaskstr))[0])
+        newmask = 0xFFFFFFFFL - maskint
+        newmaskstr = socket.inet_ntoa(struct.pack('!L', newmask))
+        return newmaskstr
+
     def core_switch_activation_commands(self, switch):
         """
         Return a list of commands that can be used to build the switch configuration.
@@ -3212,14 +3221,25 @@ class ProjectConfig:
         # inbound access list
         cmdset.append("ip access-list extended %s_in" % self.shortname)
         cmdset.append("  remark AntiSpoofing For Storage Devices")
+        
+        # Stop hosts pretending to be a storage device by blocking
+        # inbound packets purporting to be from a storage device address.
+        # Storage devices are always the first 8 IPs in the subnet
+        # FIXME: If this changes to another number, we'll need to update the 0.0.0.7 part
+
+        # FIXME: This assumes that networks are assigned on the ideal network
+        # boundary, not across nominal /24 boundaries by making a /24 out of
+        # 2 /25s that span a third octet. Eg: 10.10.3.128/25 + 10.10.4.0/25
+        hostmask = self.inverse_mask_str(vlan.netmask)
+        
         cmdset.append("  deny ip %s 0.0.0.7 any" % vlan.network)
         cmdset.append("  remark Permit Hosts To Storage Devices")
-        cmdset.append("  permit ip %s 0.0.0.31 %s 0.0.0.7" % (vlan.network, vlan.network) )
+        cmdset.append("  permit ip %s %s %s 0.0.0.7" % (vlan.network, hostmask, vlan.network) )
 
         # outbound access list
         cmdset.append("ip access-list extended %s_out" % self.shortname)
         cmdset.append("  remark Permit Storage Devices To Hosts")
-        cmdset.append("  permit ip %s 0.0.0.7 %s 0.0.0.31" % (vlan.network, vlan.network) )
+        cmdset.append("  permit ip %s 0.0.0.7 %s %s" % (vlan.network, vlan.network, hostmask) )
         
         return cmdset
 

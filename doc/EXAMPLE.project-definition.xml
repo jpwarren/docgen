@@ -120,7 +120,7 @@ file is well-formed and also a valid file.
 	 'gateway': the IP address for the VRF in the VLAN. This
 	 may not be used, but should always be assigned.
     -->
-    <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
+    <vlan type="project" number="3003" network="10.240.4.0/26" gateway="10.240.4.254"/>
 
     <vlan type="services" number="3544" network="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
 
