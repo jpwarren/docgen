@@ -316,11 +316,13 @@ the host activation guides.
         rowlist = []
 
         # Sort the list of hosts by site, then ipaddress
-        hostlist = [ (host.location, host.get_storage_ip(), host) for host in self.conf.hosts.values() ]
+        hostlist = [ (host.location, host.get_storage_ips(), host) for host in self.conf.hosts.values() ]
         hostlist.sort()
 
-        for location, storage_ip, host in hostlist:
-        #for host in self.conf.hosts.values():
+        for location, storage_ips, host in hostlist:
+
+            iplist = ''.join([ '<para>%s</para>' % ip for ip in storage_ips ])
+            
             row = '''
             <row>
               <entry>%s</entry>
@@ -332,7 +334,7 @@ the host activation guides.
                     host.platform,
                     host.os,
                     host.location,
-                    host.get_storage_ip(),
+                    iplist,
                     )
             rowlist.append( row )
             pass

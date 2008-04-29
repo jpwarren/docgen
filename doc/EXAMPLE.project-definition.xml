@@ -572,6 +572,18 @@ The site type is 'secondary' for the DR site.
 	<ipaddr>10.XXX.123.1</ipaddr>
       </interface>
 
+      <!-- a demo of a host with multiple active storage IPs
+	   such as something using iSCSI MPIO on windows.
+      -->
+
+      <interface type='storage' mode='active'>
+	<switchname>clip-swtedg-ro01</switchname>
+	<switchport>GigabitEthernet1/8</switchport>
+	<hostport>PCI 0</hostport>
+	<ipaddr>10.XXX.123.16</ipaddr>
+      </interface>
+
+
       <iscsi_initiator>another.iscsi.initname</iscsi_initiator>
 
     </host>

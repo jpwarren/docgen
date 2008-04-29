@@ -537,10 +537,10 @@ to provide IP connectivity between the project hosts and the storage infrastruct
                 if index == 0:
                     if len(interfaces) > 1:
                         entries += "<entry morerows='%d' valign='middle'>%s</entry>\n" % ( len(interfaces)-1, host.name)
-                        entries += "<entry morerows='%d' valign='middle'>%s</entry>\n" % ( len(interfaces)-1, host.get_storage_ip() )
+                        entries += "<entry morerows='%d' valign='middle'>%s</entry>\n" % ( len(interfaces)-1, ' '.join(host.get_storage_ips()) )
                     else:
-                        entries += "<entry>%s</entry>\n" %  host.name
-                        entries += "<entry>%s</entry>\n" %  host.get_storage_ip()
+                        entries += "<entry>%s</entry>\n" % host.name
+                        entries += "<entry>%s</entry>\n" % ' '.join( host.get_storage_ips() )
                 
                 entries += "<entry>%s</entry>\n" % iface.hostport
                 entries += "<entry>%s</entry>\n" % iface.switchname

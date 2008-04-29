@@ -97,21 +97,24 @@ class Host:
     def __str__(self):
         return "%s (%s, %s)" % (self.name, self.os, self.location)
 
-    def get_storage_ip(self):
+    def get_storage_ips(self):
         """
-        Find the IP address of the active storage interface.
+        Find the IP address of the active storage interface(s).
         """
         #log.debug("Interfaces on %s: %s", self.name, self.interfaces)
         # Find the first 'storage' type interface that is 'active'
         ifacelist = [ x for x in self.interfaces if x.type == 'storage' and x.mode == 'active' ]
 
-        try:
-            if ifacelist[0] is None:
-                raise ValueError("Storage IP for host '%s' is not on the active interface")
-            return ifacelist[0].ipaddress
+        iplist = [ int.ipaddress for int in ifacelist ]
+        return iplist
 
-        except IndexError:
-            raise ValueError("Host '%s' has no storage IP addresses defined." % self.name)
+##         try:
+##             if ifacelist[0] is None:
+##                 raise ValueError("Cannot find active Storage IP for host '%s'")
+##             return ifacelist[0].ipaddress
+
+##         except IndexError:
+##             raise ValueError("Host '%s' has no storage IP addresses defined." % self.name)
 
 class Filesystem:
 
@@ -2747,23 +2750,15 @@ class ProjectConfig:
                 # Find read/write exports
                 rw_export_to = []
                 for host in qtree.rwhostlist:
-                    try:
-                        rw_export_to.append('%s' % host.get_storage_ip() )
-                    except IndexError:
-                        log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
-                        raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
+                    rw_export_to.extend(host.get_storage_ips())
                     pass
 
                 # Find read-only exports
                 ro_export_to = []
                 for host in qtree.rohostlist:
-                    try:
-                        ro_export_to.append('%s' % host.get_storage_ip())
-                    except IndexError:
-                        log.error("Host %s has no storage IP address!" % hostnode.attrib['name'])
-                        raise ValueError("Host %s has no storage IP address!" % hostnode.attrib['name'])
+                    ro_export_to.extend(host.get_storage_ips())
                     pass
-
+                
                 if len(ro_export_to) > 0:
                     #log.debug("Read only exports required!")
                     ro_export_str = "ro=%s," % ':'.join(ro_export_to)
