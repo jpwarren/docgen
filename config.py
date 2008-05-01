@@ -2533,7 +2533,8 @@ class ProjectConfig:
         cmdset = []
 
         if filer.type == 'secondary':
-            cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan.number, vfiler.netmask)
+            cmd = "ifconfig svif0-%s mtusize 9000 up" % ( vfiler.vlan.number )
+            #cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan.number, vfiler.netmask)
 
         else:
             cmd = "ifconfig svif0-%s %s netmask %s mtusize 9000 up" % (vfiler.vlan.number,
@@ -2550,7 +2551,7 @@ class ProjectConfig:
         #
         for vlan,ipaddr in vfiler.services_ips:
             if filer.type == 'secondary':
-                cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 1500 up" % ( vlan.number, vlan.netmask)
+                cmd = "ifconfig svif0-%s mtusize 1500 up" % ( vlan.number )
                 pass
             else:
                 cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number,
