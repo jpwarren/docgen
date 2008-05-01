@@ -3,7 +3,7 @@
 <!-- Sensis document generator Document Type Definition for <project/> -->
 
 <!ELEMENT project (prefix, code, shortname, longname, background,
-revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backupscheduleset*, backupmedia*)>
+revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backupscheduleset*, backupmedia*)>
 
   <!ELEMENT prefix (#PCDATA)>
   <!ELEMENT code (#PCDATA)>
@@ -51,7 +51,8 @@ revhistory, database, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
                       name ID #REQUIRED>
 
       <!ELEMENT vfiler (name?, protocol*, primaryip?, vlanip*, testip?, aggregate*, igroup*)>
-        <!ATTLIST vfiler rootaggr CDATA #REQUIRED>
+        <!ATTLIST vfiler rootaggr CDATA #REQUIRED
+	                 name CDATA #IMPLIED>
         <!ELEMENT protocol (#PCDATA)>
         <!ELEMENT primaryip (ipaddr, netmask)>
 	  <!ELEMENT ipaddr (#PCDATA)>
