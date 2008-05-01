@@ -2179,7 +2179,8 @@ class ProjectConfig:
 
         # Add default snapshot schedule for root volumes
         elif srcvol.name.endswith('root'):
-            self.snapshots.append( Snapshot( srcvol, 0, 0, '6@8,12,16,20') )
+            self.snapshots.append( Snapshot( srcvol, 0, 0, '0') )
+            #self.snapshots.append( Snapshot( srcvol, 0, 0, '6@8,12,16,20') )
 
     def create_snapvault_for(self, srcvol):
         """
