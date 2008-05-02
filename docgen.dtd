@@ -31,7 +31,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
       <!ELEMENT authorinitials (#PCDATA)>
       <!ELEMENT revremark (#PCDATA)>
 
-  <!ELEMENT database (name?, onhost*, filesystem*, backup*)>
+  <!ELEMENT database (onhost*, filesystem*, backup*)>
     <!ATTLIST database id ID #IMPLIED>
     <!ATTLIST database type CDATA #REQUIRED>
 
@@ -76,7 +76,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
 	<!-- The volume declaration -->
 	<!ELEMENT volume (usablestorage?, description?, qtree*, lun*, export*,
-                          snapsetref*, snapvaultsetref*, snapmirrorsetref*, snapvaultmirrorsetref*)>
+                          snapsetref*, snapvaultsetref*, snapvaultmirrorsetref*, snapmirrorsetref* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
 			   snapreserve CDATA #IMPLIED

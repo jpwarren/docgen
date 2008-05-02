@@ -2452,8 +2452,13 @@ class ProjectConfig:
         cmdset = []
 
         for vol in filer.volumes:
-            
-            # volume creation
+
+            # If a volume is a snapmirror destination, you need to
+            # do a snapmirror update before resizing it.
+            if vol.type in ['snapmirrordst',]:
+                cmdset.append("snapmirror update %s" % vol.name)
+                
+            # Volume size
             cmd = "vol size %s %s" % (vol.name, vol.get_create_size())
             cmdset.append(cmd)
 
