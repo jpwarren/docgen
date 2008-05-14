@@ -1636,7 +1636,11 @@ class ProjectConfig:
                 site_igroups = []
                 for lun in siteluns:
                     log.debug("Building iGroups for LUN: %s", lun)
-                    matchedgroups = [ ig for ig in igroups if ig.initlist == lun.initlist ]
+##                     for ig in site_igroups:
+##                         log.debug("checking match of initlist: %s with %s", ig.initlist, lun.initlist)
+                        
+                    
+                    matchedgroups = [ ig for ig in site_igroups if ig.initlist == lun.initlist ]
                     if len(matchedgroups) == 0:
                         log.debug("initlist %s has not had a group created for it yet", lun.initlist)
                         igroup_number = len(site_igroups)
