@@ -1480,6 +1480,8 @@ class ProjectConfig:
                     rwhostlist, rohostlist = self.get_export_hostlists(lunnode)
                     hostlist = rwhostlist + rohostlist
 
+                    log.debug("LUN will be exported to %s", hostlist)
+
                     # See if a qtree parent node exists
                     try:
                         qtree_parent_node = lunnode.xpath('parent::qtree')[0]
@@ -1527,6 +1529,8 @@ class ProjectConfig:
 
                 rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
                 hostlist = rwhostlist + rohostlist
+
+                log.debug("LUN will be exported to %s", hostlist)
 
                 # The first LUN in any volume is always lunid 0
                 lunid = 0
@@ -1640,9 +1644,8 @@ class ProjectConfig:
                 site_igroups = []
                 for lun in siteluns:
                     log.debug("Building iGroups for LUN: %s", lun)
-##                     for ig in site_igroups:
-##                         log.debug("checking match of initlist: %s with %s", ig.initlist, lun.initlist)
-                        
+                    for ig in site_igroups:
+                        log.debug("checking match of initlist: %s with %s", ig.initlist, lun.initlist)
                     
                     matchedgroups = [ ig for ig in site_igroups if ig.initlist == lun.initlist ]
                     if len(matchedgroups) == 0:
@@ -2146,16 +2149,33 @@ class ProjectConfig:
     def get_export_hostlists(self, node, default_to_all=True):
         """
         Find the list of hosts for read/write and readonly mode based
-        on the particular qtree or volume node supplied.
+        on the particular qtree, volume or lun node supplied.
 
         If default_to_all is set to True, this will set the rwhostlist
         to all known hosts if both rwhostlist and rohostlist would
         otherwise be empty.
         """
-        rohostnames = node.xpath("ancestor-or-self::*/export[@ro = 'yes']/@to")
+        rohostnames = []
+        rwhostnames = []
+        
+        export_nodes = node.xpath("ancestor-or-self::*/export")
+        for exnode in export_nodes:
+            # get the hostname
+            hostname = exnode.attrib['to']
+            log.debug("export to %s found", hostname)
+            try:
+                if exnode.attrib['ro'] == 'yes':
+                    rohostnames.append( hostname )
+                else:
+                    rwhostnames.append( hostname )
+            # If the 'ro' attrib isn't set, we export read/write
+            except KeyError, e:
+                rwhostnames.append( hostname )
+            
+##         rohostnames = node.xpath("ancestor-or-self::*/export[@ro = 'yes']/@to")
         log.debug("rohostnames for %s: %s", node, rohostnames)
 
-        rwhostnames = node.xpath("ancestor-or-self::*/export[@ro != 'yes']/@to | ancestor-or-self::*/export[not(@ro)]/@to")
+##         rwhostnames = node.xpath("ancestor-or-self::*/export[not(@ro)]/@to")
         log.debug("rwhostnames for %s: %s", node, rwhostnames)
 
         try:

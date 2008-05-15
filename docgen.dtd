@@ -98,7 +98,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
           <!ELEMENT export EMPTY>
 	    <!ATTLIST export to IDREF #IMPLIED
-	                     ro (yes|no) 'no'>		 
+	                     ro (yes|no) 'no'>
 
 	  <!ELEMENT snapsetref EMPTY>
 	    <!ATTLIST snapsetref name IDREF #REQUIRED>
