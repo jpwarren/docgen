@@ -16,7 +16,7 @@
 <xsl:import href="http://docgen.eigenmagic.com/titlepage.xsl"/>
 
 <xsl:param name="corp.logo" select="'/usr/local/docgen/sensis-logo.png'"/>
-<xsl:param name="corp.logo.top.right" select="'/usr/local/docgen/sensis-logo-small.png'"/>
+<xsl:param name="corp.logo.top.right" select="'/usr/local/docgen/sensis-logo.png'"/>
 
 <xsl:param name="sensis.color.sand">#f2e8bb</xsl:param>
 <xsl:param name="sensis.color.aqua">#26bcd6</xsl:param>
