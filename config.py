@@ -494,8 +494,6 @@ class LUN:
     A LUN lives in a Qtree and is used for iSCSI, predominantly.
     """
 
-    lunid = 0
-
     def __init__(self, name, qtree, lunid, size, ostype, initlist, lunnode=None):
 
         self.name = name
@@ -1444,7 +1442,6 @@ class ProjectConfig:
             lun_total = 0
 
             # check to see if any LUN nodes are defined.
-
             luns = vol.volnode.xpath("descendant-or-self::lun")
             if len(luns) > 0:
                 log.debug("found lun nodes: %s", luns)
@@ -1454,7 +1451,7 @@ class ProjectConfig:
                 # If you don't specify the LUN size, then the system will
                 # divide up however much storage is left in the volume evenly
                 # between the number of LUNs that don't have a size specified.
-
+                lunid = 0
                 for lunnode in vol.volnode.xpath("descendant-or-self::lun"):
                     try:
                         lunsize = float(lunnode.xpath("@size")[0])
@@ -1479,9 +1476,7 @@ class ProjectConfig:
                     
                     log.debug("Allocating %sg storage to LUN", lunsize)
                     lun_total += lunsize
-
-                    lunid = len(lunlist)
-
+                    
                     rwhostlist, rohostlist = self.get_export_hostlists(lunnode)
                     hostlist = rwhostlist + rohostlist
 
@@ -1500,7 +1495,7 @@ class ProjectConfig:
                         if hostlist[0].iscsi_initiator is None:
                             raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
-                        lunname = '%s_lun%02d.lun' % (self.shortname, lunid)
+                        lunname = '%s.lun%02d' % (self.shortname, lunid)
                         #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
                         #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
                         pass
@@ -1515,7 +1510,12 @@ class ProjectConfig:
                     smlun = self.add_mirrored_luns(newlun, vol)
                     if smlun is not None:
                         smluns.append( smlun )
-                
+                        pass
+                    pass
+
+                # increment the lunid within the volume
+                lunid += 1
+                pass
             # If no LUNs are specified, invent one for the volume.
             else:
                 log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the whole volume.")
@@ -1527,15 +1527,16 @@ class ProjectConfig:
 
                 rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
                 hostlist = rwhostlist + rohostlist
-                
-                lunid = len(lunlist)
+
+                # The first LUN in any volume is always lunid 0
+                lunid = 0
 
                 qtree_parent = vol.qtrees.values()[0]
 
                 if hostlist[0].iscsi_initiator is None:
                     raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
-                lunname = '%s_lun%02d.lun' % (self.shortname, lunid)
+                lunname = '%s.lun%02d' % (self.shortname, lunid)
                 #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
 
                 # Add the new LUN to the lunlist
@@ -1559,7 +1560,6 @@ class ProjectConfig:
         """
         for sm in srcvol.snapmirrors:
             qtree_parent = sm.targetvol.qtrees[srclun.qtree.name]
-            #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, srclun.lunid)
 
             # Figure out which hosts the LUN should be exported to
             initlist = []
@@ -1586,6 +1586,7 @@ class ProjectConfig:
         igrouplist = self.tree.xpath('site/filer/vfiler/igroup')
         log.debug("Found %d igroups: %s", len(igrouplist), igrouplist)
         if len(igrouplist) > 0:
+            log.debug("Manually defined igroups exist. Will not auto-generate any.")
             for ig in igrouplist:
                 igroup_name = ig.attrib['name']
                 filername = ig.xpath('ancestor::*/filer[1]')[0].attrib['name']
@@ -1625,7 +1626,10 @@ class ProjectConfig:
                     pass
                 pass
             pass
+
+        # Create igroups automatically for all the LUNs
         else:
+            log.debug("No manually defined igroups exist. Auto-generating them...")
             log.debug("There are %d luns to process", len(self.luns) )
 
             # Split the LUNs into per-site lists
@@ -1654,6 +1658,8 @@ class ProjectConfig:
 
                     else:
                         log.debug("Aha! An iGroup with this initlist already exists!")
+                        if len(matchedgroups) > 1:
+                            log.warning("Multiple iGroups exist for the same initlist! This is a bug!")
                         group = matchedgroups[0]
                         log.debug("Appending LUN to iGroup %s", group.name)
                         if group.type != lun.ostype:
@@ -1663,8 +1669,8 @@ class ProjectConfig:
                             group.lunlist.append(lun)
                         pass
                     pass
+                igroups.extend( site_igroups )
                 pass
-            igroups.extend( site_igroups )
             pass
 
         return igroups

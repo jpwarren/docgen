@@ -91,7 +91,8 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 	              oplocks (yes|no) 'no'>
 
           <!ELEMENT lun (export*, mapto*)>
-	    <!ATTLIST lun size CDATA #IMPLIED>
+	    <!ATTLIST lun size CDATA #IMPLIED
+	                  name CDATA #IMPLIED>
 	    <!ELEMENT mapto EMPTY>
 	      <!ATTLIST mapto igroup IDREF #REQUIRED>
 

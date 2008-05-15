@@ -1591,19 +1591,17 @@ the host activation guides.
         lun_table_template = Template("""
             <table tabstyle="techtable-01">
               <title>iSCSI LUN Configuration on $filer_name</title>
-              <tgroup cols="5">
+              <tgroup cols="4">
                 <colspec colnum="1" align="left" colwidth="3*"/>
-                <colspec colnum="2" align="left" colwidth="1*"/>
-                <colspec colnum="3" align="left" colwidth="1*"/>
-                <colspec colnum="4" align="left" colwidth="1.5*"/>
-                <colspec colnum="5" align="left" colwidth="1*"/>
+                <colspec colnum="2" align="left" colwidth="0.75*"/>
+                <colspec colnum="3" align="left" colwidth="0.75*"/>
+                <colspec colnum="4" align="left" colwidth="1.2*"/>
                 <thead>
                   <row valign="middle">
                     <entry><para>LUN Name</para></entry>
                     <entry><para>Size (GiB)</para></entry>
                     <entry><para>OS Type</para></entry>
                     <entry><para>igroup</para></entry>
-                    <entry><para>LUN ID</para></entry>
                   </row>
                 </thead>
 
@@ -1619,12 +1617,14 @@ the host activation guides.
             lun_tables = []
 
             for filer in [ x for x in self.conf.filers.values() if x.type in ['primary', ] ]:
+                log.debug("Finding igroups for filer %s...", filer.name)
                 tblns = {}
                 tblns['filer_name'] = filer.name
                 igroup_rows = self.get_iscsi_igroup_rows(filer)
                 if len(igroup_rows) > 0:
                     tblns['iscsi_igroup_rows'] = igroup_rows
                     igroup_tables.append(igroup_table_template.safe_substitute(tblns))
+                    log.debug("added table for filer: %s", filer.name)
                     pass
                 
                 lun_rows = self.get_iscsi_lun_rows(filer)
@@ -1663,11 +1663,10 @@ the host activation guides.
         lunlist = self.conf.get_filer_luns(filer)
         for lun in lunlist:
             log.debug("lun is: %s", lun)
-            entries = "<entry><para>%s</para></entry>\n" % lun.name
+            entries = "<entry><para>%s</para></entry>\n" % lun.full_path()
             entries += "<entry><para>%.2f</para></entry>\n" % lun.size
             entries += "<entry><para>%s</para></entry>\n" % lun.ostype
             entries += "<entry><para>%s</para></entry>\n" % lun.igroup.name
-            entries += "<entry><para>%02d</para></entry>\n" % lun.lunid
             
             rows.append("<row valign='middle'>%s</row>\n" % entries)
         return '\n'.join(rows)
