@@ -380,8 +380,9 @@ file is well-formed and also a valid file.
 	  -->
 	  <volume oracle="MYDB01" type="oraarch">
 	    <usablestorage>20</usablestorage>
-	    <snapvaultsetref name="MYDB01-arch"/>
 	    <snapmirrorsetref name="default_sm"/>
+	    <snapvaultsetref name="MYDB01-arch"/>
+
 	  </volume>
 
 	  <!-- This is a standard volume, which will default to being

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-
-<!-- Sensis document generator Document Type Definition for <project/> -->
+<!-- $Id$ -->
+<!-- DocGen Document Type Definition for <project/> -->
 
 <!ELEMENT project (prefix, code, shortname, longname, background,
 revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backupscheduleset*, backupmedia*)>
@@ -76,8 +76,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
          <!ATTLIST aggregate name CDATA #REQUIRED>
 
 	<!-- The volume declaration -->
-	<!ELEMENT volume (usablestorage?, description?, qtree*, lun*, export*,
-                          snapsetref*, snapvaultsetref*, snapvaultmirrorsetref*, snapmirrorsetref* )>
+	<!ELEMENT volume (usablestorage?, description?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
 			   snapreserve CDATA #IMPLIED
