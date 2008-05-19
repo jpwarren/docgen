@@ -42,7 +42,7 @@ set       toc,title
 
 <!-- Style the chapter titles -->
 <xsl:attribute-set name="component.title.properties">
-  <xsl:attribute name="background-color"><xsl:value-of select="$sensis.color.sand"/></xsl:attribute>
+  <xsl:attribute name="background-color"><xsl:value-of select="$program.listing.background.color"/></xsl:attribute>
 <!--#E0E0E0</xsl:attribute> -->
   <xsl:attribute name="border-bottom-color">black</xsl:attribute>
   <xsl:attribute name="border-bottom-width">0.5pt</xsl:attribute>
@@ -225,20 +225,6 @@ set       toc,title
 
 </xsl:template>
 
-<xsl:template match="bookinfo/copyright" mode="book.titlepage.verso.mode">
-<!--  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" xsl:use-attribute-sets="book.titlepage.verso.style" font-size="14.4pt" font-weight="bold" font-family="{$title.fontset}" space-before="0.5em" space-after="0.5em">Copyright</fo:block>
--->
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">This document is the property of Sensis Pty Ltd.</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">222 Lonsdale St</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">MELBOURNE</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">Victoria 3000</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center" space-after="3cm">www.sensis.com.au</fo:block>
-
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">
-    <xsl:apply-templates select="." mode="titlepage.mode"/>
-  </fo:block>
-</xsl:template>
-
 <!-- Running header content -->
 <xsl:param name="header.column.widths" select="'1 4 1'"/>
 <xsl:param name="region.before.extent" select="'3cm'"/>
@@ -361,16 +347,6 @@ set       toc,title
           </fo:table-cell>
           <fo:table-cell text-align="center"
                          display-align="after">
-<!--
-			 background-color="{$sensis.color.sensis.blue.40}"
-			 border-left-style="solid"
-			 border-left-width="1pt"
-			 border-left-color="black"
-			 border-right-style="solid"
-			 border-right-width="1pt"
-			 border-right-color="black"
-			 >
--->
             <xsl:if test="$fop.extensions = 0">
               <xsl:attribute name="relative-align">baseline</xsl:attribute>
             </xsl:if>

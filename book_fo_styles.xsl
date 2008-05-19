@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
+<!--
 <!DOCTYPE xsl:stylesheet [
 
   <!ENTITY hsize5 "10pt">
@@ -6,6 +7,8 @@
   <!ENTITY hsize3 "10pt">
   <!ENTITY hsize2 "10pt">
 ]>
+-->
+
 <xsl:stylesheet  
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
     xmlns:fo="http://www.w3.org/1999/XSL/Format"
@@ -14,22 +17,7 @@
 <xsl:import href="http://docgen.eigenmagic.com/base_styles.xsl"/>
 <xsl:import href="http://docgen.eigenmagic.com/admon_graphics.xsl" />
 <xsl:import href="http://docgen.eigenmagic.com/titlepage.xsl"/>
-
-<xsl:param name="corp.logo" select="'/usr/local/docgen/sensis-logo.png'"/>
-<xsl:param name="corp.logo.top.right" select="'/usr/local/docgen/sensis-logo.png'"/>
-
-<xsl:param name="sensis.color.sand">#f2e8bb</xsl:param>
-<xsl:param name="sensis.color.aqua">#26bcd6</xsl:param>
-<xsl:param name="sensis.color.sensis.blue.40">#95b8e1</xsl:param>
-<!--
-    Sensis colours:
-    Sensis Blue: #0055c3 RGB: 0,85,195
-    Sensis Blue 40%: #95b8e1 RGB: 149,184,225
-    Sand: #f2e8bb RGB: 242,232,187
-    Aqua: #26bcd6 RGB: 38,188,214
-    Turquoise: #2dafa4 RGB: 45,175,164
--->
-
+<xsl:import href="http://docgen.eigenmagic.com/corp_styles.xsl"/>
 
 <!-- Enable PDF bookmarks to be generated -->
 <xsl:param name="fop1.extensions">1</xsl:param>
@@ -75,7 +63,7 @@
 <xsl:param name="shade.verbatim">1</xsl:param>
 <xsl:attribute-set name="shade.verbatim.style">
   <xsl:attribute name="border">0.5pt solid gray</xsl:attribute>
-  <xsl:attribute name="background-color"><xsl:value-of select="$sensis.color.sand"/></xsl:attribute>
+  <xsl:attribute name="background-color"><xsl:value-of select="$program.listing.background.color"/></xsl:attribute>
   <xsl:attribute name="padding-left">0.5em</xsl:attribute>
   <xsl:attribute name="padding-right">0.5em</xsl:attribute>
   <xsl:attribute name="font-weight">normal</xsl:attribute>
@@ -123,25 +111,25 @@
       <!-- Make header background coloured for table style 'techtable-01' -->
       <xsl:when test="$tabstyle = 'techtable-01'
                      and ancestor::thead">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
+        <xsl:value-of select="$table.heading.row.color"/>
       </xsl:when>
 
       <!-- Make header background coloured for table style 'techtable-02' -->
       <xsl:when test="$tabstyle = 'techtable-02'
                      and ancestor::thead">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
+        <xsl:value-of select="$table.heading.row.color"/>
       </xsl:when>
 
       <!-- Make header background coloured for table style 'techtable-03' -->
       <xsl:when test="$tabstyle = 'techtable-03'
                      and ancestor::thead">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
+        <xsl:value-of select="$table.heading.row.color"/>
       </xsl:when>
 
       <!-- Make left column background yellow for table style 'techtable-03' -->
       <xsl:when test="$tabstyle = 'techtable-03'
                      and $col = 1">
-        <xsl:value-of select="$sensis.color.sensis.blue.40"/>
+        <xsl:value-of select="$table.heading.row.color"/>
       </xsl:when>
 
       <xsl:when test="$bgcolor.pi != ''">
@@ -233,12 +221,12 @@
     <xsl:choose>
       <!-- colour even rows in table style techtable-01 -->
       <xsl:when test="$tabstyle = 'techtable-01' and $rownum mod 2">
-        <xsl:value-of select="$sensis.color.sand"/>
+        <xsl:value-of select="$table.even.row.color"/>
       </xsl:when>
 
       <!-- colour every even group of 3 rows in techtable-02 -->
       <xsl:when test="$tabstyle = 'techtable-02' and ($rownum mod 6 >= 3)">
-        <xsl:value-of select="$sensis.color.sand"/>
+        <xsl:value-of select="$table.even.row.color"/>
       </xsl:when>
 
       <!-- otherwise, do the usual template thing -->
@@ -403,20 +391,6 @@
 
 </xsl:template>
 
-<xsl:template match="bookinfo/copyright" mode="book.titlepage.verso.mode">
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" xsl:use-attribute-sets="book.titlepage.verso.style" font-size="14.4pt" font-weight="bold" font-family="{$title.fontset}" space-before="0.5em" space-after="0.5em">Copyright</fo:block>
-
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">This document is the property of Sensis Pty Ltd.</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">222 Lonsdale St</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">MELBOURNE</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">Victoria 3000</fo:block>
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center" space-after="3cm">www.sensis.com.au</fo:block>
-
-  <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format" text-align="center">
-    <xsl:apply-templates select="." mode="titlepage.mode"/>
-  </fo:block>
-</xsl:template>
-
 <!-- Running header content -->
 <xsl:param name="header.column.widths" select="'1 4 1'"/>
 <xsl:param name="region.before.extent" select="'3cm'"/>
@@ -533,7 +507,7 @@
           </fo:table-cell>
           <fo:table-cell text-align="center"
                          display-align="center"
-			 background-color="{$sensis.color.sensis.blue.40}"
+			 background-color="{$table.heading.row.color}"
 			 border-left-style="solid"
 			 border-left-width="1pt"
 			 border-left-color="black"

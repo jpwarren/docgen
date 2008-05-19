@@ -26,7 +26,7 @@ class IDocumentGenerator(Interface):
         A DocumentGenerator requires a parsed configuration as input.
         """
 
-    def emit(self, outfile=None, ns={}):
+    def emit(self, config=None, outfile=None, ns={}):
         """
         emit() sends the output of the generator to an outfile.
         If no output file is specified, it outputs to STDOUT.
@@ -102,9 +102,6 @@ class DocBookGenerator(FileOutputMixin):
 <!ENTITY dr.primary.filer_name "$dr_primary_filer_name">
 <!ENTITY dr.secondary.filer_name "$dr_secondary_filer_name">
 <!ENTITY dr.nearstore.filer_name "$dr_nearstore_filer_name">
-
-<!ENTITY iscsi.chap.username "$vfiler_name">
-<!ENTITY iscsi.chap.password "sensis${vfiler_name}123">
 
 ]>
 
@@ -356,10 +353,13 @@ ${abstract}
     def __init__(self, conf):
         self.conf = conf
 
-    def emit(self, outfile=None, versioned=True, ns={}):
+    def emit(self, outfile=None, versioned=False, ns={}):
         """
         Write out the book XML to a File, defaulting to STDOUT.
         """
+        ns['copyright_holder'] = self.conf.defaults.get('global', 'copyright_holder')
+        ns['iscsi_prefix'] = self.conf.defaults.get('global', 'iscsi_prefix')
+
         book = self.build_book(ns)
         if outfile is None:
             sys.stdout.write(book)
@@ -428,7 +428,6 @@ ${abstract}
         return self.legalnotice.safe_substitute(ns)
 
     def build_copyright(self, ns={}):
-        ns['copyright_holder'] = "Sensis Pty Ltd"
         ns['copyright_year'] = datetime.now().strftime('%Y')
         return self.copyright.safe_substitute(ns)
 

@@ -1519,8 +1519,8 @@ the host activation guides.
 
                 <tbody>
                   <row valign="middle">
-                    <entry><para>&iscsi.chap.username;</para></entry>
-                    <entry><para>&iscsi.chap.password;</para></entry>
+                    <entry><para>$iscsi_chap_username</para></entry>
+                    <entry><para>$iscsi_chap_password</para></entry>
                   </row>
                 </tbody>
               </tgroup>
@@ -1529,7 +1529,7 @@ the host activation guides.
             <note>
               <para>Ensure that the default iSCSI security mode on all project vFilers is set to CHAP, using the
               following command syntax:</para>
-              <screen># vfiler run &vfiler.name; iscsi security default -s CHAP -n &iscsi.chap.username; -p &iscsi.chap.password;</screen>
+              <screen># vfiler run &vfiler.name; iscsi security default -s CHAP -n $iscsi_chap_username -p $iscsi_chap_password</screen>
             </note>
 
           </section>
@@ -1611,6 +1611,9 @@ the host activation guides.
               </tgroup>
             </table>
             """)
+
+        ns['iscsi_chap_username'] = ns['vfiler_name']
+        ns['iscsi_chap_password'] = '%s%s123' % (ns['iscsi_prefix'], ns['vfiler_name'])
 
         if len(self.conf.luns) > 0:
             igroup_tables = []
@@ -2386,7 +2389,7 @@ the host activation guides.
             if filer.type in [ 'primary', ]:
 
                 # iSCSI CHAP configuration
-                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler)
+                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])
                 cmd_ns['commands'] += """<section>
                 <title>%s</title>
                 <screen>%s</screen>

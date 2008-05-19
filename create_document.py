@@ -27,7 +27,7 @@ __version__ = '$Revision$'
 
 if __name__ == '__main__':
 
-    usage = "create_document.py [options] <configfile>"
+    usage = "create_document.py [options] <definition_file.xml>"
 
     optparser = options.BaseOptions(usage=usage)
     optparser.parseOptions()
@@ -35,12 +35,9 @@ if __name__ == '__main__':
     # Dynamic namespace information that is passed into document generators
     ns = {}
 
-    # Load localisation configuration from a file (copyright holder, etc)
-    
-
     try:
         # load the configuration from a config file
-        proj = ProjectConfig(optparser.options.configfile)
+        proj = ProjectConfig(optparser.options.definitionfile, optparser.options.configfile)
 
     except:
         log.error("Cannot load configuration. Aborting.")

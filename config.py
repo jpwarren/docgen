@@ -10,7 +10,7 @@ import socket
 import struct
 import csv
 from warnings import warn
-
+from ConfigParser import SafeConfigParser
 from lxml import etree
 
 #from xml.parsers.expat import ParserCreate
@@ -156,13 +156,17 @@ class Site:
     """
     A site contains Filers, VLANS, etc.
     """
-    def __init__(self, type, location):
+    def __init__(self, name, type, location, nameservers, winsservers):
         """
         @param type: type is one of ('primary' | 'secondary') and is unique for a project.
         @param location: a descriptive string for the site
         """
+        self.name = name
         self.type = type
         self.location = location
+
+        self.nameservers = nameservers
+        self.winsservers = winsservers
         
         # Filers, keyed by unique name
         self.filers = {}
@@ -217,7 +221,13 @@ class Filer:
 
 class VFiler:
     
-    def __init__(self, filer, name, rootaggr, vlan, ipaddress, gateway, netmask='255.255.255.254'):
+    def __init__(self, filer, name, rootaggr, vlan, ipaddress, gateway, netmask='255.255.255.254',
+                 dns_domain_name = 'eigenmagic.com',
+                 ad_account_location = 'OU=IPSAN,OU=eigenmagic,OU=com',
+                 nameservers = [],
+                 winsservers = [],
+                 ):
+
         self.filer = filer
         self.name = name
         self.rootaggr = rootaggr
@@ -237,31 +247,29 @@ class VFiler:
         #
         # CIFS related configuration stuff
         #
+        self.dns_domain_name = dns_domain_name
+        self.ad_account_location = ad_account_location
+
+        self.nameservers = nameservers
+        self.winsservers = winsservers
         
-        # Nameservers are dependent on which site we're at.
-        # Pending the implementation of the <site/> element,
-        # we use string comparisons of filer prefixes, which are
-        # known to refer to certain sites.
-        if self.filer.name.startswith('exip'):
-            self.nameservers = [ '161.117.218.175',
-                                 '161.117.245.73',
-                                 ]
-            self.winsservers = [ '161.117.218.175',
-                                 '161.117.245.73',
-                                 ]
+##         if self.filer.name.startswith('exip'):
+##             self.nameservers = [ '161.117.218.175',
+##                                  '161.117.245.73',
+##                                  ]
+##             self.winsservers = [ '161.117.218.175',
+##                                  '161.117.245.73',
+##                                  ]
 
-        elif self.filer.name.startswith('clip'):
-            self.nameservers = [ '161.117.245.73',
-                                 '161.117.218.175',
-                                 ]
+##         elif self.filer.name.startswith('clip'):
+##             self.nameservers = [ '161.117.245.73',
+##                                  '161.117.218.175',
+##                                  ]
 
-            self.winsservers = [ '161.117.245.73',
-                                 '161.117.218.175',
-                                 ]
-            pass
-
-        self.dns_domain_name = 'corp.org.local'
-        self.ad_account_location = "OU=Storage,OU=PRD,OU=Server,DC=corp,DC=org,DC=local"
+##             self.winsservers = [ '161.117.245.73',
+##                                  '161.117.218.175',
+##                                  ]
+##             pass
 
         self.netbios_aliases = []
 
@@ -666,13 +674,16 @@ class SnapMirror:
         
 class ProjectConfig:
 
-    def __init__(self, configfile):
+    def __init__(self, configfile, defaultsfile):
         """
         Create a ProjectConfig object based on a parsed configuration .xml definition file.
 
         This enables us to more easily represent the configuration as a set of objects,
         rather than an XML document.
         """
+        self.defaults = SafeConfigParser()
+        self.defaults.read(defaultsfile)
+        
         self.tree = etree.parse(configfile)
 
         self.filers = {}
@@ -798,16 +809,39 @@ class ProjectConfig:
         """
         Load site specific configuration information
         """
-        sites = []
+        sites = {}
         site_nodes = self.tree.xpath('site')
         for node in site_nodes:
-            site_type = node.attrib['type']
+
+            # Site name is a new attribute, so allow a kind of backwards compatibility for now
             try:
-                site_loc = node.attrib['location']
+                site_name = node.attrib['name']
+            except KeyError:
+                log.warning("Site name not set. This is important, but not fatal. Yet.")
+                site_name = node.xpath('filer/@name')[0].split('-')[0]
+                log.debug("site name is set to: %s", site_name)
+                
+            # Get the site type from the defaults if it isn't set
+            try:
+                site_type = node.attrib['type']
+
+            except KeyError:
+                site_type = self.defaults.get(site_name, 'type')
+
+            # Get the site location from the defaults if it isn't set                
+            try:
+                site_location = node.attrib['location']
             except KeyError:
                 log.warn('Site location not set!')
-                site_loc = 'Not defined.'
-            sites.append(Site(site_type, site_loc))
+                site_location = self.defaults.get(site_name, 'location')
+                pass
+
+            # Add default site servers for CIFS
+            # This should be added the DTD to allow manual override
+            nameservers = self.defaults.get(site_name, 'nameservers').split()
+            winsservers = self.defaults.get(site_name, 'winsservers').split()
+            
+            sites[site_name] = Site(site_name, site_type, site_location, nameservers, winsservers)
             pass
         return sites
 
@@ -1042,7 +1076,18 @@ class ProjectConfig:
             gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
             vfiler_key = '%s:%s' % (filer.name, name)
-            vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask)
+
+            dns_domain_name = self.defaults.get('global', 'dns_domain_name')
+            ad_account_location = self.defaults.get('global', 'ad_account_location')
+
+            # FIXME: This is dependent on the filer.site value being a string of the site 'type',
+            # rather than a reference to the Site object, as it should be. Much code change is
+            # required to change this everywhere, though.
+            site = [ site for site in self.sites.values() if site.type == filer.site ][0]
+            
+            vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask,
+                                         dns_domain_name, ad_account_location,
+                                         site.nameservers, site.winsservers)
 
             for vlanip in node.xpath("vlanip"):
                 # Find the vlan object that relates to the vlan mentioned here
@@ -1637,7 +1682,7 @@ class ProjectConfig:
             log.debug("There are %d luns to process", len(self.luns) )
 
             # Split the LUNs into per-site lists
-            for site in self.sites:
+            for site in self.sites.values():
                 siteluns = [ lun for lun in self.luns if lun.qtree.volume.filer.site == site.type ]
                 log.debug("siteluns: %d luns in %s: %s", len(siteluns), site.type, siteluns)
 
@@ -2860,13 +2905,13 @@ class ProjectConfig:
 
         return cmds
 
-    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler):
+    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler, prefix='docgen'):
         """
         Return the commands required to enable the vfiler configuration
         """
         title = "iSCSI CHAP Configuration for %s" % filer.name
         cmds = []
-        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p sensis%s123" % (vfiler.name, vfiler.name, vfiler.name) )
+        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p %s%s123" % (vfiler.name, vfiler.name, prefix, vfiler.name) )
         return title, cmds
 
     def vfiler_igroup_enable_commands(self, filer, vfiler):

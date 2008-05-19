@@ -43,7 +43,8 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 		       scheduleset IDREF #REQUIRED>
 
   <!ELEMENT site (vlan+, host*, filer+)>
-    <!ATTLIST site type (primary|secondary) 'primary'
+    <!ATTLIST site name CDATA #IMPLIED
+                   type (primary|secondary) 'primary'
                    location CDATA #IMPLIED>
 
     <!ELEMENT filer (name?, vfiler?)>

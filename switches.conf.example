@@ -1,4 +1,3 @@
-# Switches for the Sensis IPSAN
 # Format is:
 # switchname,type,site,location,connected-core-01,connected-core-02
 #
@@ -9,6 +8,8 @@ sitea-swtcor-02,core,Site A,Melbourne Testlab,sitea-swtcor-01,
 #
 sitea-swtedg-0101,edge,Site A,Melbourne Testlab,sitea-swtcor-01,sitea-swtcor-02
 sitea-swtedg-0102,edge,Site A,Melbourne Testlab,sitea-swtcor-01,sitea-swtcor-02
+sitea-swtedg-0103,edge,Site A,Melbourne Testlab,sitea-swtcor-01,sitea-swtcor-02
+sitea-swtedg-0104,edge,Site A,Melbourne Testlab,sitea-swtcor-01,sitea-swtcor-02
 #
 # SiteB, the second testing site
 #
@@ -18,58 +19,3 @@ siteb-swtcor-02,core,Site B,Melbourne Testlab,siteb-swtcor-01,
 siteb-swtedg-0101,edge,Site B,Melbourne Testlab,siteb-swtcor-01,siteb-swtcor-02
 siteb-swtedg-0102,edge,Site B,Melbourne Testlab,siteb-swtcor-01,siteb-swtcor-02
 #
-# Sensis switches.
-# FIXME: Move these out of the codebase and into site-specific config.
-#
-exip-swtcor-01,core,CoLo,L1 U3R7,exip-swtcor-02,
-exip-swtcor-02,core,CoLo,L1 U3R7,exip-swtcor-01,
-#
-exip-swtedg-0101,edge,CoLo,L1 AT21 R5,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0102,edge,CoLo,L1 AT21 R5,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0103,edge,CoLo,L1 P3 R7,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0104,edge,CoLo,L1 P3 R7,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0105,edge,CoLo,L1 P3 R7,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0106,edge,CoLo,L1 P3 R7,exip-swtcor-01,exip-swtcor-02
-#
-exip-swtedg-0401,edge,CoLo,L4 AU31 R11,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0402,edge,CoLo,L4 AU31 R11,exip-swtcor-01,exip-swtcor-02
-#
-exip-swtedg-0501,edge,CoLo,L5 AU31 R11,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0502,edge,CoLo,L5 AU31 R11,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0503,edge,CoLo,L5 AU31 R11,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-0504,edge,CoLo,L5 AU31 R11,exip-swtcor-01,exip-swtcor-02
-#
-exip-swtedg-1401,edge,CoLo,L5 AU4 R12,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1402,edge,CoLo,L5 AU4 R12,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1403,edge,CoLo,L5 AR4 R5,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1404,edge,CoLo,L5 AR4 R1,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1405,edge,CoLo,L5 AR4 R10,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1406,edge,CoLo,L5 AR4 R6,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1407,edge,CoLo,L5 AR4 R15,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1408,edge,CoLo,L5 AR4 R11,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1409,edge,CoLo,L5 AM5 R8,exip-swtcor-01,exip-swtcor-02
-exip-swtedg-1410,edge,CoLo,L5 AM5 R12,exip-swtcor-01,exip-swtcor-02
-#
-# DR site (Clayton)
-#
-clip-swtcor-01,core,DR,Room O -??-,clip-swtcor-02,
-clip-swtcor-02,core,DR,Room O -??-,clip-swtcor-01,
-#
-clip-swtedg-ro01,edge,DR,Room O -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-ro02,edge,DR,Room O -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-ro03,edge,DR,Room O -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-ro04,edge,DR,Room O -??-,clip-swtcor-01,clip-swtcor-02
-#
-clip-swtedg-rh01,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh02,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh03,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh04,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh05,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh06,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh07,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh08,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh09,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh10,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh11,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-clip-swtedg-rh12,edge,DR,Room H -??-,clip-swtcor-01,clip-swtcor-02
-

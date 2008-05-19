@@ -1,5 +1,5 @@
 #
-# Sensis DocGen options configuration module
+# DocGen options configuration module
 #
 
 import optparse
@@ -28,7 +28,8 @@ class BaseOptions(optparse.OptionParser):
         help_logfile = "Log to specified file instead of default logfile"
         help_no_logfile = "Disable logging to logfile"
 
-        help_config = "XML project definition file"
+        help_config_file = "DocGen defaults configuration file"
+        help_definition_file = "XML project definition file"
         help_outfile = "Write output to this file, instead of STDOUT"
         help_versioned = "Enable auto-versioning of output filenames"
         help_doctype = "What sort of document to create"
@@ -39,7 +40,8 @@ class BaseOptions(optparse.OptionParser):
         self.add_option('', '--logfile',       dest='logfile', type='string', help=help_logfile)
         self.add_option('', '--no-logfile',    dest='no-logfile', action='store_true', default=False, help=help_no_logfile)
 
-        self.add_option('-c', '--config',      dest='configfile', type='string', help=help_config)
+        self.add_option('-c', '--configfile',      dest='configfile', type='string', default='/usr/local/docgen/docgen.conf', help=help_config_file)
+        self.add_option('-D', '--definition',      dest='definitionfile', type='string', help=help_definition_file)
         self.add_option('-o', '--outfile',     dest='outfile', type='string', help=help_outfile)
         self.add_option('', '--versioned',     dest='versioned', action='store_true', default=False, help=help_versioned)
         #self.add_option('', '--not-versioned', dest='versioned', action='store_false', default=True, help=help_not_versioned)
@@ -83,9 +85,9 @@ class BaseOptions(optparse.OptionParser):
             sys.exit(1)
             pass
 
-        if not self.options.configfile:
+        if not self.options.definitionfile:
             try:
-                self.options.configfile = self.args[0]
+                self.options.definitionfile = self.args[0]
             except IndexError:
-                self.error("No configuration file specified")
+                self.error("No definition file specified")
 
