@@ -116,9 +116,9 @@ $book_content
     <subtitle>&pmo.number; &project.name;</subtitle>
     <biblioid>&pmo.number;</biblioid>
     <author>
-      <firstname>Storage</firstname>
-      <surname>Design</surname>
-      <email>storagemanagement@sensis.com.au</email>
+      <firstname>$doc_owner_firstname</firstname>
+      <surname>$doc_owner_surname</surname>
+      <email>$doc_owner_email</email>
     </author>
     <authorinitials>JPW</authorinitials>
     <corpauthor>eigenmagic.com</corpauthor>
@@ -177,26 +177,17 @@ ${abstract}
                 <para>Owner</para>
               </entry>
               <entry>
-                <para>Justin Warren</para>
-                <para>justin.warren@sensis.com.au</para>
+                <para>$doc_owner_firstname $doc_owner_surname</para>
+                <para>$doc_owner_email</para>
               </entry>
            </row>
-           <row>
-              <entry>
-                <para>Originator</para>
-              </entry>
-              <entry>
-                <para>Storage Design Team</para>
-                <para>storagemanagement@sensis.com.au</para>
-              </entry>
-            </row>
 
            <row>
               <entry>
                 <para>Department</para>
               </entry>
               <entry>
-                <para>Enterprise Infrastructure Storage</para>
+                <para>$doc_department</para>
               </entry>
             </row>
 
@@ -247,7 +238,7 @@ ${abstract}
             <row valign="middle">
               <entry namest="c1" nameend="c3" align="center">
                 <para>Signature denotes official acceptance of document in terms of
-                Business Requirements and approval of release as a Sensis Pty Ltd
+                Business Requirements and approval of release as a $copyright_holder
                 published document.</para>
               </entry>
             </row>
@@ -421,6 +412,11 @@ ${abstract}
         ns['revhistory'] = self.build_revhistory(ns)
         ns['abstract'] = self.build_abstract(ns)
 
+        ns['doc_owner_firstname'] = self.conf.defaults.get('document_control', 'owner_firstname')
+        ns['doc_owner_surname'] = self.conf.defaults.get('document_control', 'owner_surname')
+        ns['doc_owner_email'] = self.conf.defaults.get('document_control', 'owner_email')
+        ns['doc_department'] = self.conf.defaults.get('document_control', 'department')
+        
         bookinfo = self.bookinfo.safe_substitute(ns)
         return bookinfo
 

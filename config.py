@@ -789,6 +789,7 @@ class ProjectConfig:
         devices, containing their names, physical locations, connectivity information, etc.
         """
         known_switches = {}
+        # FIXME: Add the ability to define a switches.conf in the defaults docgen.conf file
         config_file = os.path.join(_configdir, 'switches.conf')
         reader = csv.reader( open(config_file, 'rb'))
         for row in reader:
