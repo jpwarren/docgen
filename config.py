@@ -882,7 +882,7 @@ class ProjectConfig:
                 site = self.sites[sitename]
             except KeyError:
                 sitetype = node.xpath('ancestor::site')[0].attrib['type']
-                site = [ site for site in self.sites if site.type == sitetype][0]
+                site = [ site for site in self.sites.values() if site.type == sitetype][0]
 
             # check to see if the host has already been defined
             if hostname in hosts.keys():
@@ -1047,7 +1047,7 @@ class ProjectConfig:
 
             except KeyError:
                 sitetype = node.xpath('ancestor::site')[0].attrib['type']
-                site = [ site for site in self.sites if site.type == sitetype][0]
+                site = [ site for site in self.sites.values() if site.type == sitetype][0]
 
             sitetype = node.xpath("parent::*/@type")[0]
 

@@ -79,6 +79,8 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 	<!ELEMENT volume (usablestorage?, description?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
+			   prefix CDATA #IMPLIED
+			   suffix CDATA #IMPLIED
 			   snapreserve CDATA #IMPLIED
 			   proto CDATA #IMPLIED
 			   oracle IDREF #IMPLIED
