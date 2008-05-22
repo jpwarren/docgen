@@ -1463,15 +1463,8 @@ class ProjectConfig:
         mountoptions = []
         osname = host.os
 
-        # First, see if there are any manually defined mount options for
-        # the qtree, or volume the qtree lives in. Most specific wins.
-        if qtree.qtreenode is not None:
-            mountoptions.extend( self.get_extra_mountoptions(qtree.qtreenode, host) )
-            log.debug("Added manually defined qtree mountoptions: %s", mountoptions)
-        elif qtree.volume.volnode is not None:
-            mountoptions.extend( self.get_extra_mountoptions(qtree.volume.volnode, host) )
-            log.debug("Added manually defined volume mountoptions: %s", mountoptions)
-            
+        # always add read/write or read-only mount options, because
+        # they're really important.
         if host in qtree.rwhostlist:
             #log.debug("Read/Write host")
             mountoptions.append('rw')
@@ -1481,29 +1474,46 @@ class ProjectConfig:
             mountoptions.append('ro')
             pass
         
-        if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
+        # See if there are any manually defined mount options for
+        # the qtree, or volume the qtree lives in. Most specific wins.
+        # If you specify mountoptions manually, you have to specify *all*
+        # of them, or you'd risk the computer guessing what you meant,
+        # and they usually get that wrong.. and then you have to wrestle with
+        # the damn thing to get it to do what you mean.
+        if qtree.qtreenode is not None:
+            mountoptions.extend( self.get_extra_mountoptions(qtree.qtreenode, host) )
+            log.debug("Added manually defined qtree mountoptions: %s", mountoptions)
+        elif qtree.volume.volnode is not None:
+            mountoptions.extend( self.get_extra_mountoptions(qtree.volume.volnode, host) )
+            log.debug("Added manually defined volume mountoptions: %s", mountoptions)
 
-            if osname.lower().startswith('solaris'):
-                #log.debug("Solaris mount option required")
-                mountoptions.extend( [ 'forcedirectio', 'noac', 'nointr' ] )
-                
+        # If you don't manually define mount options, use some sensible defaults
+        else:
+            
+            if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
+
+                if osname.lower().startswith('solaris'):
+                    #log.debug("Solaris mount option required")
+                    mountoptions.extend( [ 'forcedirectio', 'noac', 'nointr' ] )
+
+                elif osname.lower().startswith('linux'):
+
+                    #log.debug("Linux mount option required")
+                    mountoptions.extend( [ 'actimeo=0', ] )
+                    pass
+
+                else:
+                    log.error("Unknown operating system '%s', cannot set mountoptions.", osname)
+                    pass
+                pass
+
+            # Non Oracle volume options for Solaris
+            elif osname.lower().startswith('solaris'):
+                mountoptions.extend([ 'intr', ])
+
             elif osname.lower().startswith('linux'):
-                
-                #log.debug("Linux mount option required")
-                mountoptions.extend( [ 'actimeo=0', ] )
+                mountoptions.extend([ 'intr', ])
                 pass
-
-            else:
-                log.error("Unknown operating system '%s', cannot set mountoptions.", osname)
-                pass
-            pass
-
-        # Non Oracle volume options for Solaris
-        elif osname.lower().startswith('solaris'):
-            mountoptions.extend([ 'intr', ])
-
-        elif osname.lower().startswith('linux'):
-            mountoptions.extend([ 'intr', ])
             pass
         
         #log.debug("mountoptions are: %s", mountoptions)
