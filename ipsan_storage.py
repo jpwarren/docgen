@@ -1315,10 +1315,10 @@ the host activation guides.
 
 
         qtree_tables = []
-        for site in ['primary', 'secondary']:
+        for sitetype in ['primary', 'secondary']:
             for filertype in ['primary', ]:
                 # Find filers with this site and type
-                filers = [ x for x in self.conf.filers.values() if x.site == site and x.type == filertype ]
+                filers = [ filer for filer in self.conf.filers.values() if filer.site.type == sitetype and filer.type == filertype ]
 
                 for filer in filers:
                     log.debug("finding qtrees for filer: %s", filer.name)
@@ -2089,30 +2089,30 @@ the host activation guides.
         activation_commands = ''
 
         # Build the commands for all primary filers
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'primary' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
         # Build the commands for all secondary filers
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'primary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'primary' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
@@ -2261,7 +2261,7 @@ the host activation guides.
 
         # initialise the snapmirrors to the DR site
         if self.conf.has_dr:
-            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+            if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
                 log.debug("initialising snapmirror on %s", filer.name)
 
                 cmds = '\n'.join( self.conf.filer_snapmirror_init_commands(filer) )
@@ -2275,7 +2275,7 @@ the host activation guides.
 
         # /etc/snapmirror additions
         if self.conf.has_dr:
-            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+            if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
 
                 cmds = self.conf.filer_etc_snapmirror_conf_commands(filer)
                 if len(cmds) > 0:
@@ -2295,7 +2295,7 @@ the host activation guides.
 
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
-            services_vlans = self.conf.get_services_vlans(filer.site)
+            services_vlans = self.conf.get_services_vlans(filer.site.type)
             if len(services_vlans) > 0:
                 cmds = self.conf.services_vlan_route_commands(vfiler)
                 cmd_ns['commands'] += """<section>

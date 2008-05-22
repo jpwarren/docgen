@@ -489,10 +489,11 @@ file is well-formed and also a valid file.
 	<aggregate name="aggr03">
 
 	  <volume name="wibble">
-	    <!-- This volume is exported to one host, not all of them, which 
-		 is the default.
-	    -->
-	    <export to="primhost01"/>
+	    <!-- Some custom export options -->
+	    <export to="primhost01">
+	      <mountoption>forcedirectio</mountoption>
+	      <mountoption>clownage=true</mountoption>
+	    </export>
 	    <export to="primhost03" ro="yes"/>
 
 	    <snapmirrorsetref name="default_sm"/>

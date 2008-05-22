@@ -96,9 +96,10 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 	    <!ELEMENT mapto EMPTY>
 	      <!ATTLIST mapto igroup IDREF #REQUIRED>
 
-          <!ELEMENT export EMPTY>
+          <!ELEMENT export (mountoption*)>
 	    <!ATTLIST export to IDREF #IMPLIED
 	                     ro (yes|no) 'no'>
+            <!ELEMENT mountoption (#PCDATA)>			     
 
 	  <!ELEMENT snapsetref EMPTY>
 	    <!ATTLIST snapsetref name IDREF #REQUIRED>

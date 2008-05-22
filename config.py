@@ -167,12 +167,27 @@ class Site:
 
         self.nameservers = nameservers
         self.winsservers = winsservers
+
+        # Hosts, keyed by hostname
+        self.hosts = {}
         
         # Filers, keyed by unique name
         self.filers = {}
 
         # VLANs, keyed by unique VLAN id
         self.vlans = {}
+
+        # Volumes, just a list
+        self.volumes = []
+
+        log.debug("Added Site: %s", self)
+
+    def __repr__(self):
+        """
+        String representation of a Site object
+        """
+        return '<Site: %s, type: %s, location: %s>' % (self.name, self.type, self.location)
+
 
 class NAS:
 
@@ -184,7 +199,7 @@ class NAS:
 
 class Filer:
 
-    def __init__(self, name, type, site='primary'):
+    def __init__(self, name, type, site):
         self.name = name
 
         if type not in FILER_TYPES:
@@ -470,9 +485,6 @@ class Qtree:
 
         self.luns = []
         
-        # Any additional mount options that may be required, over the base ones
-        #self.mountoptions = mountoptions
-
         log.debug("Created qtree: %s", self)
         
         self.volume.qtrees[self.name] = self
@@ -552,6 +564,7 @@ class Vlan:
     def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.224', maskbits='27', gateway=None, description='', node=None):
 
         self.site = site
+        self.sitetype = site
         self.type = type
         self.number = number
         self.gateway = gateway
@@ -862,7 +875,14 @@ class ProjectConfig:
             # find some mandatory attributes
             hostname = node.attrib['name']
 
-            site = node.xpath('ancestor::site')[0].attrib['type']
+            # See if a site name is defined, if not, use the first site of this type
+            # since most implementations only have a single 'primary' site, for example.
+            try:
+                sitename = node.xpath('ancestor::site')[0].attrib['name']
+                site = self.sites[sitename]
+            except KeyError:
+                sitetype = node.xpath('ancestor::site')[0].attrib['type']
+                site = [ site for site in self.sites if site.type == sitetype][0]
 
             # check to see if the host has already been defined
             if hostname in hosts.keys():
@@ -962,6 +982,7 @@ class ProjectConfig:
                                    drhosts=drhosts,
                                    interfaces=ifaces,
                                    iscsi_initiator=iscsi_initiator)
+            site.hosts[hostname] = hosts[hostname]
         return hosts
 
     def sanity_check_hosts(self, hostdict):
@@ -1018,13 +1039,22 @@ class ProjectConfig:
             if filername in filers.keys():
                 log.error("Filer name '%s' is already defined!", filername)
                 raise ValueError("Filer named '%s' is already defined." % filername)
-            
+
+            # Figure out which site this Filer belongs to
+            try:
+                sitename = node.xpath('ancestor::site')[0].attrib['name']
+                site = self.sites[sitename]
+
+            except KeyError:
+                sitetype = node.xpath('ancestor::site')[0].attrib['type']
+                site = [ site for site in self.sites if site.type == sitetype][0]
+
             sitetype = node.xpath("parent::*/@type")[0]
 
             if sitetype == 'secondary':
                 self.has_dr = True
 
-            filer = Filer(filername, node.attrib['type'], sitetype)
+            filer = Filer(filername, node.attrib['type'], site)
             filers[filername] = filer
 
             # figure out which filer this is a secondary for
@@ -1062,7 +1092,7 @@ class ProjectConfig:
             try:
                 vlan_num = node.xpath("ancestor::site/vlan/@number")[0]
                 for v in self.vlans:
-                    if v.type == 'project' and v.number == vlan_num and filer.site == v.site:
+                    if v.type == 'project' and v.number == vlan_num and filer.site.type == v.site:
                         vlan = v
             except IndexError:
                 log.error("Cannot find vlan number for %s" % filername )
@@ -1084,7 +1114,7 @@ class ProjectConfig:
             # FIXME: This is dependent on the filer.site value being a string of the site 'type',
             # rather than a reference to the Site object, as it should be. Much code change is
             # required to change this everywhere, though.
-            site = [ site for site in self.sites.values() if site.type == filer.site ][0]
+            site = [ site for site in self.sites.values() if site.type == filer.site.type ][0]
             
             vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask,
                                          dns_domain_name, ad_account_location,
@@ -1153,7 +1183,7 @@ class ProjectConfig:
                 snapref = []
                 # The expected name of the snapvault schedule for root volumes
                 # is default_primary or default_secondary
-                snapvaultref = ['default_%s' % filer.site]
+                snapvaultref = ['default_%s' % filer.site.type]
 
                 # We don't snapmirror root volumes
                 snapmirrorref = []
@@ -1200,7 +1230,7 @@ class ProjectConfig:
         Build the qtrees for the configuration.
         """
         qtree_list = []
-        vols = [ vol for vol in self.volumes if vol.filer.site == site and vol.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
+        vols = [ vol for vol in self.volumes if vol.filer.site.type == site and vol.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
 
         for vol in vols:
 
@@ -1259,9 +1289,6 @@ class ProjectConfig:
                                 log.warn("Qtree description should be wrapped in <description> tags")
                                 qtree_comment = qtree_node.text
 
-                        # Find any mount options we need
-                        #mountoptions = qtree_node.xpath("mountoption")
-
                         rwhostlist, rohostlist = self.get_export_hostlists(qtree_node)
                         
 ##                         log.error("Host named '%s' not defined" % hostname)
@@ -1269,11 +1296,9 @@ class ProjectConfig:
 
                         qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist, qtreenode=qtree_node, oplocks=oplocks)
 
-                        # Build mountoptions for the qtree
-##                         mountoptions.extend( self.get_qtree_mountoptions(qtree) )
-##                         qtree.mountoptions = mountoptions
                         qtree_list.append(qtree)
-
+                        pass
+                    pass
                 else:
                     log.debug("No qtrees defined. Inventing them for this volume.")
 
@@ -1326,23 +1351,24 @@ class ProjectConfig:
                             
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
-                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle configuration qtree', rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
-                            #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                            security = 'unix'
+                            comment = 'Oracle configuration qtree'
+                            qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                             qtree_list.append(qtree)
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
-                            qtree = Qtree(vol, qtree_name, 'unix', 'Oracle quorum qtree', rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
-                            #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                            security = 'unix'
+                            comment = 'Oracle quorum qtree'
+                            qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                             qtree_list.append(qtree)
 
                         else:
                             # qtree name is the voltype with the 'ora' prefex stripped off
                             qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
+                            security = 'unix'
                             comment = 'Oracle %s qtree' % vol.type[3:]
-
-                            qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
-                            #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                             qtree_list.append(qtree)
 
                             #
@@ -1351,9 +1377,9 @@ class ProjectConfig:
                             #
                             if vol.type == 'oraredo':
                                 qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
+                                security = 'unix'
                                 comment = 'Oracle temp qtree'
-                                qtree = Qtree(vol, qtree_name, 'unix', comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
-                                #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
+                                qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
                                 qtree_list.append(qtree)
                                 pass
                             pass
@@ -1374,7 +1400,6 @@ class ProjectConfig:
                         rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
 
                         qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
-                        #qtree.mountoptions = self.get_qtree_mountoptions(qtree)
                         qtree_list.append(qtree)
                     pass
                 pass
@@ -1412,7 +1437,6 @@ class ProjectConfig:
                                                     qtree.comment,
                                                     dr_rwhostlist,
                                                     dr_rohostlist,
-                                                    #qtree.mountoptions,
                                                     oplocks=qtree.oplocks
                                                     )
                             qtree_list.append(mirrored_qtree)
@@ -1439,6 +1463,15 @@ class ProjectConfig:
         mountoptions = []
         osname = host.os
 
+        # First, see if there are any manually defined mount options for
+        # the qtree, or volume the qtree lives in. Most specific wins.
+        if qtree.qtreenode is not None:
+            mountoptions.extend( self.get_extra_mountoptions(qtree.qtreenode, host) )
+            log.debug("Added manually defined qtree mountoptions: %s", mountoptions)
+        elif qtree.volume.volnode is not None:
+            mountoptions.extend( self.get_extra_mountoptions(qtree.volume.volnode, host) )
+            log.debug("Added manually defined volume mountoptions: %s", mountoptions)
+            
         if host in qtree.rwhostlist:
             #log.debug("Read/Write host")
             mountoptions.append('rw')
@@ -1684,7 +1717,7 @@ class ProjectConfig:
 
             # Split the LUNs into per-site lists
             for site in self.sites.values():
-                siteluns = [ lun for lun in self.luns if lun.qtree.volume.filer.site == site.type ]
+                siteluns = [ lun for lun in self.luns if lun.qtree.volume.filer.site == site ]
                 log.debug("siteluns: %d luns in %s: %s", len(siteluns), site.type, siteluns)
 
                 site_igroups = []
@@ -1840,15 +1873,15 @@ class ProjectConfig:
             if vol.usable < 0.1:
                 raise ValueError("oracm volume must be larger than 100m usable; try <usablestorage>0.4</usablestorage>")
 
-    def get_filers(self, site, type):
+    def get_filers(self, sitetype, type):
 
-         return [ x for x in self.filers.values() if x.site == site and x.type == type ]
+         return [ filer for filer in self.filers.values() if filer.site.type == sitetype and filer.type == type ]
 
     def get_volumes(self, site='primary', filertype='primary'):
         """
         Build a list of all the primary volumes for the project.
         """
-        volumes = [ vol for vol in self.volumes if vol.filer.site == site and vol.filer.type == filertype ]
+        volumes = [ vol for vol in self.volumes if vol.filer.site.type == site and vol.filer.type == filertype ]
         log.debug("Found %d volumes for site:%s/filer:%s", len(volumes), site, filertype)
         return volumes
 
@@ -2088,11 +2121,11 @@ class ProjectConfig:
         raw_total = sum( [ vol.raw for vol in vol_list ])
         return usable_total, raw_total
 
-    def get_nearstore_volumes(self, ns, site='primary'):
+    def get_nearstore_volumes(self, ns, sitetype='primary'):
         """
         Fetch all the nearstore volumes at site 'site'
         """
-        volumes = [ vol for vol in self.volumes if vol.filer.site == site and vol.filer.type == 'nearstore' ]
+        volumes = [ vol for vol in self.volumes if vol.filer.site.type == sitetype and vol.filer.type == 'nearstore' ]
         log.debug("nearstore volumes: %s", volumes)
 
         return volumes
@@ -2105,16 +2138,16 @@ class ProjectConfig:
         FIXME: If there are any special differences in offsiting of
         volumes for DR or offsite backup, they will need to be catered for here.
         """
-        volumes = [ vol for vol in self.volumes if vol.filer.site == 'secondary' and vol.filer.type == 'primary' ]
+        volumes = [ vol for vol in self.volumes if vol.filer.site.type == 'secondary' and vol.filer.type == 'primary' ]
         log.debug("dr volumes: %s", volumes)
         return volumes
 
-    def get_site_qtrees(self, ns, site='primary'):
+    def get_site_qtrees(self, ns, sitetype='primary'):
         """
         Fetch the list of qtrees for a given site. These will be linked
         to the specific volume they are on.
         """
-        qtrees = [ x for x in self.qtrees if x.volume.filer.site == site ]
+        qtrees = [ x for x in self.qtrees if x.volume.filer.site.type == sitetype ]
         return qtrees
 
     def get_filer_iscsi_igroups(self, filer):
@@ -2237,6 +2270,19 @@ class ProjectConfig:
         
         return rwhostlist, rohostlist
 
+    def get_extra_mountoptions(self, node, host):
+        """
+        Find any mountoptions defined at a node for a specific host
+        """
+        nodes = node.xpath("ancestor-or-self::*/export[@to = '%s']/mountoption" % host.name)
+        if len(nodes) > 0:
+            log.debug("Found %d manually defined mountoptions: %s", len(nodes), nodes)
+            pass
+        
+        mountoptions = [ x.text for x in nodes ]
+#        log.debug("returning mountoptions: %s", mountoptions)
+        return mountoptions
+
     def get_cifs_qtrees(self, filer):
         """
         Find the CIFS exports for the project.
@@ -2283,7 +2329,7 @@ class ProjectConfig:
                 target_filername = set_node.attrib['targetfiler']
             except KeyError:
                 # No target filer specified, so use the first nearstore at the same site as the primary
-                target_filername = self.tree.xpath("site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site)[0]
+                target_filername = self.tree.xpath("site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site.type)[0]
                 pass
 
             try:
@@ -2398,7 +2444,7 @@ class ProjectConfig:
             except KeyError:
                 # No target filer specified, so use the first primary at a site other than the source
                 # This auto-created DR snapmirrors, but may not be what you mean.
-                target_filername = self.tree.xpath("site[not(@type = '%s')]/filer[@type = 'primary']/@name" % srcvol.filer.site)[0]
+                target_filername = self.tree.xpath("site[not(@type = '%s')]/filer[@type = 'primary']/@name" % srcvol.filer.site.type)[0]
                 log.warn("No destination for snapmirror provided, using '%s'" % target_filername)
                 pass
 
@@ -2561,7 +2607,7 @@ class ProjectConfig:
         and return the command for how to create it.
         """
         cmdset = []
-        vlan = self.get_project_vlan(filer.site)
+        vlan = self.get_project_vlan(filer.site.type)
         cmdset.append("vlan add svif0 %s" % vlan.number)
 
         for vlan,ipaddr in vfiler.services_ips:
@@ -2574,11 +2620,11 @@ class ProjectConfig:
         Determine how to create the ipspace for the filer.
         """
         cmdset = []
-        vlan = self.get_project_vlan(filer.site)
+        vlan = self.get_project_vlan(filer.site.type)
         cmdset.append("ipspace create ips-%s" % self.shortname)
         cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
 
-        for vlan in self.get_services_vlans(filer.site):
+        for vlan in self.get_services_vlans(filer.site.type):
             cmdset.append("ipspace assign ips-%s svif0-%s" % (self.shortname, vlan.number) )
             pass
         
@@ -2624,7 +2670,7 @@ class ProjectConfig:
 
         # Add partner clause if this is a primary or secondary filer
         if filer.type in [ 'primary', 'secondary' ]:
-            cmd += " partner svif0-%s" % self.get_project_vlan(filer.site).number
+            cmd += " partner svif0-%s" % self.get_project_vlan(filer.site.type).number
         cmdset.append(cmd)
 
         #
@@ -2662,12 +2708,12 @@ class ProjectConfig:
 
         return cmdset
 
-    def get_project_vlan(self, site='primary'):
+    def get_project_vlan(self, sitetype='primary'):
         """
         Find the project vlan for the site
         """
         for vlan in self.vlans:
-            if vlan.site == site and vlan.type == 'project':
+            if vlan.site == sitetype and vlan.type == 'project':
                 return vlan
 
     def get_services_vlans(self, site='primary'):
@@ -2684,7 +2730,7 @@ class ProjectConfig:
         """
         cmdset = []
         title = "Default Route"
-        proj_vlan = self.get_project_vlan(filer.site)
+        proj_vlan = self.get_project_vlan(filer.site.type)
         cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
         return title, cmdset
     
@@ -3268,7 +3314,7 @@ class ProjectConfig:
         cmdset = []
 
         # Add the main project VLAN
-        cmdset.append('Vlan %s' % self.get_project_vlan(switch.site).number)
+        cmdset.append('Vlan %s' % self.get_project_vlan(switch.site.type).number)
         cmdset.append('  name %s_01' % self.shortname)
 
         return cmdset
@@ -3288,7 +3334,7 @@ class ProjectConfig:
         Return a list of edge port ACL commands used to build an edge switch configuration.
         """
         log.debug("Fetching vlan for site: %s", switch.site)
-        vlan = self.get_project_vlan(switch.site)
+        vlan = self.get_project_vlan(switch.site.type)
         cmdset = []
 
         cmdset.append("mac access-list extended FilterL2")
@@ -3328,7 +3374,7 @@ class ProjectConfig:
         """
         cmdset = []
 
-        vlan = self.get_project_vlan(switch.site)
+        vlan = self.get_project_vlan(switch.site.type)
         
         for host in self.hosts.values():
             for iface in host.interfaces:
