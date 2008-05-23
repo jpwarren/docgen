@@ -438,7 +438,7 @@ file is well-formed and also a valid file.
 	    <usablestorage>100</usablestorage>
 	    <qtree name="my_custom_name">
 	      <description>A custom qtree with a LUN in it</description>
-	      <lun/>
+	      <lun lunid='103'/>
 	    </qtree>
 
 	    <export to="primhost01"/>
@@ -466,7 +466,7 @@ file is well-formed and also a valid file.
 
 	    <qtree name="lun_inside">
 	      <description>A custom qtree with 2 LUNs in it</description>
-	      <lun/>
+	      <lun restartnumbering='80'/>
 	      <lun/>
 	    </qtree>
 

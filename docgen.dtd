@@ -94,7 +94,9 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
           <!ELEMENT lun (export*, mapto*)>
 	    <!ATTLIST lun size CDATA #IMPLIED
-	                  name CDATA #IMPLIED>
+	                  name CDATA #IMPLIED
+			  lunid CDATA #IMPLIED
+			  restartnumbering CDATA #IMPLIED>
 	    <!ELEMENT mapto EMPTY>
 	      <!ATTLIST mapto igroup IDREF #REQUIRED>
 

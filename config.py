@@ -419,13 +419,13 @@ class Volume:
         self.voloptions = voloptions
         self.volnode = volnode
 
-        
         if self.name.endswith("root"):
             self.filer.volumes.insert(0, self)
         else:
             self.filer.volumes.append(self)
             pass
-        
+
+        self.filer.site.volumes.append(self)
         log.debug("Created: %s", self)
 
     def __str__(self):
@@ -1526,6 +1526,8 @@ class ProjectConfig:
         lunlist = []
         smluns = []
 
+        # The current lunid in use for automated numbering
+        current_lunid = 0
         for vol in [ vol for vol in self.volumes if vol.proto == 'iscsi' and vol.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]:
             log.debug("Found iSCSI volume for LUNs: %s", vol)
             lun_total = 0
@@ -1540,8 +1542,21 @@ class ProjectConfig:
                 # If you don't specify the LUN size, then the system will
                 # divide up however much storage is left in the volume evenly
                 # between the number of LUNs that don't have a size specified.
-                lunid = 0
+
                 for lunnode in vol.volnode.xpath("descendant-or-self::lun"):
+
+                    # Check to see if we need to restart the lunid numbering
+                    if lunnode.attrib.has_key('restartnumbering'):
+                        current_lunid = int(lunnode.attrib['restartnumbering'])
+
+                    # Check to see if the lunid is specified for this lun
+                    try:
+                        lunid = int(lunnode.attrib['lunid'])
+                        log.debug("lunid manually specified: %d", lunid)
+                    except KeyError:
+                        lunid = current_lunid
+                        current_lunid += 1
+
                     try:
                         lunsize = float(lunnode.xpath("@size")[0])
                     except IndexError:
@@ -1603,13 +1618,11 @@ class ProjectConfig:
                         smluns.append( smlun )
                         pass
                     pass
-
-                # increment the lunid within the volume
-                lunid += 1
                 pass
+
             # If no LUNs are specified, invent one for the volume.
             else:
-                log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the whole volume.")
+                log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the wvhole volume.")
                 lunnode = None
 
                 lunsize = vol.usable / 2.0
@@ -1621,9 +1634,6 @@ class ProjectConfig:
 
                 log.debug("LUN will be exported to %s", hostlist)
 
-                # The first LUN in any volume is always lunid 0
-                lunid = 0
-
                 qtree_parent = vol.qtrees.values()[0]
 
                 if hostlist[0].iscsi_initiator is None:
@@ -1631,6 +1641,9 @@ class ProjectConfig:
 
                 lunname = '%s.lun%02d' % (self.shortname, lunid)
                 #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
+
+                lunid = current_lunid
+                current_lunid += 1
 
                 # Add the new LUN to the lunlist
                 # The LUN ostype defaults to the same type as the first one in its initiator list
@@ -2997,7 +3010,7 @@ class ProjectConfig:
                 # Don't create LUNs on snapmirror destination volumes
                 if lun.qtree.volume.type not in ['snapmirrordst']:
                     cmds.append("vfiler run %s lun create -s %s -t %s %s" % (vfiler.name, lun.get_create_size(), lun.ostype, lun.full_path()) )
-                cmds.append("vfiler run %s lun map %s %s" % (vfiler.name, lun.full_path(), igroup.name) )
+                cmds.append("vfiler run %s lun map %s %s %s" % (vfiler.name, lun.full_path(), igroup.name, lun.lunid) )
                 pass
             pass
 
