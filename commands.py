@@ -50,30 +50,30 @@ class IPSANCommandsGenerator(CommandGenerator):
         activation_commands = []
 
         # Build the commands for all primary filers
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'primary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'primary' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'primary' and x.type == 'nearstore' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
         # Build the commands for all secondary filers
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'primary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'primary' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
-        for filer in [ x for x in self.conf.filers.values() if x.site == 'secondary' and x.type == 'nearstore' ]:
+        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands.extend( self.build_filer_activation_commands(filer, vfiler, ns) )
 
@@ -167,7 +167,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # initialise the snapmirrors to the DR site
         if self.conf.has_dr:
-            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+            if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
                 log.debug("Adding snapmirror config for '%s'", filer.name)
                 commands.append("\n# SnapMirror Initialisation")
                 commands.extend( self.conf.filer_snapmirror_init_commands(filer) )
@@ -180,7 +180,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
-            services_vlans = self.conf.get_services_vlans(filer.site)
+            services_vlans = self.conf.get_services_vlans(filer.site.type)
             if len(services_vlans) > 0:
                 cmds = self.conf.services_vlan_route_commands(vfiler)
                 commands.append("\n# VLAN routes\n")
@@ -191,7 +191,7 @@ class IPSANCommandsGenerator(CommandGenerator):
 
         # /etc/snapmirror.conf additions
         if self.conf.has_dr:
-            if filer.site == 'secondary' and filer.type in ['primary', 'nearstore']:
+            if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
                 commands.append("\n# Filer /etc/snapmirror.conf\n")
                 commands.extend( self.conf.filer_etc_snapmirror_conf_commands(filer) )
 
