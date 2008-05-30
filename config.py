@@ -2975,14 +2975,24 @@ class ProjectConfig:
 
         return cmds
 
-    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler, prefix='docgen'):
+    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler, prefix):
         """
         Return the commands required to enable the vfiler configuration
         """
         title = "iSCSI CHAP Configuration for %s" % filer.name
         cmds = []
-        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p %s%s123" % (vfiler.name, vfiler.name, prefix, vfiler.name) )
+        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p %s" % (vfiler.name, vfiler.name, self.get_iscsi_chap_password(prefix) ) )
         return title, cmds
+
+    def get_iscsi_chap_password(self, prefix='docgen'):
+        """
+        Create the iSCSI CHAP password to use.
+        """
+        chap_password = '%s%s123' % (prefix, self.shortname)
+        # The password has to be longer than 12 characters. If it isn't pad it with zeros
+        if len(chap_password) < 12:
+            chap_password  = chap_password + ( '0' * (12 - len(chap_password)) )
+        return chap_password
 
     def vfiler_igroup_enable_commands(self, filer, vfiler):
         """

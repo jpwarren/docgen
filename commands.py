@@ -28,20 +28,24 @@ class IPSANCommandsGenerator(CommandGenerator):
 
     def emit(self, outfile=None, versioned=True, ns={}):
 
+        ns['iscsi_prefix'] = self.conf.defaults.get('global', 'iscsi_prefix')
+
+        cmdlist = []
+        cmdlist.extend( self.build_activation_commands(ns) )
+        book = '\n'.join(cmdlist)
+        book += '\n'
+
         if outfile is None:
             outfile = sys.stdout
+            sys.stdout.write(book)
         else:
             if versioned:
                 outfile = self.version_filename(outfile, self.conf)
                 pass
-            outfile = open(outfile, "w")
-
-        cmdlist = []
-        cmdlist.extend( self.build_activation_commands(ns) )
-
-        outfile.write( '\n'.join(cmdlist) )
-        outfile.write('\n')
-
+            outf = open(outfile, "w")
+            outf.write(book)
+            outf.close()
+            
     def build_activation_commands(self, ns):
         """
         Build the activation commands for all the filers.
@@ -268,7 +272,7 @@ class IPSANCommandsGenerator(CommandGenerator):
             if filer.type in [ 'primary', ]:
 
                 # iSCSI CHAP configuration
-                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler)
+                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])
                 commands.append("\n# %s" % title)
                 commands.extend(cmds)
 

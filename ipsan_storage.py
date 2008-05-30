@@ -1612,8 +1612,8 @@ the host activation guides.
             </table>
             """)
 
-        ns['iscsi_chap_username'] = ns['vfiler_name']
-        ns['iscsi_chap_password'] = '%s%s123' % (ns['iscsi_prefix'], ns['vfiler_name'])
+        ns['iscsi_chap_username'] = self.conf.shortname
+        ns['iscsi_chap_password'] = self.conf.get_iscsi_chap_password(ns['iscsi_prefix'])
 
         if len(self.conf.luns) > 0:
             igroup_tables = []
