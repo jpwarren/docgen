@@ -29,9 +29,9 @@ FILER_TYPES = [
     'primary',
     'secondary',
     'nearstore',
-    'dr_primary',
-    'dr_secondary',
-    'dr_nearstore',
+#    'dr_primary',
+#    'dr_secondary',
+#    'dr_nearstore',
     ]
 
 def get_create_size(size):
@@ -2322,10 +2322,16 @@ class ProjectConfig:
             log.warn("Snapref addition not supported yet.")
             raise NotImplementedError("Snaprefs not yet supported.")
 
-        # Add default snapshot schedule for root volumes
+        # Add default snapshot schedule for root volumes 
         elif srcvol.name.endswith('root'):
-            self.snapshots.append( Snapshot( srcvol, 0, 0, '0') )
-            #self.snapshots.append( Snapshot( srcvol, 0, 0, '6@8,12,16,20') )
+            # NearStores get a default schedule to back up their configuration multiple times
+            if srcvol.filer.type == 'nearstore':
+                self.snapshots.append( Snapshot( srcvol, 4, 14, '6@8,12,16,20') )
+
+            # Other root volumes don't
+            else:
+                self.snapshots.append( Snapshot( srcvol, 0, 0, '0') )
+
 
     def create_snapvault_for(self, srcvol):
         """
@@ -2683,7 +2689,7 @@ class ProjectConfig:
         cmdset = []
 
         if filer.type == 'secondary':
-            cmd = "ifconfig svif0-%s mtusize 9000 up" % ( vfiler.vlan.number )
+            cmd = "ifconfig svif0-%s mtusize 9000" % ( vfiler.vlan.number )
             #cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan.number, vfiler.netmask)
 
         else:
@@ -2701,7 +2707,7 @@ class ProjectConfig:
         #
         for vlan,ipaddr in vfiler.services_ips:
             if filer.type == 'secondary':
-                cmd = "ifconfig svif0-%s mtusize 1500 up" % ( vlan.number )
+                cmd = "ifconfig svif0-%s mtusize 1500" % ( vlan.number )
                 pass
             else:
                 cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number,
