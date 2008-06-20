@@ -393,7 +393,12 @@ class Volume:
                 raw = self.usable + 1
 
         if raw is None:
-            raw = self.usable / ( (100 - float(snapreserve) )/100 )
+            try:
+                raw = self.usable / ( (100 - float(snapreserve) )/100 )
+            except ZeroDivisionError, e:
+                log.critical("snapreserve of 100% is not a valid value. You probably mean 50%.")
+                raise ConfigInvalid(e)
+            
         self.raw = raw
 
         self.snapreserve = snapreserve
@@ -684,6 +689,19 @@ class SnapMirror:
         Currently this only supports the default of '-'.
         """
         return self.arguments
+
+class ConfigInvalid(Exception):
+    """
+    A ConfigInvalid Exception is raised if the configuration is invalid for some
+    reason that has been captured and an error logged. This allows cleaner
+    exiting when a known error is detected, as distinct from some other, unhandled
+    error condition that may occur.
+    This helps users see useful error messages that can help them fix the config
+    issue, rather than receiving a Python traceback, which confuses them, and
+    comes after the error message, so they can't see if when building a full set
+    of project documentation.
+    """
+    pass
         
 class ProjectConfig:
 
@@ -1979,6 +1997,15 @@ class ProjectConfig:
         except IndexError:
             voltype = 'fs'
 
+        # Set the amount of usable space in the volume
+        try:
+            usable = float(node.xpath("usablestorage")[0].text)
+
+        except IndexError:
+            log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
+            usable = 100
+            pass
+
         # Default snap reserve to 20 unless specified otherwise
         # Default iscsi_snapspace to 0 unless specified otherwise
         iscsi_snapspace=0
@@ -2008,17 +2035,25 @@ class ProjectConfig:
                 pass
             pass
 
-
-        # Set the amount of usable space in the volume
+        # See if we want to specify a particular amount of snapshot storage
+        # This will override the snapreserve setting
         try:
-            usable = float(node.xpath("usablestorage")[0].text)
+            snapstorage = float(node.findall("snapstorage")[0].text)
+            #log.info("snapstorage of %.2f GiB set", snapstorage)
+            raw = usable + snapstorage
+            #log.info("raw storage is now: %.2f", raw)
+
+            snapreserve = 100 - ((usable / raw) * 100.0)
+            #log.info("snapreserve is: %s", snapreserve)
 
         except IndexError:
-            log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
-            usable = 100
-            pass
-        
-        vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
+            snapstorage = None
+
+        if snapstorage is not None:
+            vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, raw, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
+        else:
+            vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
+
         volnum += 1
         return vol, volnum
     

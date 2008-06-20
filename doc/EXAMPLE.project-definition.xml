@@ -390,6 +390,13 @@ file is well-formed and also a valid file.
 	  -->
 	  <volume>
 	    <usablestorage>50</usablestorage>
+
+	    <!-- Rather than specify a snapreserve as a percentage of
+		 the total volume size, you can specify the exact size
+		 of the snapshot space, and the system will calculate
+		 the corresponding snapreserve percentage for you.
+		-->
+	    <snapstorage>150</snapstorage>
 	    <snapvaultsetref name="custom-multiplier"/>	      
 	  </volume>
 

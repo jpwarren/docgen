@@ -76,7 +76,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
          <!ATTLIST aggregate name CDATA #REQUIRED>
 
 	<!-- The volume declaration -->
-	<!ELEMENT volume (usablestorage?, description?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref)* )>
+	<!ELEMENT volume (usablestorage?, snapstorage?, description?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
 			   prefix CDATA #IMPLIED
@@ -88,6 +88,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 			   oplocks (yes|no) 'no'
 			   iscsi_snapspace CDATA #IMPLIED>
 	  <!ELEMENT usablestorage (#PCDATA)>
+	  <!ELEMENT snapstorage (#PCDATA)>
 	  <!ELEMENT qtree (description?, lun*)>
 	    <!ATTLIST qtree name CDATA #IMPLIED
 	              oplocks (yes|no) 'no'>

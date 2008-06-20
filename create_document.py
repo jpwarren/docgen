@@ -10,7 +10,7 @@ from zope.interface import Interface
 from string import Template
 from lxml import etree
 
-from config import ProjectConfig
+from config import ProjectConfig, ConfigInvalid
 from ipsan_storage import IPSANStorageDesignGenerator
 from ipsan_network import IPSANNetworkDesignGenerator
 from modipy import IPSANStorageModiPYGenerator
@@ -39,8 +39,12 @@ if __name__ == '__main__':
         # load the configuration from a config file
         proj = ProjectConfig(optparser.options.definitionfile, optparser.options.configfile)
 
+    except ConfigInvalid, e:
+        log.critical("Cannot load configuration: %s.", e)
+        sys.exit(1)
+        
     except:
-        log.error("Cannot load configuration. Aborting.")
+        log.critical("Cannot load configuration. Unhandled error condition:")
         import traceback
         traceback.print_exc()
         sys.exit(1)
