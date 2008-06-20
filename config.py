@@ -3072,7 +3072,8 @@ class ProjectConfig:
         cmdset = []
 
         for vol in filer.volumes:
-            cmdset.append("snap reserve %s %s" % ( vol.name, vol.snapreserve ) )
+            # snapreserve must be a non-negative integer
+            cmdset.append("snap reserve %s %s" % ( vol.name, int(vol.snapreserve) ) )
             pass
 
         #log.debug('\n'.join(cmdset))
