@@ -1031,8 +1031,8 @@ the host activation guides.
                     tblns['volume_totals'] = """
                       <row>
                         <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
-                        <entry><para>%s</para></entry>
-                        <entry><para>%s</para></entry>
+                        <entry><para>%.1f</para></entry>
+                        <entry><para>%.1f</para></entry>
                       </row>""" % (total_raw, total_usable)
 
                     vol_alloc_tables.append( volumes_table_template.safe_substitute(tblns) )
@@ -1056,16 +1056,20 @@ the host activation guides.
         for vol in vol_list:
             entries = ''
             entries += "<entry><para>%s</para></entry>" % vol.filer.name
-            for attr in ['aggregate', 'name', 'type', 'snapreserve', 'raw', 'usable']:
+            for attr in ['aggregate', 'name', 'type' ]:
                 entries += "<entry><para>%s</para></entry>" % getattr(vol, attr)
                 pass
+
+            # Round raw and usable values to 1 decimal place.
+            for attr in [ 'snapreserve', 'raw', 'usable']:
+                entries += "<entry><para>%.1f</para></entry>" % getattr(vol, attr)
+                
             volume_rows.append("<row>%s</row>" % entries)
             pass
         return '\n'.join(volume_rows)
 
     def build_vol_totals(self, total_usable, total_raw):
         pass
-
 
     def build_volume_config_section(self, ns):
         """
@@ -1293,8 +1297,8 @@ the host activation guides.
           <title>Qtree Configuration For $filer_name</title>
           <tgroup cols="4" align="left">
             <colspec colname="c1" colwidth="2*"/>
-            <colspec colname="c2" colwidth="1*"/>
-            <colspec colname="c2" colwidth="0.5*"/>
+            <colspec colname="c2" align="center" colwidth="1*"/>
+            <colspec colname="c2" align="center" colwidth="0.5*"/>
             <colspec colname="c3" colwidth="1.5*"/>
             <thead>
               <row valign="middle">

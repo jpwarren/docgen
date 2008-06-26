@@ -401,7 +401,7 @@ class Volume:
             
         self.raw = raw
 
-        self.snapreserve = snapreserve
+        self.snapreserve = int(round(snapreserve))
 
         self.snapref = snapref
         self.snapvaultref = snapvaultref
@@ -443,7 +443,7 @@ class Volume:
         ie: integer amounts, and the appropriate scale (0.02g == 20m)
         """
         return get_create_size(self.raw)
-        
+
     def shortpath(self):
         """
         The short path for the volume, eg: /vol/myproj_vol03
@@ -2010,7 +2010,7 @@ class ProjectConfig:
         # Default iscsi_snapspace to 0 unless specified otherwise
         iscsi_snapspace=0
         try:
-            snapreserve = node.xpath("@snapreserve")[0]
+            snapreserve = float(node.xpath("@snapreserve")[0])
         except IndexError:
             #log.debug("No snapreserve specified.")
             if proto == 'iscsi':
@@ -2043,7 +2043,8 @@ class ProjectConfig:
             raw = usable + snapstorage
             #log.info("raw storage is now: %.2f", raw)
 
-            snapreserve = 100 - ((usable / raw) * 100.0)
+            # snapreserve is always an integer percentage, so round it            
+            snapreserve = int(round(100 - ((usable / raw) * 100.0)))
             #log.info("snapreserve is: %s", snapreserve)
 
         except IndexError:

@@ -379,7 +379,7 @@ file is well-formed and also a valid file.
 	       hot backup mode are captured in the archivelog backup.
 	  -->
 	  <volume oracle="MYDB01" type="oraarch">
-	    <usablestorage>20</usablestorage>
+	    <usablestorage>23</usablestorage>
 	    <snapmirrorsetref name="default_sm"/>
 	    <snapvaultsetref name="MYDB01-arch"/>
 
@@ -389,7 +389,7 @@ file is well-formed and also a valid file.
 	       exported to all hosts via NFS.
 	  -->
 	  <volume>
-	    <usablestorage>50</usablestorage>
+	    <usablestorage>58</usablestorage>
 
 	    <!-- Rather than specify a snapreserve as a percentage of
 		 the total volume size, you can specify the exact size
