@@ -24,13 +24,14 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
   <!-- Revision History elements -->
   <!ELEMENT revhistory (revision+)>
-    <!ELEMENT revision (majornumber, minornumber, date, authorinitials, revremark)>
+    <!ELEMENT revision (majornumber, minornumber, date, authorinitials, revremark, reviewer, reviewdate)>
       <!ELEMENT majornumber (#PCDATA)>
       <!ELEMENT minornumber (#PCDATA)>
       <!ELEMENT date (#PCDATA)>
       <!ELEMENT authorinitials (#PCDATA)>
       <!ELEMENT revremark (#PCDATA)>
-
+      <!ELEMENT reviewer (#PCDATA)>
+      <!ELEMENT reviewdate (#PCDATA)>
   <!ELEMENT database (onhost*, filesystem*, backup*)>
     <!ATTLIST database id ID #IMPLIED>
     <!ATTLIST database type CDATA #REQUIRED>
@@ -120,7 +121,8 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
   <!ELEMENT host (platform, operatingsystem, location, description?,
     filesystem*, interface*, backup*, iscsi_initiator?, drhost*)>
-    <!ATTLIST host name ID #REQUIRED>
+    <!ATTLIST host name ID #REQUIRED
+	      virtual (yes | no) 'no'>
 
     <!ELEMENT platform (#PCDATA)>
     <!ELEMENT operatingsystem (#PCDATA)>

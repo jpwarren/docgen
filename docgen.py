@@ -306,14 +306,17 @@ ${abstract}
 
     <!-- Document History -->
     <informaltable tabstyle="techtable-03">
-        <tgroup cols="3" align="left">
+        <tgroup cols="6" align="left">
           <colspec colname="c1" align="center" colwidth="0.5*"/>
-          <colspec colname="c2" align="left" colwidth="2*"/>
+          <colspec colname="c2" align="left" colwidth="1.6*"/>
           <colspec colname="c3" align="center" colwidth="0.5*"/>
-          <colspec colname="c4" align="center" colwidth="0.75*"/>
+          <colspec colname="c4" align="center" colwidth="0.6*"/>
+          <colspec colname="c5" align="center" colwidth="0.5*"/>
+          <colspec colname="c6" align="center" colwidth="0.6*"/>
+
           <thead>
             <row valign="middle">
-              <entry namest="c1" nameend="c4" align="center">
+              <entry namest="c1" nameend="c6" align="center">
                 <para>Document History</para>
               </entry>
             </row>
@@ -330,6 +333,14 @@ ${abstract}
               <entry align="center">
                 <para>Date</para>
               </entry>
+
+              <entry align="center">
+                <para>Reviewer</para>
+              </entry>
+              <entry align="center">
+                <para>Date</para>
+              </entry>
+
             </row>
           </thead>
           <tbody>
@@ -484,6 +495,8 @@ ${abstract}
             revision_content += '<entry><para>%s</para></entry>\n' % rev.revremark
             revision_content += '<entry><para>%s</para></entry>\n' % rev.authorinitials
             revision_content += '<entry><para>%s</para></entry>\n' % rev.date
+            revision_content += '<entry><para>%s</para></entry>\n' % rev.reviewer
+            revision_content += '<entry><para>%s</para></entry>\n' % rev.reviewdate
             revision_row = "<row>%s</row>\n" % revision_content
             revision_list.append(revision_row)
 

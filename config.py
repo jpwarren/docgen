@@ -60,12 +60,15 @@ class Revision:
     A Revision is a particular revision of a document. A single
     document may have many revisions.
     """
-    def __init__(self, majornum=0, minornum=0, date='', authorinitials='', revremark=''):
+    def __init__(self, majornum=0, minornum=0, date='', authorinitials='', revremark='',
+                 reviewer='', reviewdate=''):
         self.majornum = majornum
         self.minornum = minornum
         self.date = date
         self.authorinitials = authorinitials
         self.revremark = revremark
+        self.reviewer = reviewer
+        self.reviewdate = reviewdate
         pass
     pass
 
@@ -73,7 +76,8 @@ class Host:
     """
     A host definition
     """
-    def __init__(self, name, platform, os, site, location, description='', drhosts=[], interfaces=[], iscsi_initiator=None):
+    def __init__(self, name, platform, os, site, location, description='',
+                 drhosts=[], interfaces=[], iscsi_initiator=None, is_virtual=False):
 
         self.name = name
         self.platform = platform
@@ -91,6 +95,8 @@ class Host:
         #self.filesystems = filesystems
 
         self.iscsi_initiator = iscsi_initiator
+
+        self.is_virtual = is_virtual
         
         log.debug("Created host: %s", self)
 
@@ -796,7 +802,19 @@ class ProjectConfig:
             date = element.xpath('date')[0].text
             authorinitials = element.xpath('authorinitials')[0].text
             remark = element.xpath('revremark')[0].text
-            rev = Revision(majornumber, minornumber, date, authorinitials, remark)
+            try:
+                reviewer = element.xpath('reviewer')[0].text
+            except IndexError:
+                log.warn("Revision '%s.%s' has no reviewer." % (majornumber, minornumber) )
+                reviewer = ''
+                pass
+            try:
+                reviewdate = element.xpath('reviewdate')[0].text
+            except IndexError:
+                log.warn("Revision '%s.%s' has no reviewer." % (majornumber, minornumber) )
+                reviewdate = ''
+                
+            rev = Revision(majornumber, minornumber, date, authorinitials, remark, reviewer, reviewdate)
             revlist.append(rev)
 
         return revlist
@@ -917,6 +935,16 @@ class ProjectConfig:
                     raise
 
             try:
+                is_virtual = node.attrib['virtual']
+                if is_virtual.lower() == 'yes':
+                    is_virtual=True
+                    log.debug("Host '%s' is virtual.", hostname)
+                else:
+                    is_virtual=False
+            except KeyError:
+                is_virtual=False
+
+            try:
                 description = node.find('description')[0].text
             except IndexError:
                 description = ''
@@ -938,7 +966,8 @@ class ProjectConfig:
                     switchname = ifnode.find('switchname').text
                     switchport = ifnode.find('switchport').text
                 except AttributeError, e:
-                    log.warn("Host switch configuration not present for %s: %s", hostname, e)
+                    if not is_virtual:
+                        log.warn("Host switch configuration not present for %s: %s", hostname, e)
                     switchname = None
                     switchport = None
 
@@ -982,10 +1011,11 @@ class ProjectConfig:
                         pass
 
                 # Sanity check the interface parameters. The combination of switchname+switchport should
-                # only occur once.
+                # only occur once, unless either is None, in which case it doesn't matter.
                 for iface in self.interfaces:
                     #log.debug("checking interface: %s", iface)
-                    if iface.switchname == switchname and iface.switchport == switchport:
+                    
+                    if iface.switchname is not None and iface.switchname == switchname and iface.switchport == switchport:
                         log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
                 
                 iface = Interface(type, mode, switchname, switchport, hostport, ipaddr)
@@ -999,7 +1029,8 @@ class ProjectConfig:
                                    description=description,
                                    drhosts=drhosts,
                                    interfaces=ifaces,
-                                   iscsi_initiator=iscsi_initiator)
+                                   iscsi_initiator=iscsi_initiator,
+                                   is_virtual=is_virtual)
             site.hosts[hostname] = hosts[hostname]
         return hosts
 
@@ -1015,7 +1046,7 @@ class ProjectConfig:
                 for known_iface in ifaces:
                     # Check the same switchport isn't allocated to different hosts
                     # Multiple zones on a single physical host will use the same physical ports, though.
-                    if host_iface.switchname == known_iface.switchname and host_iface.switchport == known_iface.switchport:
+                    if host_iface.switchname is not None and host_iface.switchname == known_iface.switchname and host_iface.switchport == known_iface.switchport:
                         log.warn("Host '%s' is using the same switchport as another host in the project." % host.name)
 
                     # Check that IP addresses aren't duplicated

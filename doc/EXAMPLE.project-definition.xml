@@ -61,6 +61,8 @@ file is well-formed and also a valid file.
       <revremark>
 	Initial version by Peter O'Dowd.
       </revremark>
+      <reviewer>Someone</reviewer>
+      <reviewdate>33 July 2008</reviewdate>
     </revision>
 
     <revision>
@@ -71,6 +73,9 @@ file is well-formed and also a valid file.
       <revremark>
 	Addition of extra server and storage for other things
       </revremark>
+      <reviewer>Someone Else</reviewer>
+      <reviewdate>38 August 2008</reviewdate>
+
     </revision>
 
   </revhistory>
@@ -201,7 +206,7 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="virtualhost-01">
+    <host name="virtualhost-01" virtual="yes">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
       <location>CoLo Level 5</location>
@@ -215,6 +220,21 @@ file is well-formed and also a valid file.
       </interface>
 
       <drhost name="drtesthost02"/>
+
+    </host>
+
+    <host name="examplehost-01" virtual="yes">
+      <platform>Sun</platform>
+      <operatingsystem>Solaris 10</operatingsystem>
+      <location>CoLo Level 5</location>
+      <description>An example virtual host for sorting</description>
+
+      <interface type='storage' mode='active'>
+	<!--      <switchname>sitea-swtedg-0103</switchname>
+	     <switchport>GigabitEthernet1/3</switchport>
+	     <hostport>PCI 0</hostport> -->
+	<ipaddr>10.240.4.201</ipaddr>
+      </interface>
 
     </host>
 

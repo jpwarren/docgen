@@ -524,7 +524,11 @@ to provide IP connectivity between the project hosts and the storage infrastruct
             ''')
 
         rows = ''
-        for host in self.conf.hosts.values():
+
+        # Sort hosts by name
+        hostlist = [ (host.name, host) for host in self.conf.hosts.values() ]
+        hostlist.sort()
+        for (hostname, host) in hostlist:
 
             interfaces = [ x for x in host.interfaces if x.type == 'storage' ]
 
