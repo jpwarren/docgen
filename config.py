@@ -318,21 +318,22 @@ class VFiler:
         So, a vfiler called 'blah' on exip-fashda-01 would have the following
         NetBIOS name: exa01-blah
         """
+        # Due to the naming convention for NearStores, the 'head_prefix'
+        # ends up as 't'. We swap it to 'n' so that it's more obviously a
+        # NearStore.
         site_prefix = self.filer.name[:2]
         if self.filer.type in [ 'primary', 'secondary' ]:
             head_prefix = 'f'
         else:
             head_prefix = 'n'            
 
-        # Due to the naming convention for NearStores, the 'head_prefix'
-        # ends up as 't'. We swap it to 'n' so that it's more obviously a
-        # NearStore.
         head_num = self.filer.name[-2:]
 
         retstr = '%s%s%s-%s' % (site_prefix, head_prefix, head_num, self.name)
         if len(retstr) > 15:
-            log.error("NetBIOS name of '%s' is longer than 15 characters. Truncating it.")
+            log.warn("NetBIOS name of '%s' is longer than 15 characters. Truncating it.", retstr)
             retstr = retstr[:15]
+            log.info("NetBIOS name is now '%s'", retstr)            
             pass
 
         log.debug("NetBIOS name: %s", retstr)
@@ -1688,11 +1689,11 @@ class ProjectConfig:
                 if hostlist[0].iscsi_initiator is None:
                     raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
 
-                lunname = '%s.lun%02d' % (self.shortname, lunid)
-                #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
-
                 lunid = current_lunid
                 current_lunid += 1
+                
+                lunname = '%s.lun%02d' % (self.shortname, lunid)
+                #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
 
                 # Add the new LUN to the lunlist
                 # The LUN ostype defaults to the same type as the first one in its initiator list
@@ -3065,6 +3066,11 @@ class ProjectConfig:
         # The password has to be longer than 12 characters. If it isn't pad it with zeros
         if len(chap_password) < 12:
             chap_password  = chap_password + ( '0' * (12 - len(chap_password)) )
+
+        # The password also has to be no longer than 16 characters. If it's shorter,
+        # that's fine, this will still work.
+        chap_password = chap_password[:16]
+            
         return chap_password
 
     def vfiler_igroup_enable_commands(self, filer, vfiler):
