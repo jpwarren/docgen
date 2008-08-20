@@ -104,6 +104,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
           <!ELEMENT export (mountoption*)>
 	    <!ATTLIST export to IDREF #IMPLIED
+		             from #IMPLIED
 	                     ro (yes|no) 'no'>
             <!ELEMENT mountoption (#PCDATA)>			     
 
@@ -141,12 +142,16 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
       <!ELEMENT switchname (#PCDATA)>
       <!ELEMENT switchport (#PCDATA)>
       <!ELEMENT hostport (#PCDATA)>
-      <!ELEMENT vlan (#PCDATA)>
+      <!ELEMENT vlan (network*)>
         <!ATTLIST vlan type (project|services) 'project'
 	               number CDATA #REQUIRED
-		       network CDATA #REQUIRED
+		       network CDATA #IMPLIED
 		       netmask CDATA #IMPLIED
-		       gateway CDATA #REQUIRED>
+		       gateway CDATA #IMPLIED>
+        <!ELEMENT network EMPTY>
+	  <!ATTLIST network number CDATA #REQUIRED
+		            netmask CDATA #IMPLIED
+		            gateway CDATA #REQUIRED>
 
     <!ELEMENT iscsi_initiator (#PCDATA)>
     <!ELEMENT drhost EMPTY>

@@ -315,7 +315,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         primary_project_vlan = self.conf.get_project_vlan('primary')
         ns['primary_project_vlan'] = primary_project_vlan.number
         
-        ns['project_subnet'] = '%s/%s' % (primary_project_vlan.network, primary_project_vlan.maskbits)
+        ns['project_subnet'] = '%s/%s' % (primary_project_vlan.networks[0].number, primary_project_vlan.networks[0].maskbits)
         ns['primary_vlan_name'] = '%s_01' % self.conf.shortname
 
         if int(self.conf.primary_project_vlan) < 3500:
@@ -416,7 +416,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
             log.debug("Adding a services VLAN to doco: %s...", vlan)
             tblns['vlan_name'] = '%s_%02d' % (self.conf.shortname, i+1)
             tblns['vlan_number'] = vlan.number
-            tblns['vlan_subnet'] = '%s/%s' % (vlan.network, vlan.maskbits)
+            tblns['vlan_subnet'] = '%s/%s' % (vlan.networks[0].number, vlan.networks[0].maskbits)
 
             tables.append( services_networking_table.safe_substitute(tblns) )
 
@@ -715,12 +715,12 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         cmds = []
         for i, vlan in enumerate(self.conf.get_services_vlans()):
             cmds.append('set interface "ethernet0/3.2" tag %s zone "services"' % vlan.number)
-            cmds.append('set interface ethernet0/3.2 ip %s/%s' % (vlan.network, vlan.maskbits) )
+            cmds.append('set interface ethernet0/3.2 ip %s/%s' % (vlan.networks[0].number, vlan.networks[0].maskbits) )
             cmds.append('set interface ethernet0/3.2 route')
             cmds.append('set interface ethernet0/3.2 ip manageable')            
             cmds.append('set interface ethernet0/3.2 manage ping')
-            cmds.append('set address "services" "%s_SVC_%02d" %s %s' % (self.conf.shortname, i, vlan.network, vlan.netmask) )
-            cmds.append('set address "Untrust" "%s_SVC_%02d" %s.ipaddr 255.255.255.255' % (self.conf.shortname, i, vlan.network) )
+            cmds.append('set address "services" "%s_SVC_%02d" %s %s' % (self.conf.shortname, i, vlan.networks[0].number, vlan.networks[0].netmask) )
+            cmds.append('set address "Untrust" "%s_SVC_%02d" %s.ipaddr 255.255.255.255' % (self.conf.shortname, i, vlan.networks[0].number) )
             cmds.append('set interface ethernet0/0 ext ip 161.117.180.0 255.255.255.0 dip 5 161.117.180.2 161.117.180.2')
             cmds.append('set policy from "services" to "Untrust" "%s" 161.117.0.0/16 StorageAD nat src dip-id 5 permit log' % (self.conf.shortname, ))
         return cmds

@@ -477,7 +477,7 @@ class Volume:
             return True
 
 class Qtree:
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwhostlist=[], rohostlist=[], qtreenode=None, oplocks=True):
+    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwexports=[], roexports=[], qtreenode=None, oplocks=True):
 
         """
         A Qtree representation
@@ -489,8 +489,8 @@ class Qtree:
         self.name = qtree_name
         self.security = security
         self.comment = comment
-        self.rwhostlist = rwhostlist
-        self.rohostlist = rohostlist
+        self.rwexports = rwexports
+        self.roexports = roexports
         self.qtreenode = qtreenode
 
         self.oplocks = oplocks
@@ -503,7 +503,7 @@ class Qtree:
         #self.volume.qtrees.append(self)
 
     def __str__(self):
-        return '<Qtree: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.full_path(), self.volume.proto, self.security, [ str(x) for x in self.rwhostlist ], [ str(x) for x in self.rohostlist])
+        return '<Qtree: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.full_path(), self.volume.proto, self.security, [ str(x) for x in self.rwexports ], [ str(x) for x in self.roexports])
 
     def full_path(self):
         """
@@ -526,7 +526,7 @@ class LUN:
     A LUN lives in a Qtree and is used for iSCSI, predominantly.
     """
 
-    def __init__(self, name, qtree, lunid, size, ostype, initlist, lunnode=None):
+    def __init__(self, name, qtree, lunid, size, ostype, exportlist, lunnode=None):
 
         self.name = name
         self.qtree = qtree
@@ -547,7 +547,7 @@ class LUN:
         self.ostype = ostype
         self.lunid = lunid
         self.lunnode = lunnode
-        self.initlist = initlist
+        self.exportlist = exportlist
         
         self.igroup = None
 
@@ -573,16 +573,21 @@ class Vlan:
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, site='primary', type='project', network='', netmask='255.255.255.224', maskbits='27', gateway=None, description='', node=None):
+    def __init__(self, number, site='primary', type='project', networks=[], description='', node=None):
 
         self.site = site
         self.sitetype = site
         self.type = type
         self.number = number
-        self.gateway = gateway
-        self.network = network
-        self.netmask = netmask
-        self.maskbits = maskbits
+
+
+        self.networks = networks
+        
+##         self.network = network
+##         self.netmask = netmask
+##         self.gateway = gateway
+##         self.maskbits = maskbits
+
         self.description = description
 
         self.node = node
@@ -590,7 +595,43 @@ class Vlan:
         log.debug("Created vlan: %s", self)
 
     def __repr__(self):
-        return '<Vlan: %s, %s/%s>' % (self.number, self.site, self.type)
+        return '<Vlan: %s, %s/%s: %s>' % (self.number, self.site, self.type, self.networks)
+
+class Network:
+    """
+    A Network object encapsulates an IP network.
+    """
+
+    def __init__(self, number, netmask, maskbits, gateway):
+        """
+        Create a Network object
+        """
+        self.number = number
+        self.netmask = netmask
+        self.maskbits = maskbits
+        self.gateway = gateway
+
+    def __repr__(self):
+
+        return "<Network: %s/%s (%s) -> %s>" % (self.number, self.maskbits, self.netmask, self.gateway)
+
+class Export:
+    """
+    An encapsulation of a storage export
+    """
+    def __init__(self, tohost, fromip, type='rw'):
+        """
+        An export to a given host, from a particular address
+        """
+        self.type = type
+        self.tohost = tohost
+        self.fromip = fromip
+
+    def __eq__(self, export):
+        if export.type == self.type and export.tohost == self.tohost and export.fromip == self.fromip:
+            return True
+        else:
+            return False
 
 class iGroup:
     """
@@ -598,16 +639,16 @@ class iGroup:
     to the hosts (iSCSI initiators) that can access the LUNs.
     """
 
-    def __init__(self, name, filer, initlist=[], lunlist=[], type='windows'):
+    def __init__(self, name, filer, exportlist=[], lunlist=[], type='windows'):
         self.name = name
         self.filer = filer
         self.type = type
-        self.initlist = initlist
+        self.exportlist = exportlist
         self.lunlist = lunlist
         log.debug("Created iGroup %s", self)
 
     def __repr__(self):
-        return '<iGroup: %s, %s, %s, %s>' % (self.name, self.type, self.filer.name, self.initlist)
+        return '<iGroup: %s, %s, %s, %s>' % (self.name, self.type, self.filer.name, self.exportlist)
 
 class Snapshot:
     """
@@ -1153,8 +1194,10 @@ class ProjectConfig:
                 netmask = node.xpath("primaryip/netmask")[0].text
             except IndexError:
                 netmask = '255.255.255.254'
+                pass
 
-            gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
+            gateway = vlan.networks[0].gateway
+            #gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
 
             vfiler_key = '%s:%s' % (filer.name, name)
 
@@ -1294,7 +1337,8 @@ class ProjectConfig:
                 # FIXME: include determination of qtree name due to databases
                 else:
                     log.warn("No volume node available for: %s", vol)
-                    qtree = Qtree(vol, rwhostlist=self.hosts.values() )
+                    rwexports = [ Export(host, vol.filer.vfilers.values()[0].ipaddress, 'rw') for host in self.hosts.values() ]
+                    qtree = Qtree(vol, rwexports=rwexports )
                     qtree_list.append(qtree)
                     pass
                 pass
@@ -1339,12 +1383,12 @@ class ProjectConfig:
                                 log.warn("Qtree description should be wrapped in <description> tags")
                                 qtree_comment = qtree_node.text
 
-                        rwhostlist, rohostlist = self.get_export_hostlists(qtree_node)
+                        rwexports, roexports = self.get_export_hostlists(qtree_node, vol.filer.vfilers.values()[0].ipaddress)
                         
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
 
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwhostlist, rohostlist, qtreenode=qtree_node, oplocks=oplocks)
+                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwexports, roexports, qtreenode=qtree_node, oplocks=oplocks)
 
                         qtree_list.append(qtree)
                         pass
@@ -1376,41 +1420,41 @@ class ProjectConfig:
                             log.debug("onhost_names are: %s", onhost_names)
 
                             # Add manually defined exports, if any exist
-                            rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode, default_to_all=False)
-                            log.debug("database hostlists: %s, %s", rwhostlist, rohostlist)
+                            rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress, default_to_all=False)
+                            log.debug("database hostlists: %s, %s", rwexports, roexports)
                             
                             for hostname in onhost_names:
-                                log.debug("Database %s is on host %s. Adding to rwhostlist." % (sid, hostname) )
+                                log.debug("Database %s is on host %s. Adding to rwexports." % (sid, hostname) )
                                 try:
-                                    if self.hosts[hostname] not in rwhostlist:
-                                        rwhostlist.append(self.hosts[hostname])
+                                    if self.hosts[hostname] not in [ export.tohost for export in rwexports ]:
+                                        rwexports.append(Export(self.hosts[hostname], vol.filer.vfilers.values()[0].ipaddress, 'rw') )
                                 except KeyError:
                                     log.error("Database '%s' is on host '%s', but the host is not defined." % (sid, hostname) )
                                     raise
                                 pass
 
                         except IndexError:
-                            rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
+                            rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress)
 
                         # If the hostlist is empty, assume qtrees are available to all hosts
-                        if len(rwhostlist) == 0 and len(rohostlist) == 0:
-                            log.debug("rwhostlist and rohostlist are both empty. Adding all hosts...")
-                            rwhostlist = self.hosts.values()
+                        if len(rwexports) == 0 and len(roexports) == 0:
+                            log.debug("rwexports and roexports are both empty. Adding all hosts...")
+                            rwexports = [ Export(host, vol.filer.vfilers.values()[0].ipaddress, 'rw') for host in self.hosts.values() ]
 
-                        log.debug("hostlists are now: %s, %s", rwhostlist, rohostlist)
+                        log.debug("hostlists are now: %s, %s", rwexports, roexports)
                             
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
                             security = 'unix'
                             comment = 'Oracle configuration qtree'
-                            qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                             qtree_list.append(qtree)
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
                             security = 'unix'
                             comment = 'Oracle quorum qtree'
-                            qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                             qtree_list.append(qtree)
 
                         else:
@@ -1418,7 +1462,7 @@ class ProjectConfig:
                             qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
                             security = 'unix'
                             comment = 'Oracle %s qtree' % vol.type[3:]
-                            qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                             qtree_list.append(qtree)
 
                             #
@@ -1429,7 +1473,7 @@ class ProjectConfig:
                                 qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
                                 security = 'unix'
                                 comment = 'Oracle temp qtree'
-                                qtree = Qtree(vol, qtree_name, security, comment, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
+                                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                                 qtree_list.append(qtree)
                                 pass
                             pass
@@ -1447,9 +1491,9 @@ class ProjectConfig:
                             pass
 
                         # Figure out the hostlist by checking for volume based export definitions
-                        rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)                        
+                        rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress)
 
-                        qtree = Qtree(vol, security=qtree_security, rwhostlist=rwhostlist, rohostlist=rohostlist, oplocks=oplocks)
+                        qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                         qtree_list.append(qtree)
                     pass
                 pass
@@ -1461,21 +1505,23 @@ class ProjectConfig:
             if len(vol.snapmirrors) > 0:
 
                 for qtree in vol.qtrees.values():
-                    dr_rwhostlist = []
-                    dr_rohostlist = []
+                    dr_rwexports = []
+                    dr_roexports = []
 
                     # Add rw drhosts for the qtree
-                    for host in qtree.rwhostlist:
-                        dr_rwhostlist.extend([ self.hosts[hostname] for hostname in host.drhosts ])
+                    for export in qtree.rwexports:
+                        for drhost in export.tohost.drhosts:
+                            dr_rwexports.append( Export(drhost, export.fromip, export.type))
                         pass
 
-                    for host in qtree.rohostlist:
-                        dr_rohostlist.extend([ self.hosts[hostname] for hostname in host.drhosts ])
+                    for export in qtree.roexports:
+                        for drhost in export.tohost.drhosts:
+                            dr_roexports.append( Export(drhost, export.fromip, export.type))
                         pass
 
                     # If either list is not empty, we need to create a Qtree on the
                     # snapmirror target volume with appropriate exports
-                    if len(dr_rwhostlist) > 0 or len(dr_rohostlist) > 0:
+                    if len(dr_rwexports) > 0 or len(dr_roexports) > 0:
                         log.debug("qtree '%s:%s' needs to be exported at DR", qtree.volume.name, qtree.name)
 
                         # Create one remote qtree for each snapmirror relationship
@@ -1485,8 +1531,8 @@ class ProjectConfig:
                                                     qtree.name,
                                                     qtree.security,
                                                     qtree.comment,
-                                                    dr_rwhostlist,
-                                                    dr_rohostlist,
+                                                    dr_rwexports,
+                                                    dr_roexports,
                                                     oplocks=qtree.oplocks
                                                     )
                             qtree_list.append(mirrored_qtree)
@@ -1515,11 +1561,11 @@ class ProjectConfig:
 
         # always add read/write or read-only mount options, because
         # they're really important.
-        if host in qtree.rwhostlist:
+        if host in qtree.rwexports:
             #log.debug("Read/Write host")
             mountoptions.append('rw')
 
-        if host in qtree.rohostlist:
+        if host in qtree.roexports:
             #log.debug("Read-only host")
             mountoptions.append('ro')
             pass
@@ -1631,10 +1677,10 @@ class ProjectConfig:
                     log.debug("Allocating %sg storage to LUN", lunsize)
                     lun_total += lunsize
                     
-                    rwhostlist, rohostlist = self.get_export_hostlists(lunnode)
-                    hostlist = rwhostlist + rohostlist
+                    rwexports, roexports = self.get_export_hostlists(lunnode, vol.filer.vfilers.values()[0].ipaddress)
+                    exportlist = rwexports + roexports
 
-                    log.debug("LUN will be exported to %s", hostlist)
+                    log.debug("LUN will be exported to %s", exportlist)
 
                     # See if a qtree parent node exists
                     try:
@@ -1648,16 +1694,14 @@ class ProjectConfig:
                     try:
                         lunname = lunnode.xpath("@name")[0]
                     except IndexError:
-                        if hostlist[0].iscsi_initiator is None:
-                            raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
+                        if exportlist[0].tohost.iscsi_initiator is None:
+                            raise ValueError("Host %s has no iSCSI initiator defined." % exportlist[0].tohost.name)
 
                         lunname = '%s.lun%02d' % (self.shortname, lunid)
-                        #lunname = '%s/%s_lun%02d.lun' % (qtree_parent.full_path(), self.shortname, lunid)
-                        #lunname = '%s_%s_lun%02d.lun' % (self.shortname, hostlist[0].iscsi_initiator, lunid)
                         pass
                 
                     # Add a LUN for each one found within the volume
-                    newlun = LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode)
+                    newlun = LUN( lunname, qtree_parent, lunid, lunsize, exportlist[0].tohost.os, exportlist, lunnode)
                     lunlist.append( newlun )
 
                     # If the volume has snapmirrors, we will need to create a LUN on the
@@ -1672,15 +1716,15 @@ class ProjectConfig:
 
             # If no LUNs are specified, invent one for the volume.
             else:
-                log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the wvhole volume.")
+                log.debug("iSCSI volume specified, but no LUNs specified. A LUN will be created to use the whole volume.")
                 lunnode = None
 
                 lunsize = vol.usable / 2.0
                 log.debug("calculated lun size of: %s", lunsize)
                 lun_total += lunsize
 
-                rwhostlist, rohostlist = self.get_export_hostlists(vol.volnode)
-                hostlist = rwhostlist + rohostlist
+                rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress)
+                hostlist = rwexports + roexports
 
                 log.debug("LUN will be exported to %s", hostlist)
 
@@ -1718,14 +1762,14 @@ class ProjectConfig:
             qtree_parent = sm.targetvol.qtrees[srclun.qtree.name]
 
             # Figure out which hosts the LUN should be exported to
-            initlist = []
-            for host in srclun.initlist:
-                for drhostname in host.drhosts:
+            exportlist = []
+            for export in srclun.exportlist:
+                for drhostname in export.tohost.drhosts:
                     drhost = self.hosts[drhostname]
-                    if drhost not in initlist:
-                        initlist.append(drhost)
+                    if drhost not in [ host.tohost for host in exportlist ]:
+                        exportlist.append(Export(drhost, export.fromip, export.type))
 
-            smlun = LUN( srclun.name, qtree_parent, srclun.lunid, srclun.size, srclun.ostype, initlist )
+            smlun = LUN( srclun.name, qtree_parent, srclun.lunid, srclun.size, srclun.ostype, exportlist )
             return smlun
 
     def load_igroups(self):
@@ -1733,8 +1777,8 @@ class ProjectConfig:
         Load iGroup definitions based on previously loaded LUN definitions.
         If manually defined igroups exist, use those instead.
         """
-        # For each LUN in the lunlist, create an iGroup for its initlist.
-        # If multiple LUNs are exported to the same initlist, they are
+        # For each LUN in the lunlist, create an iGroup for its exportlist.
+        # If multiple LUNs are exported to the same exportlist, they are
         # exported to the same iGroup, so a new one is not created.
         igroups = []
 
@@ -1749,9 +1793,9 @@ class ProjectConfig:
                 filer = self.filers[filername]
                 
                 # Build the list of hosts this igroup maps to
-                initlist = [ self.hosts[hostname] for hostname in ig.xpath('member/@name') ]
-                log.debug("setting initlist for igroup to: %s", initlist)
-                igroup = iGroup(igroup_name, filer, initlist=initlist)
+                exportlist = [ Export(self.hosts[hostname], filer.vfilers.values()[0].ipaddress, 'rw') for hostname in ig.xpath('member/@name') ]
+                log.debug("setting exportlist for igroup to: %s", exportlist)
+                igroup = iGroup(igroup_name, filer, exportlist=exportlist)
                 igroups.append(igroup)
                 pass
         
@@ -1797,24 +1841,36 @@ class ProjectConfig:
                 for lun in siteluns:
                     log.debug("Building iGroups for LUN: %s", lun)
                     for ig in site_igroups:
-                        log.debug("checking match of initlist: %s with %s", ig.initlist, lun.initlist)
+                        log.debug("checking match of exportlist: %s with %s", ig.exportlist, lun.exportlist)
+                        pass
+
+                    # Check to see if the exports in both lists are equivalent
+                    # FIXME: This check now needs to be more complex.
+                    matchedgroups = []
+                    for ig in site_igroups:
+                        for a, b in zip(ig.exportlist, lun.exportlist):
+                            if a == b:
+                                matchedgroups.append(ig)
+                                pass
+                            pass
+                        pass
                     
-                    matchedgroups = [ ig for ig in site_igroups if ig.initlist == lun.initlist ]
+                    #matchedgroups = [ ig for ig in site_igroups if [ a == b for a,b in zip(ig.exportlist, lun.exportlist)] ]
                     if len(matchedgroups) == 0:
-                        log.debug("initlist %s has not had a group created for it yet", lun.initlist)
+                        log.debug("exportlist %s has not had a group created for it yet", lun.exportlist)
                         igroup_number = len(site_igroups)
                         igroup_name = '%s_igroup%02d' % ( self.shortname, igroup_number )
 
-                        # Add a list of one LUN to a brand new iGroup with this LUN's initlist
+                        # Add a list of one LUN to a brand new iGroup with this LUN's exportlist
                         # The iGroup type defaults the same as the first LUN type that it contains.
-                        group = iGroup(igroup_name, lun.qtree.volume.filer, lun.initlist, [lun,], type=lun.ostype)
+                        group = iGroup(igroup_name, lun.qtree.volume.filer, lun.exportlist, [lun,], type=lun.ostype)
                         lun.igroup = group
                         site_igroups.append(group)
 
                     else:
-                        log.debug("Aha! An iGroup with this initlist already exists!")
+                        log.debug("Aha! An iGroup with this exportlist already exists!")
                         if len(matchedgroups) > 1:
-                            log.warning("Multiple iGroups exist for the same initlist! This is a bug!")
+                            log.warning("Multiple iGroups exist for the same exportlist! This is a bug!")
                         group = matchedgroups[0]
                         log.debug("Appending LUN to iGroup %s", group.name)
                         if group.type != lun.ostype:
@@ -1838,7 +1894,7 @@ class ProjectConfig:
         warn("use get_host_qtree_options instead", DeprecationWarning, stacklevel=1)
         mountoptions = []
 
-        osname = qtree.rwhostlist[0].os
+        osname = qtree.rwexports[0].os
         
         if qtree.volume.type in ['oracm', ]:
             log.debug("Oracle quorum qtree detected.")
@@ -1877,6 +1933,47 @@ class ProjectConfig:
 
         return mountoptions
 
+    def setup_vlan_networks(self, nodelist):
+        """
+        Create a list of Network objects from a set of <network/> nodes.
+        The nodes are child elements of a <vlan/> element.
+
+        @return: a list of networks.
+        """
+        network_list = []
+        
+        log.debug("Found network nodes: %s", nodelist)
+        for node in nodelist:
+
+            try:
+                number = node.attrib['number']
+            except KeyError:
+                raise KeyError("<network/> element has no 'number' attribute.")
+
+            # Detect slash notation for network number/mask
+            if number.find('/') > 0:
+                try:
+                    number, netmask, maskbits = self.str2net(number)
+                except:
+                    log.error("Error with network number for VLAN %s", number)
+                    raise
+            else:
+                try:
+                    netmask = node.attrib['netmask']
+                except KeyError:
+                    raise KeyError("network %s has no netmask defined." % number)
+                pass
+
+            try:
+                gateway = node.attrib['gateway']
+            except KeyError:
+                raise KeyError("<network/> element has no 'gateway' attribute.")
+
+            network_list.append( Network(number, netmask, maskbits, gateway) )
+            pass
+
+        return network_list
+
     def load_vlans(self):
         """
         Load all the vlan definitions
@@ -1890,12 +1987,19 @@ class ProjectConfig:
             type = node.xpath("@type")[0]
 
             number = node.xpath("@number")[0]
-            gateway = node.xpath("@gateway")[0]
 
-            netmask = None
+            network_list = []
+
+            # Detect the old form of network definition, and accept it
+            # for now, converting it to the new form.
             try:
-                network = node.xpath("@network")[0]
 
+                log.warning("Old style network definition detected. Upgrade to new DTD schema should be performed.")
+
+                # Build a network from the old style definitions
+                network = node.xpath("@network")[0]
+                netmask = None
+                
                 # check to see if the network is defined with slash notation for a netmask
                 if network.find('/') > 0:
                     try:
@@ -1905,30 +2009,41 @@ class ProjectConfig:
                         raise
 
                     log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
+                    pass
                 
-            except IndexError:
-                log.error("VLAN %s does not have a network number", number)
-                raise
+                # If a slashmask isn't used, try to find the netmask definition
+                if netmask is None:
+                    log.debug("netmask is None. Network is: %s", network)
+                    try:
+                        netmask = node.xpath("@netmask")[0]
 
-            # If a slashmask is used, override any netmask that might be set.
-            if netmask is None:
-                log.debug("netmask is None. Network is: %s", network)
-                try:
-                    netmask = node.xpath("@netmask")[0]
-
-                    # Also, convert netmask to the number of bits in a slash notation
-                    maskbits = self.mask2bits(netmask)
+                        # Also, convert netmask to the number of bits in a slash notation
+                        maskbits = self.mask2bits(netmask)
                     
-                except IndexError:
-                    log.error("VLANs must have a netmask defined.")
-                    raise
+                    except IndexError:
+                        log.error("VLANs must have a netmask defined.")
+                        raise
                     pass
 
+                gateway = node.xpath("@gateway")[0]
+
+                # Add the network definition to the list of networks
+                netobj = Network( network, netmask, maskbits, gateway )
+
+                network_list.append( netobj )
+                
+            except IndexError:
+                pass
+
+            # Load new style network definitions
+            network_nodes = node.findall('network')
+            network_list.extend( self.setup_vlan_networks( network_nodes ) )
+                
             description = node.text
             if description is None:
                 description = ''
             
-            vlan = Vlan(number, site, type, network, netmask, maskbits, gateway, description, node)
+            vlan = Vlan(number, site, type, network_list, description, node)
             vlans.append(vlan)
             pass
 
@@ -2258,47 +2373,6 @@ class ProjectConfig:
         log.debug("luns are: %s", luns)
         return luns
 
-    def __get_iscsi_initiators(self, node):
-        """
-        DEPRECATED
-        Given a node, look for <export to=/> nodes and then look up
-        the initiator name for the given host that is listed as
-        the export destination for the iSCSI LUN.
-        The node may be a volume, qtree or LUN; this is used to group
-        all export definitions at the same level into the same iGroup.
-
-        If no export definitions exist as a descendent node, find any
-        ancestor nodes that have an export definition.
-        """
-        log.debug("finding initiators for LUN: %s", node.xpath("@name"))
-        initlist = []
-
-        rwhostlist, rohostlist = self.get_export_hostlists(node)
-
-        for host in rwhostlist:
-            log.error("I HAVE A HOST: %s", host)
-            
-            hostname = export.xpath("@to")[0]
-            initname = self.tree.xpath("host[@name = '%s']/iscsi_initiator" % hostname)[0].text
-            operatingsystem = self.tree.xpath("host[@name = '%s']/operatingsystem" % hostname)[0].text
-            if operatingsystem.lower().startswith('solaris'):
-                ostype = 'solaris'
-
-            elif operatingsystem.lower().startswith('windows'):
-                ostype = 'windows'
-
-            elif operatingsystem.lower().startswith('linux'):
-                ostype = 'linux'
-
-            else:
-                log.error("Operating system '%s' is not supported for iSCSI", operatingsystem)
-
-            initlist.append((hostname,initname,ostype))
-            pass
-
-        log.debug("initators: %s", initlist)        
-        return initlist
-
     def get_export_nodes(self, node):
         """
         Find export nodes that are children of the current node.
@@ -2316,50 +2390,57 @@ class ProjectConfig:
             log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
             return exports
 
-    def get_export_hostlists(self, node, default_to_all=True):
+    def get_export_hostlists(self, node, fromip, default_to_all=True):
         """
         Find the list of hosts for read/write and readonly mode based
         on the particular qtree, volume or lun node supplied.
 
-        If default_to_all is set to True, this will set the rwhostlist
-        to all known hosts if both rwhostlist and rohostlist would
+        If default_to_all is set to True, this will set the rwexports
+        to all known hosts if both rwexports and roexports would
         otherwise be empty.
         """
-        rohostnames = []
-        rwhostnames = []
+        roexports = []
+        rwexports = []
         
         export_nodes = node.xpath("ancestor-or-self::*/export")
         for exnode in export_nodes:
+
+            # See if we're exporting from a specific IP address
+            # Override the default passed in if we are.
+            try:
+                fromip = exnode.attrib['from']
+            except KeyError:
+                pass
+
             # get the hostname
             hostname = exnode.attrib['to']
+            try:
+                host = self.hosts[hostname]
+            except KeyError:
+                raise KeyError("Hostname '%s' in <export/> is not defined." % hostname)
+
             log.debug("export to %s found", hostname)
             try:
                 if exnode.attrib['ro'] == 'yes':
-                    rohostnames.append( hostname )
+                    roexports.append( Export(host, fromip, 'ro') )
                 else:
-                    rwhostnames.append( hostname )
+                    rwexports.append( Export(host, fromip, 'rw') )
             # If the 'ro' attrib isn't set, we export read/write
             except KeyError, e:
-                rwhostnames.append( hostname )
+                rwexports.append( Export(host, fromip, 'rw') )
             
-##         rohostnames = node.xpath("ancestor-or-self::*/export[@ro = 'yes']/@to")
-        log.debug("rohostnames for %s: %s", node, rohostnames)
-
-##         rwhostnames = node.xpath("ancestor-or-self::*/export[not(@ro)]/@to")
-        log.debug("rwhostnames for %s: %s", node, rwhostnames)
-
-        try:
-            rwhostlist = [ self.hosts[hostname] for hostname in rwhostnames ]
-            rohostlist = [ self.hosts[hostname] for hostname in rohostnames ]
-        except KeyError:
-            raise KeyError("Hostname '%s' in <export/> is not defined." % hostname)
+        log.debug("roexports for %s: %s", node, roexports)
+        log.debug("rwexports for %s: %s", node, rwexports)
 
         # If both lists are empty, default to exporting read/write to all hosts
         if default_to_all:
-            if len(rwhostlist) == 0 and len(rohostlist) == 0:
-                rwhostlist = self.hosts.values()
-        
-        return rwhostlist, rohostlist
+            if len(rwexports) == 0 and len(roexports) == 0:
+                rwexports = [ Export(host, fromip, 'rw') for host in self.hosts.values() ]
+
+        log.debug("roexports for %s: %s", node, roexports)
+        log.debug("rwexports for %s: %s", node, rwexports)
+
+        return rwexports, roexports
 
     def get_extra_mountoptions(self, node, host):
         """
@@ -2780,7 +2861,7 @@ class ProjectConfig:
             else:
                 cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number,
                                                                            ipaddr,
-                                                                           vlan.netmask)
+                                                                           vlan.networks[0].netmask)
                 pass
 
             # Add partner clause if this is a primary or secondary filer
@@ -2828,7 +2909,7 @@ class ProjectConfig:
         cmdset = []
         title = "Default Route"
         proj_vlan = self.get_project_vlan(filer.site.type)
-        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.gateway) )
+        cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.networks[0].gateway) )
         return title, cmdset
     
     def services_vlan_route_commands(self, vfiler):
@@ -2845,14 +2926,14 @@ class ProjectConfig:
             log.debug("Adding services routes: %s", vlan)
             for ipaddr in vfiler.nameservers:
                 if ipaddr not in known_dests:
-                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
+                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.networks[0].gateway) )
                     known_dests.append(ipaddr)
                     pass
                 pass
             
             for ipaddr in vfiler.winsservers:
                 if ipaddr not in known_dests:
-                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.gateway) )
+                    cmdset.append("vfiler run %s route add host %s %s 1" % (vfiler.name, ipaddr, vlan.networks[0].gateway) )
                     known_dests.append(ipaddr)
                     pass
                 pass
@@ -2975,13 +3056,13 @@ class ProjectConfig:
 
                 # Find read/write exports
                 rw_export_to = []
-                for host in qtree.rwhostlist:
+                for host in qtree.rwexports:
                     rw_export_to.extend(host.get_storage_ips())
                     pass
 
                 # Find read-only exports
                 ro_export_to = []
-                for host in qtree.rohostlist:
+                for host in qtree.roexports:
                     ro_export_to.extend(host.get_storage_ips())
                     pass
                 
@@ -3042,9 +3123,9 @@ class ProjectConfig:
 
                 cmds.append('vfiler run %s cifs access %s \"domain admins\" rwx' % (vfiler.name, qtree.cifs_share_name() ) )
 
-##                 for host in qtree.rwhostlist:
+##                 for host in qtree.rwexports:
 ##                     cmds.append("vfiler run %s cifs access %s CORP\%s Full Control" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
-##                 for host in qtree.rohostlist:
+##                 for host in qtree.roexports:
 ##                     cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
 
         return cmds
@@ -3080,12 +3161,12 @@ class ProjectConfig:
         title = "iSCSI iGroup Configuration for %s" % filer.name
         cmds = []
         for igroup in self.get_filer_iscsi_igroups(filer):
-            if igroup.initlist[0].iscsi_initiator is None:
-                raise ValueError("Host %s in igroup has no iSCSI initiator defined" % igroup.initlist[0].name)
-            cmds.append("vfiler run %s igroup create -i -t %s %s %s" % (vfiler.name, igroup.type, igroup.name, igroup.initlist[0].iscsi_initiator) )
-            if len(igroup.initlist) > 1:
-                for host in igroup.initlist[1:]:
-                    cmds.append("vfiler run %s igroup add %s %s" % (vfiler.name, igroup.name, host.iscsi_initiator) )
+            if igroup.exportlist[0].tohost.iscsi_initiator is None:
+                raise ValueError("Host %s in igroup has no iSCSI initiator defined" % igroup.exportlist[0].tohost.name)
+            cmds.append("vfiler run %s igroup create -i -t %s %s %s" % (vfiler.name, igroup.type, igroup.name, igroup.exportlist[0].tohost.iscsi_initiator) )
+            if len(igroup.exportlist) > 1:
+                for export in igroup.exportlist[1:]:
+                    cmds.append("vfiler run %s igroup add %s %s" % (vfiler.name, igroup.name, export.tohost.iscsi_initiator) )
         return title, cmds
 
     def vfiler_lun_enable_commands(self, filer, vfiler):
@@ -3467,16 +3548,16 @@ class ProjectConfig:
         # FIXME: This assumes that networks are assigned on the ideal network
         # boundary, not across nominal /24 boundaries by making a /24 out of
         # 2 /25s that span a third octet. Eg: 10.10.3.128/25 + 10.10.4.0/25
-        hostmask = self.inverse_mask_str(vlan.netmask)
+        hostmask = self.inverse_mask_str(vlan.networks[0].netmask)
         
-        cmdset.append("  deny ip %s 0.0.0.7 any" % vlan.network)
+        cmdset.append("  deny ip %s 0.0.0.7 any" % vlan.networks[0].number)
         cmdset.append("  remark Permit Hosts To Storage Devices")
-        cmdset.append("  permit ip %s %s %s 0.0.0.7" % (vlan.network, hostmask, vlan.network) )
+        cmdset.append("  permit ip %s %s %s 0.0.0.7" % (vlan.networks[0].number, hostmask, vlan.networks[0].number) )
 
         # outbound access list
         cmdset.append("ip access-list extended %s_out" % self.shortname)
         cmdset.append("  remark Permit Storage Devices To Hosts")
-        cmdset.append("  permit ip %s 0.0.0.7 %s %s" % (vlan.network, vlan.network, hostmask) )
+        cmdset.append("  permit ip %s 0.0.0.7 %s %s" % (vlan.networks[0].number, vlan.networks[0].number, hostmask) )
         
         return cmdset
 

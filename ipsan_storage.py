@@ -884,7 +884,7 @@ the host activation guides.
         ns['primary_services_vlan_rows'] = self.get_services_rows(ns, 'primary')
         ns['dr_services_vlan_rows'] = self.get_services_rows(ns, 'secondary')
 
-        ns['project_gateway'] = self.conf.get_project_vlan('primary').gateway
+        ns['project_gateway'] = self.conf.get_project_vlan('primary').networks[0].gateway
 
         ns['primary_site_vfiler_section'] = primary_section.safe_substitute(ns)
         ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
