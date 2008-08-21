@@ -52,13 +52,15 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
       <!ATTLIST filer type (primary | secondary | nearstore) #REQUIRED
                       name ID #REQUIRED>
 
-      <!ELEMENT vfiler (name?, protocol*, primaryip?, vlanip*, testip?, aggregate*, igroup*)>
+      <!ELEMENT vfiler (name?, protocol*, primaryip?, aliasip*, vlanip*, testip?, aggregate*, igroup*)>
         <!ATTLIST vfiler rootaggr CDATA #REQUIRED
 	                 name CDATA #IMPLIED>
         <!ELEMENT protocol (#PCDATA)>
         <!ELEMENT primaryip (ipaddr, netmask)>
 	  <!ELEMENT ipaddr (#PCDATA)>
 	  <!ELEMENT netmask (#PCDATA)>
+
+        <!ELEMENT aliasip (ipaddr, netmask)>
 
         <!ELEMENT vlanip (ipaddr, netmask?)>
 	  <!ATTLIST vlanip vlan CDATA #REQUIRED>
@@ -104,7 +106,8 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
           <!ELEMENT export (mountoption*)>
 	    <!ATTLIST export to IDREF #IMPLIED
-		             from #IMPLIED
+		             fromip CDATA #IMPLIED
+		             toip CDATA #IMPLIED
 	                     ro (yes|no) 'no'>
             <!ELEMENT mountoption (#PCDATA)>			     
 

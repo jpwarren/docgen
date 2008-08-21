@@ -1462,35 +1462,52 @@ the host activation guides.
             # For each qtree, add a row for each host that needs to mount it
 
             # Read/Write mounts
-            for host in qtree.rwhostlist:
-                filerip = qtree.volume.filer.vfilers.values()[0].ipaddress
+            for export in qtree.rwexports:
+                filerip = export.fromip
+
                 #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                mountopts = self.conf.get_host_qtree_mountoptions(host, qtree)
+                mountopts = self.conf.get_host_qtree_mountoptions(export.tohost, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
+
+                # Optional IP address that should be used on the host to mount the storage
+                # Only have this in the document if a toip is defined.
+                if export.toip is not None:
+                    toip_string = "<para>%s</para>" % export.toip
+                else:
+                    toip_string = ""
+                    
                 entries = """
                     <entry><para>%s:/vol/%s/%s</para></entry>
-                    <entry><para>%s</para></entry>
+                    <entry><para>%s</para>%s</entry>
                     <entry>%s</entry>
-                    """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
+                    """ % ( filerip, qtree.volume.name, qtree.name, export.tohost.name, toip_string, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)
                 pass
 
             # Read Only mounts
-            for host in qtree.rohostlist:
-                filerip = qtree.volume.filer.vfilers.values()[0].ipaddress
+            for export in qtree.roexports:
+                filerip = export.fromip
+
                 #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                mountopts = self.conf.get_host_qtree_mountoptions(host, qtree)
+                mountopts = self.conf.get_host_qtree_mountoptions(export.tohost, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
 
+                # Optional IP address that should be used on the host to mount the storage
+                # Only have this in the document if a toip is defined.
+                if export.toip is not None:
+                    toip_string = "<para>%s</para>" % export.toip
+                else:
+                    toip_string = ""
+                    
                 entries = """
                     <entry><para>%s:/vol/%s/%s</para></entry>
-                    <entry><para>%s</para></entry>
+                    <entry><para>%s</para>%s</entry>
                     <entry>%s</entry>
-                    """ % ( filerip, qtree.volume.name, qtree.name, host.name, mountoptions )
+                    """ % ( filerip, qtree.volume.name, qtree.name, export.tohost.name, toip_string, mountoptions )
                 row = "<row valign='middle'>%s</row>" % entries
                 rows.append(row)
-                log.debug("Added ro host/qtree: %s/%s", host.name, qtree.name)
+                log.debug("Added ro host/qtree: %s/%s", export.tohost.name, qtree.name)
                 pass
 
             pass
@@ -1658,7 +1675,7 @@ the host activation guides.
         igroup_list = self.conf.get_filer_iscsi_igroups(filer)
         for igroup in igroup_list:
             entries = "<entry><para>%s</para></entry>\n" % igroup.name
-            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % host.iscsi_initiator for host in igroup.initlist ] )
+            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % export.tohost.iscsi_initiator for export in igroup.exportlist ] )
             entries += "<entry><para>iSCSI</para></entry>\n"
             entries += "<entry><para>%s</para></entry>\n" % igroup.type            
 
@@ -1870,12 +1887,12 @@ the host activation guides.
                     perms = []
                     # FIXME: Read/write or read-only permissions are not
                     # properly supported on CIFS as yet.
-                    if len(qtree.rwhostlist) > 0:
+                    if len(qtree.rwexports) > 0:
                         perms.append( "<para>Domain Admins rwx</para>" )
                         #perms.extend( [ "<para>CORP\%s &lt;full&gt;</para>" % x.name for x in qtree.rwhostlist ] )
                         pass
                     
-                    if len(qtree.rohostlist) > 0:
+                    if len(qtree.roexports) > 0:
                         perms.append( "<para>Domain Admins rwx</para>" )
                         #perms.extend( [ "<para>CORP\%s &lt;read-only&gt;</para>" % x.name for x in qtree.rohostlist ] )
                         pass

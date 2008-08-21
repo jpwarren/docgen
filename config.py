@@ -243,6 +243,7 @@ class Filer:
 class VFiler:
     
     def __init__(self, filer, name, rootaggr, vlan, ipaddress, gateway, netmask='255.255.255.254',
+                 alias_ips = [],
                  dns_domain_name = 'eigenmagic.com',
                  ad_account_location = 'OU=IPSAN,OU=eigenmagic,OU=com',
                  nameservers = [],
@@ -256,6 +257,7 @@ class VFiler:
         self.ipaddress = ipaddress
         self.netmask = netmask
         self.gateway = gateway
+        self.alias_ips = alias_ips
         self.volumes = []
 
 
@@ -617,15 +619,16 @@ class Network:
 
 class Export:
     """
-    An encapsulation of a storage export
+    An encapsulation of a storage export to a specific host/IP
     """
-    def __init__(self, tohost, fromip, type='rw'):
+    def __init__(self, tohost, fromip, type='rw', toip=None):
         """
         An export to a given host, from a particular address
         """
         self.type = type
         self.tohost = tohost
         self.fromip = fromip
+        self.toip = toip
 
     def __eq__(self, export):
         if export.type == self.type and export.tohost == self.tohost and export.fromip == self.fromip:
@@ -1188,6 +1191,7 @@ class ProjectConfig:
             except IndexError:
                 log.error("Cannot find vlan number for %s" % filername )
                 raise
+
             ipaddress = node.xpath("primaryip/ipaddr")[0].text
 
             try:
@@ -1195,6 +1199,14 @@ class ProjectConfig:
             except IndexError:
                 netmask = '255.255.255.254'
                 pass
+
+            # Add any alias IP addresses that may be defined.
+            aliasnodes = node.findall('aliasip')
+            alias_ips = []
+            for alias_node in aliasnodes:
+                alias_ipaddr = alias_node.find('ipaddr').text
+                alias_netmask = alias_node.find('netmask').text
+                alias_ips.append( (alias_ipaddr, alias_netmask) )
 
             gateway = vlan.networks[0].gateway
             #gateway = node.xpath("ancestor::site/vlan/@gateway")[0]
@@ -1210,6 +1222,7 @@ class ProjectConfig:
             site = [ site for site in self.sites.values() if site.type == filer.site.type ][0]
             
             vfilers[vfiler_key] = VFiler(filer, name, rootaggr, vlan, ipaddress, gateway, netmask,
+                                         alias_ips,
                                          dns_domain_name, ad_account_location,
                                          site.nameservers, site.winsservers)
 
@@ -1510,13 +1523,13 @@ class ProjectConfig:
 
                     # Add rw drhosts for the qtree
                     for export in qtree.rwexports:
-                        for drhost in export.tohost.drhosts:
-                            dr_rwexports.append( Export(drhost, export.fromip, export.type))
+                        for drhostname in export.tohost.drhosts:
+                            dr_rwexports.append( Export(self.hosts[drhostname], export.fromip, export.type, export.toip))
                         pass
 
                     for export in qtree.roexports:
-                        for drhost in export.tohost.drhosts:
-                            dr_roexports.append( Export(drhost, export.fromip, export.type))
+                        for drhostname in export.tohost.drhosts:
+                            dr_roexports.append( Export(self.hosts[drhostname], export.fromip, export.type, export.toip))
                         pass
 
                     # If either list is not empty, we need to create a Qtree on the
@@ -1561,11 +1574,11 @@ class ProjectConfig:
 
         # always add read/write or read-only mount options, because
         # they're really important.
-        if host in qtree.rwexports:
+        if host in [ export.tohost for export in qtree.rwexports ]:
             #log.debug("Read/Write host")
             mountoptions.append('rw')
 
-        if host in qtree.roexports:
+        if host in [ export.tohost for export in qtree.roexports ]:
             #log.debug("Read-only host")
             mountoptions.append('ro')
             pass
@@ -1767,7 +1780,7 @@ class ProjectConfig:
                 for drhostname in export.tohost.drhosts:
                     drhost = self.hosts[drhostname]
                     if drhost not in [ host.tohost for host in exportlist ]:
-                        exportlist.append(Export(drhost, export.fromip, export.type))
+                        exportlist.append(Export(drhost, export.fromip, export.type, export.toip))
 
             smlun = LUN( srclun.name, qtree_parent, srclun.lunid, srclun.size, srclun.ostype, exportlist )
             return smlun
@@ -2390,7 +2403,7 @@ class ProjectConfig:
             log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
             return exports
 
-    def get_export_hostlists(self, node, fromip, default_to_all=True):
+    def get_export_hostlists(self, node, default_fromip, default_to_all=True):
         """
         Find the list of hosts for read/write and readonly mode based
         on the particular qtree, volume or lun node supplied.
@@ -2408,8 +2421,10 @@ class ProjectConfig:
             # See if we're exporting from a specific IP address
             # Override the default passed in if we are.
             try:
-                fromip = exnode.attrib['from']
+                fromip = exnode.attrib['fromip']
             except KeyError:
+                # Use the default passed in
+                fromip = default_fromip
                 pass
 
             # get the hostname
@@ -2419,15 +2434,22 @@ class ProjectConfig:
             except KeyError:
                 raise KeyError("Hostname '%s' in <export/> is not defined." % hostname)
 
+            # If we're exporting to a specific host IP address, get it
+            try:
+                toip = exnode.attrib['toip']
+            except KeyError:
+                toip = None
+                pass
+
             log.debug("export to %s found", hostname)
             try:
                 if exnode.attrib['ro'] == 'yes':
-                    roexports.append( Export(host, fromip, 'ro') )
+                    roexports.append( Export(host, fromip, 'ro', toip) )
                 else:
-                    rwexports.append( Export(host, fromip, 'rw') )
+                    rwexports.append( Export(host, fromip, 'rw', toip) )
             # If the 'ro' attrib isn't set, we export read/write
             except KeyError, e:
-                rwexports.append( Export(host, fromip, 'rw') )
+                rwexports.append( Export(host, fromip, 'rw', toip) )
             
         log.debug("roexports for %s: %s", node, roexports)
         log.debug("rwexports for %s: %s", node, rwexports)
@@ -2435,7 +2457,7 @@ class ProjectConfig:
         # If both lists are empty, default to exporting read/write to all hosts
         if default_to_all:
             if len(rwexports) == 0 and len(roexports) == 0:
-                rwexports = [ Export(host, fromip, 'rw') for host in self.hosts.values() ]
+                rwexports = [ Export(host, default_fromip, 'rw') for host in self.hosts.values() ]
 
         log.debug("roexports for %s: %s", node, roexports)
         log.debug("rwexports for %s: %s", node, rwexports)
@@ -2852,6 +2874,12 @@ class ProjectConfig:
         cmdset.append(cmd)
 
         #
+        # Aliases, if applicable
+        #
+        for (ipaddr, netmask) in vfiler.alias_ips:
+            cmdset.append("ifconfig svif0-%s alias %s netmask %s mtusize 9000 up" % (vfiler.vlan.number, ipaddr, netmask))
+
+        #
         # Services VLAN interfaces
         #
         for vlan,ipaddr in vfiler.services_ips:
@@ -3056,14 +3084,22 @@ class ProjectConfig:
 
                 # Find read/write exports
                 rw_export_to = []
-                for host in qtree.rwexports:
-                    rw_export_to.extend(host.get_storage_ips())
+                for export in qtree.rwexports:
+                    if export.toip is not None:
+                        rw_export_to.append( export.toip )
+                    else:
+                        rw_export_to.extend(export.tohost.get_storage_ips())
+                        pass
                     pass
 
                 # Find read-only exports
                 ro_export_to = []
-                for host in qtree.roexports:
-                    ro_export_to.extend(host.get_storage_ips())
+                for export in qtree.roexports:
+                    if export.toip is not None:
+                        rw_export_to.append( export.toip )
+                    else:
+                        ro_export_to.extend(export.tohost.get_storage_ips())
+                        pass
                     pass
                 
                 if len(ro_export_to) > 0:
@@ -3387,6 +3423,7 @@ class ProjectConfig:
 #
 %s %s-svif0-%s
 """ % (vfiler.name, vfiler.ipaddress, filer.name, vfiler.vlan.number )
+
         for (vlan, ipaddress) in vfiler.services_ips:
             file += '\n%s %s-svif0-%s' % (ipaddress, filer.name, vlan.number)
         return file
