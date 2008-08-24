@@ -122,12 +122,12 @@ class IPSANStorageDesignGenerator(DocBookGenerator):
     how_to_use = Template('''
     <section>
       <title>How To Use This Document</title>
-      <para>This document assumes the existence of an associated Excelsior Customer Network Storage
+      <para>This document assumes the existence of an associated Customer Network Storage
 Design document for &project.name;. The network storage design document contains the IP-
 SAN configuration details for this project.</para>
 
 <para>In addition to the storage design for &project.name;, this document contains the necessary
-activation instructions to configure the storage on the Excelsior storage appliances and
+activation instructions to configure the storage on the storage appliances and
 present the storage to the project hosts.</para>
 
     <note>
@@ -597,306 +597,169 @@ the host activation guides.
         section = Template('''
           <section id="vfiler-design">
           <title>vFiler Design</title>
-            <para>The following tables provide the device configuration information.</para>
+            <para>The following tables provide the vFiler device configuration information.</para>
 
-            $primary_site_vfiler_section
-            $dr_site_vfiler_section
-
-            $primary_vfiler_interface_section
-            $dr_vfiler_interface_section
+            $vfiler_section
 
             $vfiler_routes_section
 
           </section>
             ''')
-        
-        primary_section = Template('''
+
+        vfiler_section_template = Template('''
           <section>
-          <title>Primary Site vFiler Configuration</title>
-          <para>
-            <table tabstyle="techtable-01">
-              <title>Primary Site vFiler Configuration Information</title>
-              <tgroup cols="3">
-                <colspec colnum="1" align="left" colwidth="1*"/>
-                <colspec colnum="2" align="left" colwidth="1*"/>
-                <colspec colnum="3" align="left" colwidth="2*"/>
-                <thead>
-                  <row>
-                    <entry><para>Attribute</para></entry>
-                    <entry><para>Value</para></entry>
-                    <entry><para>Comment</para></entry>
-                  </row>
-                </thead>
-                <tbody>
-                  <row>
-                    <entry><para>Physical Filer Primary</para></entry>
-                    <entry><para>&primary.filer_name;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-                  
-                  <row>
-                    <entry><para>Physical Filer Secondary</para></entry>
-                    <entry><para>&secondary.filer_name;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
+          <title>$sitetype Site Filer Configuration</title>
 
-                  <row>
-                    <entry><para>Primary Storage IP Address</para></entry>
-                    <entry><para>&primary.storage_ip;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-                  
-                  <row>
-                    <entry><para>Physical &nearstore;</para></entry>
-                    <entry><para>&nearstore.filer_name;</para></entry>
-                    <entry><para>Used as the backup target for the primary data held on	&primary.filer_name;.</para></entry>
-                  </row>
+          $vfiler_configuration_tables
 
-                  <row>
-                    <entry><para>&nearstore; IP Address</para></entry>
-                    <entry><para>&nearstore.storage_ip;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-
-
-                  <row>
-                    <entry><para>vFiler Name</para></entry>
-                    <entry><para>&vfiler.name;</para></entry>
-                    <entry/>
-                  </row>
-
-                  <row>
-                    <entry><para>IP Space Name</para></entry>
-                    <entry><para>&ipspace.name;</para></entry>
-                    <entry/>
-                  </row>
-
-                  <row>
-                    <entry><para>Project VLAN</para></entry>
-                    <entry><para>&primary.project.vlan;</para></entry>
-                    <entry/>
-                  </row>
-
-                  $primary_services_vlan_rows
-
-                  <row>
-                    <entry><para>MTU</para></entry>
-                    <entry><para>9000</para></entry>
-                    <entry/>
-                  </row>
-
-                  <row>
-                    <entry><para>Storage Protocols</para></entry>
-                    <entry>$storage_protocol_cell</entry>
-                    <entry><para>Allowed storage protocols.</para></entry>
-                  </row>
-                </tbody>
-              </tgroup>
-            </table>
-          </para>
-          </section>
-            ''')
-
-        dr_section = Template('''
-          <section>
-          <title>DR Site vFiler Configuration</title>
-
-          <para>
-            <table tabstyle="techtable-01">
-              <title>Disaster Recovery Site vFiler Configuration Information</title>
-              <tgroup cols="3">
-                <colspec colnum="1" align="left" colwidth="1*"/>
-                <colspec colnum="2" align="left" colwidth="1*"/>
-                <colspec colnum="3" align="left" colwidth="2*"/>
-                <thead>
-                  <row>
-                    <entry><para>Attribute</para></entry>
-                    <entry><para>Value</para></entry>
-                    <entry><para>Comment</para></entry>
-                  </row>
-                </thead>
-                <tbody>
-                  <row>
-                    <entry><para>DR Physical Filer Primary</para></entry>
-                    <entry><para>&dr.primary.filer_name;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-                  
-                  <row>
-                    <entry><para>DR Physical Filer Secondary</para></entry>
-                    <entry><para>&dr.secondary.filer_name;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-
-                  <row>
-                    <entry><para>DR Filer IP Address</para></entry>
-                    <entry><para>&dr.primary.storage_ip;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-                  
-                  <row>
-                    <entry><para>DR Physical &nearstore;</para></entry>
-                    <entry><para>&dr.nearstore.filer_name;</para></entry>
-                    <entry><para>Used as the backup target for the primary data held on	&dr.nearstore.filer_name;.</para></entry>
-                  </row>
-
-                  <row>
-                    <entry><para>DR &nearstore; IP Address</para></entry>
-                    <entry><para>&dr.nearstore.storage_ip;</para></entry>
-                    <entry><para>Obtained from network design document.</para></entry>
-                  </row>
-
-
-                  <row>
-                    <entry><para>vFiler Name</para></entry>
-                    <entry><para>&vfiler.name;</para></entry>
-                    <entry/>
-                  </row>
-
-                  <row>
-                    <entry><para>IP Space Name</para></entry>
-                    <entry><para>&ipspace.name;</para></entry>
-                    <entry/>
-                  </row>
-
-                  <row>
-                    <entry><para>Project VLAN</para></entry>
-                    <entry><para>&secondary.project.vlan;</para></entry>
-                    <entry/>
-                  </row>
-
-                  $dr_services_vlan_rows
-
-                  <row>
-                    <entry><para>MTU</para></entry>
-                    <entry><para>9000</para></entry>
-                    <entry/>
-                  </row>
-
-                  <row>
-                    <entry><para>Storage Protocols</para></entry>
-                    <entry>$storage_protocol_cell</entry>
-                    <entry><para>Allowed storage protocols.</para></entry>
-                  </row>
-                </tbody>
-              </tgroup>
-            </table>
-          </para>
-          </section>
-            ''')
-
-        primary_interface_section = Template('''
-        <section>
-          <title>Primary vFiler Interfaces</title>
-            <table tabstyle="techtable-01">
-              <title>Primary vFiler Interface Configuration</title>
-              <tgroup cols="3">
-                <colspec colnum="1" align="left" colwidth="1*"/>
-                <colspec colnum="2" align="left" colwidth="1*"/>
-                <colspec colnum="3" align="left" colwidth="2*"/>
-                <thead>
-                  <row>
-                    <entry><para>Filer</para></entry>
-                    <entry><para>Interface</para></entry>
-                    <entry><para>Comment</para></entry>
-                  </row>
-                </thead>
-                <tbody>
-                  <row>
-                    <entry><para>&primary.filer_name;</para></entry>
-                    <entry><para>svif0-&primary.project.vlan;</para></entry>
-                    <entry><para>Primary Filer project VLAN interface.</para></entry>
-                  </row>
-
-                  <row>
-                    <entry><para>&secondary.filer_name;</para></entry>
-                    <entry><para>svif0-&primary.project.vlan;</para></entry>
-                    <entry><para>Secondary Filer project VLAN interface.</para></entry>
-                  </row>
-
-                  <row>
-                    <entry><para>&nearstore.filer_name;</para></entry>
-                    <entry><para>svif0-&primary.project.vlan;</para></entry>
-                    <entry><para>&nearstore; project VLAN interface.</para></entry>
-                  </row>
-
-                </tbody>
-              </tgroup>
-            </table>
           </section>
         ''')
 
-        dr_interface_section = Template("""
-        <section>
-          <title>DR vFiler Interfaces</title>
+        vfiler_configuration_template = Template('''
             <table tabstyle="techtable-01">
-              <title>DR vFiler Interface Configuration</title>
+              <title>$filername Filer Configuration Information</title>
               <tgroup cols="3">
                 <colspec colnum="1" align="left" colwidth="1*"/>
                 <colspec colnum="2" align="left" colwidth="1*"/>
                 <colspec colnum="3" align="left" colwidth="2*"/>
                 <thead>
                   <row>
-                    <entry><para>Filer</para></entry>
-                    <entry><para>Interface</para></entry>
+                    <entry><para>Attribute</para></entry>
+                    <entry><para>Value</para></entry>
                     <entry><para>Comment</para></entry>
                   </row>
                 </thead>
                 <tbody>
-                  <row>
-                    <entry><para>&dr.primary.filer_name;</para></entry>
-                    <entry><para>svif0-&secondary.project.vlan;</para></entry>
-                    <entry><para>DR Primary Filer project VLAN interface.</para></entry>
-                  </row>
-
-                  <row>
-                    <entry><para>&dr.secondary.filer_name;</para></entry>
-                    <entry><para>svif0-&secondary.project.vlan;</para></entry>
-                    <entry><para>DR Secondary Filer project VLAN interface.</para></entry>
-                  </row>
-
-                  <row>
-                    <entry><para>&dr.nearstore.filer_name;</para></entry>
-                    <entry><para>svif0-&secondary.project.vlan;</para></entry>
-                    <entry><para>DR &nearstore; project VLAN interface.</para></entry>
-                  </row>
-
+                  $rows
                 </tbody>
               </tgroup>
             </table>
-          </section>
-          """)
+        ''')
 
-        vfiler_routes = Template("""
-        <section>
-          <title>vFiler Routes</title>
-          <para>The following static routes must be configured in the &vfiler.name; vFiler
-          on &primary.filer_name; and &nearstore.filer_name; by placing the following commands
-          in the startup file <filename>/etc/rc</filename>:
-          </para>
+        vfiler_config_row_template = Template('''
+                    <entry><para>$attrib</para></entry>
+                    <entry><para>$value</para></entry>
+                    <entry><para>$comment</para></entry>
+        ''')
 
-          $services_vlan_routes
-
-        </section>
-        """)
-
-        ns['storage_protocol_cell'] = self.storage_protocol_cell(ns)
-        ns['primary_services_vlan_rows'] = self.get_services_rows(ns, 'primary')
-        ns['dr_services_vlan_rows'] = self.get_services_rows(ns, 'secondary')
+        services_vlans_config_template = Template('''
+            <table tabstyle="techtable-01">
+              <title>$filername Service VLANs</title>
+              <tgroup cols="5">
+                <colspec colnum="1" align="left" colwidth="1*"/>
+                <colspec colnum="2" align="left" colwidth="1*"/>
+                <colspec colnum="3" align="left" colwidth="1*"/>
+                <colspec colnum="4" align="left" colwidth="1*"/>
+                <colspec colnum="5" align="left" colwidth="1*"/>                
+                <thead>
+                  <row>
+                    <entry><para>VLAN</para></entry>
+                    <entry><para>Interface</para></entry>
+                    <entry><para>IP Address</para></entry>
+                    <entry><para>Netmask</para></entry>
+                    <entry><para>Gateway</para></entry>
+                  </row>
+                </thead>
+                <tbody>
+                  $rows
+                </tbody>
+              </tgroup>
+            </table>
+        ''')
 
         ns['project_gateway'] = self.conf.get_project_vlan('primary').networks[0].gateway
 
-        ns['primary_site_vfiler_section'] = primary_section.safe_substitute(ns)
-        ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
+        # Add a section for each vFiler defined on a primary filer
+        log.debug("Building vFiler section...")
+        sites = [ (site.type, site) for site in self.conf.sites.values() ]
+        sites.sort()
 
+        vfiler_sections = []
+        for sitetype, site in sites:
+            vfiler_config_tables = []
+            log.debug("Filers found: %s", site.filers.values())
+
+            for filer in site.filers.values():
+                #for filer in [ filer for filer in site.filers.values() if filer.type == 'primary' ]:
+                for vfiler in filer.vfilers.values():
+                    vfiler_attributes = []
+                    log.debug("Adding a vFiler: %s", vfiler)
+                    template_ns = {}
+                    template_ns['sitetype'] = site.type.capitalize()
+                    template_ns['filername'] = filer.name
+                    template_ns['vfiler_name'] = vfiler.name
+                    
+                    vfiler_attributes.append( ('vFiler Name', vfiler.name, '') )
+                    vfiler_attributes.append( ('Filer Name', vfiler.filer.name, '') )
+                    if vfiler.filer.secondary_is is not None:
+                        vfiler_attributes.append( ('Filer Partner', vfiler.filer.secondary_is.name, '') )
+                        pass
+
+                    # Add storage interfaces and IPs
+                    vfiler_attributes.append( ('Primary Storage Interface', 'svif0-%s' % vfiler.vlan.number, '') )
+                    vfiler_attributes.append( ('Primary Storage IP', vfiler.ipaddress, '') )
+                    for ipaddr, netmask in vfiler.alias_ips:
+                        vfiler_attributes.append( ('Alias Storage IP', ipaddr, '') )
+                        pass
+
+                    # Add IP space information
+                    vfiler_attributes.append( ('IP Space Name', '&ipspace.name;', '') )
+
+                    vfiler_attributes.append( ('MTU', '9000', '') )
+
+                    vfiler_attributes.append( ('Storage Protocols', self.storage_protocol_cell(), '') )
+
+                    rows = []
+                    for attribname, attribval, attribcomment in vfiler_attributes:
+                        rows.append("""<row><entry><para>%s</para></entry>
+                        <entry><para>%s</para></entry>
+                        <entry><para>%s</para></entry></row>
+                        """ % (attribname, attribval, attribcomment) )
+                        pass
+
+                    template_ns['rows'] = '\n'.join(rows)
+
+                    vfiler_config_tables.append( vfiler_configuration_template.safe_substitute( template_ns ))
+
+                    # Add services VLAN information
+                    services_rows = []
+                    for vlan,ipaddr in vfiler.services_ips:
+                        for network in vlan.networks:
+                            entries = "<entry><para>%s</para></entry>\n" % vlan.number
+                            entries += "<entry><para>svif0-%s</para></entry>\n" % vlan.number
+                            entries += "<entry><para>%s</para></entry>\n" % ipaddr
+                            entries += "<entry><para>%s</para></entry>\n" % network.netmask
+                            entries += "<entry><para>%s</para></entry>\n" % network.gateway
+                            row = "<row>%s</row>" % entries
+                            services_rows.append(row)
+                            pass
+                        pass
+
+                    services_ns = {}
+                    services_ns['filername'] = filer.name
+                    services_ns['rows'] = '\n'.join(services_rows)
+
+                    if len(services_rows) > 0:
+                        vfiler_config_tables.append( services_vlans_config_template.safe_substitute(services_ns) )
+                        pass
+                    pass
+                pass
         
-        if self.conf.has_dr:
-            ns['dr_site_vfiler_section'] = dr_section.safe_substitute(ns)
-            ns['dr_vfiler_interface_section'] = dr_interface_section.safe_substitute(ns)
-        else:
-            ns['dr_site_vfiler_section'] = ''
-            ns['dr_vfiler_interface_section'] = ''
+            template_ns['vfiler_configuration_tables'] = '\n'.join(vfiler_config_tables)
+            vfiler_sections.append( vfiler_section_template.safe_substitute(template_ns) )
             pass
+
+        ns['vfiler_section'] = '\n'.join( vfiler_sections )
+        #ns['primary_site_vfiler_section'] = primary_section.safe_substitute(ns)
+        #ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
+
+##         if self.conf.has_dr:
+##             ns['dr_site_vfiler_section'] = dr_section.safe_substitute(ns)
+##             ns['dr_vfiler_interface_section'] = dr_interface_section.safe_substitute(ns)
+##         else:
+##             ns['dr_site_vfiler_section'] = ''
+##             ns['dr_vfiler_interface_section'] = ''
+##             pass
 
         # Services VLAN routes
         if len(self.conf.get_services_vlans('primary')) > 0:
@@ -934,7 +797,7 @@ the host activation guides.
 
         return retstr
     
-    def storage_protocol_cell(self, ns):
+    def storage_protocol_cell(self):
         """
         Build the <para/> entries for the storage protocols cell
         """
