@@ -11,10 +11,7 @@ DEFAULT_STYLESHEET=$DOCGEN_BASEDIR/book_fo_styles.xsl
 LD_LIBRARY_PATH=/usr/local/lib:/usr/lib
 export LD_LIBRARY_PATH
 
-#FOP="/home/daedalus/src/fop-0.90alpha1/fop"
-#FOP="/home/daedalus/unicity/docbook/fop-0.92beta/fop"
-#FOP="/home/daedalus/src/fop-0.93/fop"
-FOP="/usr/local/fop-0.93/fop"
+FOP="/usr/local/bin/fop"
 
 XML_CATALOG_FILES="/usr/share/xml/docbook/stylesheet/nwalsh/catalog.xml"
 
