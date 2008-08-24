@@ -214,11 +214,17 @@ class Filer:
         self.type = type
         self.site = site
 
+        # Add me to the site's list of Filers
+        site.filers[name] = self
+
         self.volumes = []
         self.vfilers = {}
 
         # If I am a secondary, who am I a secondary for?
         self.secondary_for = None
+
+        # If I have a secondary, who is it?
+        self.secondary_is = None
 
     def __str__(self):
         return '<Filer: %s (site:%s/type:%s)>' % (self.name, self.site, self.type)
@@ -259,7 +265,6 @@ class VFiler:
         self.gateway = gateway
         self.alias_ips = alias_ips
         self.volumes = []
-
 
         # We will need at least one additional 'services' VLAN
         # This will have a separate interface, IP address and gateway route
@@ -581,7 +586,6 @@ class Vlan:
         self.sitetype = site
         self.type = type
         self.number = number
-
 
         self.networks = networks
         
@@ -1155,6 +1159,7 @@ class ProjectConfig:
             if filer.type == 'secondary':
                 my_primary = node.xpath("preceding-sibling::filer")[0].attrib['name']
                 filer.secondary_for = filers[my_primary]
+                filers[my_primary].secondary_is = filer
                 pass
 
             log.debug("Created filer: %s", filer)
