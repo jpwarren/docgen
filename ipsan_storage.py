@@ -481,14 +481,14 @@ the host activation guides.
         section = Template('''
           <section>
             <title>Operational Maintenance</title>
-            <para>A regularly scheduled maintenance window exists for the IPSAN, from 03:00 - 07:00 every Wednesday.
+            <para>A regularly scheduled maintenance window exists for the environment, from 09:00 - 17:00 every Saturday.
             </para>
 
             <para>Scheduled maintenance tasks are those that are well understood, well tested and have a very
-            low risk of outage. They are used to keep the IPSAN operating efficiently and effectively.
+            low risk of outage. They are used to keep the environment operating efficiently and effectively.
             </para>
     
-            <para>As a condition of having storage provided by the IPSAN service, the project
+            <para>As a condition of having storage provided, the project
             accepts that this maintenance window will be used to perform regular, scheduled,
             non-interruptive maintenance, including, but not limited to:
 
