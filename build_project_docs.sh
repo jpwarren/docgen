@@ -2,8 +2,12 @@
 #
 # Script to convert a project definition into the appropriate
 # DocBook sources, which are then compiled into required outputs.
-CREATE_DOC_BIN="/usr/local/docgen/create_document.py"
-COMPILE_DOC_BIN="/usr/local/docgen/compile_doc.sh"
+
+# Directory that docgen is installed in
+DOCGEN_BASEDIR=/usr/local/docgen
+
+CREATE_DOC_BIN="$DOCGEN_BASEDIR/create_document.py"
+COMPILE_DOC_BIN="$DOCGEN_BASEDIR/compile_doc.sh"
 
 # Default values
 STORAGE_DESIGN_SUFFIX="IPSAN-storage-design.xml"

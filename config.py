@@ -768,7 +768,9 @@ class ProjectConfig:
         rather than an XML document.
         """
         self.defaults = SafeConfigParser()
-        self.defaults.read(defaultsfile)
+        parsedfiles = self.defaults.read(defaultsfile)
+        if len(parsedfiles) == 0:
+            raise ValueError("Cannot load defaults file: %s" % defaultsfile)
         
         self.tree = etree.parse(configfile)
 
