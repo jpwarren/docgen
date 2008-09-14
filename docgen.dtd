@@ -75,11 +75,11 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 	  <!ELEMENT member EMPTY>
 	    <!ATTLIST member name IDREF #REQUIRED>
 
-        <!ELEMENT aggregate (volume+)>
+        <!ELEMENT aggregate (autosize?, autodelete?, volume*)>
          <!ATTLIST aggregate name CDATA #REQUIRED>
 
 	<!-- The volume declaration -->
-	<!ELEMENT volume (usablestorage?, snapstorage?, description?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref)* )>
+	<!ELEMENT volume (usablestorage?, snapstorage?, description?, autosize?, autodelete?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
 			   prefix CDATA #IMPLIED
@@ -92,6 +92,17 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 			   iscsi_snapspace CDATA #IMPLIED>
 	  <!ELEMENT usablestorage (#PCDATA)>
 	  <!ELEMENT snapstorage (#PCDATA)>
+          <!ELEMENT autosize EMPTY>
+            <!ATTLIST autosize max CDATA #IMPLIED
+                               increment CDATA #IMPLIED>
+          <!ELEMENT autodelete EMPTY>
+            <!ATTLIST autodelete commitment (try | disrupt) #IMPLIED
+                                 trigger (volume | snap_reserve | space_reserve) #IMPLIED
+                                 target_free_space CDATA #IMPLIED
+                                 delete_order (newest_first | oldest_first) #IMPLIED
+                                 defer_delete (scheduled | user_created | prefix | none) #IMPLIED
+                                 prefix CDATA #IMPLIED>
+
 	  <!ELEMENT qtree (description?, lun*)>
 	    <!ATTLIST qtree name CDATA #IMPLIED
 	              oplocks (yes|no) 'no'>
