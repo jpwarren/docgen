@@ -2752,9 +2752,7 @@ class ProjectConfig:
 
             # See if the target volume or aggregate are actually defined in
             # the XML, and use those settings for autosize and autodelete.
-            # See if there is an autodelete setting for snapshots
-            # FIXME: This should be refactored somehow so that this code
-            # is more generic and lives in one place.
+            targetvol = self.set_volume_autosize(targetvol, target_filername, targetaggr)
             targetvol = self.set_volume_autodelete(targetvol, target_filername, targetaggr)
             
             self.volumes.append(targetvol)
@@ -2781,6 +2779,20 @@ class ProjectConfig:
             # Add snapmirrors of the snapvaults if the source volume has snapvaultmirrorrefs set
             self.create_snapmirror_for(targetvol)
 
+    def set_volume_autosize(self, vol, filername, aggrname):
+        """
+        Find autosize settings on a given filername and aggregate name
+        and use it for the autosize setting for the given volume.
+        """
+        autosize = self.tree.xpath("child::*/filer[@name='%s']/vfiler/aggregate[@name='%s']/autosize" % (filername, aggrname))
+        if len(autosize) > 0:
+            autosize = autosize[0]
+            #log.info("found sv autosize: %s", autosize)
+            # Set autosize parameters
+            vol.autosize = VolumeAutoSize(vol, autosize.attrib['max'], autosize.attrib['increment'])
+            pass
+        return vol
+    
     def set_volume_autodelete(self, vol, filername, aggrname):
         """
         Find autodelete nodes on a given filername and aggregate name

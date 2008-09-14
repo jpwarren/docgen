@@ -575,6 +575,7 @@
 	</primaryip>
 
 	<aggregate name="aggr02">
+	  <autosize max="500g" increment="25g"/>
 	  <autodelete />
 	</aggregate>
 
@@ -670,6 +671,7 @@
 
 	<aggregate name="aggr02">
 	  <autodelete />
+
 	</aggregate>
 
       </vfiler>
