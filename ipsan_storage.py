@@ -401,7 +401,6 @@ the host activation guides.
  ''')
 
         if len(self.conf.get_services_vlans()) > 0:
-            log.info("Services VLANs are defined.")
             services_vlan = '''
               <listitem>
                 <para><emphasis role="bold">Project IP-SAN Services VLANs</emphasis> - Services
@@ -955,18 +954,16 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Configuration for &primary.filer_name;</title>
-              <tgroup cols="4" align="left">
+              <tgroup cols="3" align="left">
                 <colspec colnum="1" colwidth="1.5*"/>
                 <colspec colnum="2" colwidth="1.5*"/>
                 <colspec colnum="3" colwidth="1.5*"/>
-                <colspec colnum="4" colwidth="2*"/>
                 
                   <thead>
                     <row valign="middle">
                       <entry><para>Filer</para></entry>
                       <entry><para>Volume</para></entry>
                       <entry><para>Options</para></entry>
-                      <entry><para>Comments</para></entry>
                     </row>
                   </thead>
 
@@ -986,18 +983,16 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Configuration for &nearstore.filer_name;</title>
-              <tgroup cols="4" align="left">
+              <tgroup cols="3" align="left">
                 <colspec colnum="1" colwidth="1.5*"/>
                 <colspec colnum="2" colwidth="1.5*"/>
                 <colspec colnum="3" colwidth="1.5*"/>
-                <colspec colnum="4" colwidth="2*"/>
                 
                   <thead>
                     <row valign="middle">
                       <entry><para>Filer</para></entry>
                       <entry><para>Volume</para></entry>
                       <entry><para>Options</para></entry>
-                      <entry><para>Comments</para></entry>
                     </row>
                   </thead>
 
@@ -1017,18 +1012,16 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Configuration for &dr.primary.filer_name;</title>
-              <tgroup cols="4" align="left">
+              <tgroup cols="3" align="left">
                 <colspec colnum="1" colwidth="1.5*"/>
                 <colspec colnum="2" colwidth="1.5*"/>
                 <colspec colnum="3" colwidth="1.5*"/>
-                <colspec colnum="4" colwidth="2*"/>
                 
                   <thead>
                     <row valign="middle">
                       <entry><para>Filer</para></entry>
                       <entry><para>Volume</para></entry>
                       <entry><para>Options</para></entry>
-                      <entry><para>Comments</para></entry>
                     </row>
                   </thead>
 
@@ -1050,18 +1043,16 @@ the host activation guides.
             <table tabstyle="techtable-01">
               <title>Volume Configuration for &dr.nearstore.filer_name;</title>
 
-              <tgroup cols="4" align="left">
+              <tgroup cols="3" align="left">
                 <colspec colnum="1" colwidth="1.5*"/>
                 <colspec colnum="2" colwidth="1.5*"/>
                 <colspec colnum="3" colwidth="1.5*"/>
-                <colspec colnum="4" colwidth="2*"/>
                 
                   <thead>
                     <row valign="middle">
                       <entry><para>Filer</para></entry>
                       <entry><para>Volume</para></entry>
                       <entry><para>Options</para></entry>
-                      <entry><para>Comments</para></entry>
                     </row>
                   </thead>
 
@@ -1109,16 +1100,29 @@ the host activation guides.
     def get_volume_options_rows(self, ns, site, filertype):
         """
         Build the volume options rows for the previously defined volumes
-        for a given site/filer, using the sitekey.
-        The sitekey is one of 'primary', 'nearstore', 'dr_primary', or 'dr_nearstore'
+        for a given site/filer.
         """
         rows = []
         for volume in self.conf.get_volumes(site, filertype):
             row_detail = "<entry><para>%s</para></entry>\n" % volume.filer.name
             row_detail += "<entry><para>%s</para></entry>\n" % volume.name
             option_str = ''.join([ "<para>%s</para>" % x for x in volume.voloptions ])
+
+            # Add autosize options
+            if volume.autosize:
+                option_str += "<para>autosize_max=%s</para>" % volume.autosize.max
+                option_str += "<para>autosize_increment=%s</para>" % volume.autosize.increment
+            
+            # Add autodelete options
+            if volume.autodelete:
+                settings = volume.autodelete.get_settings()
+                for key in settings:
+                    option_str += "<para>autodelete %s=%s</para>" % (key, settings[key])
+            
             row_detail += "<entry>%s</entry>\n" % option_str
-            row_detail += "<entry/>\n"
+
+            # comment column. No longer used.
+            #row_detail += "<entry/>\n"
 
             row = "<row valign='middle'>%s</row>" % row_detail
 

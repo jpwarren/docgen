@@ -445,6 +445,10 @@ class Volume:
             pass
 
         self.filer.site.volumes.append(self)
+
+        self.autosize = None
+        self.autodelete = None
+        
         log.debug("Created: %s", self)
 
     def __str__(self):
@@ -482,6 +486,129 @@ class Volume:
         """
         if len(self.snaps) > 0 or len(self.snapvaults) > 0 or len(self.snapmirrors) > 0:
             return True
+
+class VolumeAutoSize:
+    """
+    VolumeAutoSize is a setting used for Volumes to define how
+    they grow automatically.
+    """
+    def __init__(self, volume, max, increment):
+
+        # My parent Volume object
+        self.volume = volume
+
+        # The maximum size to grow to
+        self.max = max
+
+        # How much to grow by whenever we increase
+        self.increment = increment
+
+    ## FIXME: These should be split off into a subclass. This would
+    ## allow another set of 'zapi_add' style commands, or ModiPy
+    ## changes or change templates, perhaps.
+    def command_add(self):
+        """
+        The sequence of commands to use when provisioning for the first time
+        """
+        cmdset = []
+        cmdset.append("vol autosize %s -m %s -i %s on" % (self.volume.name, self.max, self.increment) )
+        return cmdset
+
+    def command_change(self, previous):
+        """
+        The sequence of commands to use when changing my value when compared
+        with the 'previous' setting.
+        """
+        cmdset = []
+        cmdset.append("vol autosize %s -m %s -i %s on" % (self.volume.name, self.max, self.increment) )
+        return cmdset
+
+    def command_delete(self):
+        """
+        The sequence of commands to use when deleting me from the device configuration.
+        """
+        cmdset = []
+        cmdset.append("vol autosize %s off" % (self.volume.name))
+        return cmdset
+
+class VolumeAutoDelete:
+    """
+    VolumeAutoDelete defines how a volume can be set up to have
+    snapshots automatically deleted if it gets full.
+    """
+    
+    def __init__(self, volume, commitment='try',
+                 trigger='volume',
+                 target_free_space=80,
+                 delete_order='oldest_first',
+                 defer_delete='none'):
+        """
+        Define the snapshot autodelete settings for a volume
+        """
+        self.volume = volume
+        self.commitment = commitment
+        self.trigger = trigger
+        self.target_free_space = target_free_space
+        self.delete_order = delete_order
+        self.defer_delete = defer_delete
+        self.prefix = None
+
+    def __str__(self):
+        """
+        Stringified representation of VolumeAutoDelete
+        """
+        return "<AutoDelete: %s: %s %s %s %s" % ( self.volume.name, self.commitment,
+                                                  self.trigger, self.target_free_space,
+                                                  self.delete_order)
+
+    def configure_from_node(self, node):
+        """
+        Re-configure myself from the settings defined in the XML node
+        """
+        for option in ['commitment',
+                       'trigger',
+                       'target_free_space',
+                       'delete_order',
+                       ]:
+            try:
+                setattr(self, option, node.attrib[option])
+                #log.debug("set attribute '%s' to '%s'", option, getattr(self, option))
+            except KeyError:
+                #log.debug("attribute '%s' not defined in XML node." % option)
+                pass
+
+    def command_add(self):
+        """
+        Commandset to add this configuration to a device.
+        """
+        cmdset = []
+        # set all the autodelete options
+        for option in [ 'commitment',
+                        'trigger',
+                        'target_free_space',
+                        'delete_order',
+                        ]:
+            cmdset.append("snap autodelete %s %s %s" % (self.volume.name, option, getattr(self, option)) )
+            pass
+
+        # then, actually turn on autodelete
+        cmdset.append("snap autodelete %s on" % (self.volume.name))
+        return cmdset
+
+    def get_settings(self):
+        """
+        Return a dictionary of my settings.
+        This is useful for building tables in the human readable output documents.
+        """
+        dict = {}
+        for option in [ 'commitment',
+                        'trigger',
+                        'target_free_space',
+                        'delete_order',
+                        ]:
+            dict[option] = getattr(self, option)
+            pass
+        return dict
 
 class Qtree:
     def __init__(self, volume, qtree_name=None, security='unix', comment='', rwexports=[], roexports=[], qtreenode=None, oplocks=True):
@@ -2222,6 +2349,25 @@ class ProjectConfig:
         else:
             vol = Volume( volname, self.filers[filername], aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
 
+        # See if there is an autosize setting on either the volume, or the
+        # containing aggregate. Use the first one we find.
+        autosize = node.xpath('autosize | parent::*/autosize')
+        if len(autosize) > 0:
+            autosize = autosize[0]
+            #log.debug("found autosize: %s", autosize)
+            # Set autosize parameters
+            vol.autosize = VolumeAutoSize(vol, autosize.attrib['max'], autosize.attrib['increment'])
+            pass
+
+        # See if there is an autodelete setting for snapshots
+        autodelete = node.xpath('autodelete | parent::*/autodelete')
+        if len(autodelete) > 0:
+            autodelete = autodelete[0]
+            #log.debug("found autodelete: %s", autodelete)
+            # Set autodelete parameters
+            vol.autodelete = VolumeAutoDelete(vol)
+            vol.autodelete.configure_from_node(autodelete)
+            
         volnum += 1
         return vol, volnum
     
@@ -2603,6 +2749,14 @@ class ProjectConfig:
                                 proto=None,
                                 snapmirrorref=srcvol.snapvaultmirrorref,
                                 )
+
+            # See if the target volume or aggregate are actually defined in
+            # the XML, and use those settings for autosize and autodelete.
+            # See if there is an autodelete setting for snapshots
+            # FIXME: This should be refactored somehow so that this code
+            # is more generic and lives in one place.
+            targetvol = self.set_volume_autodelete(targetvol, target_filername, targetaggr)
+            
             self.volumes.append(targetvol)
             #log.debug("target volume filer type: %s", targetvol.filer.type)
 
@@ -2627,6 +2781,22 @@ class ProjectConfig:
             # Add snapmirrors of the snapvaults if the source volume has snapvaultmirrorrefs set
             self.create_snapmirror_for(targetvol)
 
+    def set_volume_autodelete(self, vol, filername, aggrname):
+        """
+        Find autodelete nodes on a given filername and aggregate name
+        and use it for the autodelete setting for a given volume.
+        """
+        autodelete = self.tree.xpath("child::*/filer[@name='%s']/vfiler/aggregate[@name='%s']/autodelete" % (filername, aggrname))
+        #log.debug("sv autodelete: %s", autodelete)
+        if len(autodelete) > 0:
+            autodelete = autodelete[0]
+            #log.debug("found sv autodelete: %s", autodelete)
+            # Set autodelete parameters
+            vol.autodelete = VolumeAutoDelete(vol)
+            vol.autodelete.configure_from_node(autodelete)
+            pass
+        return vol
+            
     def create_snapmirror_for(self, srcvol):
         """
         Create snapmirror volumes for a source volume.
@@ -2771,7 +2941,12 @@ class ProjectConfig:
                 cmd = "vol options %s %s" % (vol.name, opt)
                 cmdset.append(cmd)
                 pass
+
+            # volume autosize settings
+            if vol.autosize:
+                cmdset.extend(vol.autosize.command_add())
             pass
+                
         return cmdset
 
     def filer_vol_size_commands(self, filer):
@@ -3256,8 +3431,12 @@ class ProjectConfig:
             else:
                 cmdset.append("snap sched %s 0 0 0" % (vol.name) )
                 pass
+
+            if vol.autodelete:
+                cmdset.extend(vol.autodelete.command_add())
+            # Add snapshot autodelete commands, if required
             pass
-        
+                
         #log.debug('\n'.join(cmdset))
         return cmdset
 

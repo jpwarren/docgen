@@ -346,19 +346,27 @@
 	    <!-- The 'oradata' volume type is used for the Oracle data area -->
 	    <usablestorage>60</usablestorage>
 
-	    <!-- The 'snapvaultsetref' node is a reference to a snapvaultset
-		 defined elsewhere in the file (usually near the bottom). This
-		 reference says that the snapvaultset referred to should be used
-		 when creating a snapvault for this volume. More information on
-		 snapvaultsets can be found below.
-	      -->
-	    <snapvaultsetref name="MYDB01-data"/>
+	    <!-- The autosize parameter allows the volume to automatically grow
+		 to a maximum size, growing by 'increment' each time.
+		 the size is a number, followed by a size indicator (300g, 2t, etc)
+		 and the increment is also a number with a size
+	    -->
+	    <autosize max="500g" increment="10g"/>
 
-	    <!-- A 'snapmirrorsetref' is similar to a snapvaultsetref. It refers
-		 to a snapmirrorset definition later in the file, and is used to
-		 define the SnapMirror relationship between the primary volume
-		 and the DR site.
-	      -->
+	    <!-- autodelete defines the way in which volume snapshots will be
+		 automatically deleted if they start using too much space.
+		 This follows the syntax of the 'snap autodelete' command.
+		 It defaults to the following options:
+		    commitment = 'try'
+		    trigger = 'volume'
+		    target_free_space = '80' (%)
+		    delete_order = oldest_first
+		    defer_delete = none
+		    prefix = '' This isn't used unless defer_delete is set to 'prefix'
+	    -->
+	    <autodelete />
+
+	    <snapvaultsetref name="MYDB01-data"/>
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
 
@@ -507,6 +515,7 @@
 	     first one.
 	  -->
 	<aggregate name="aggr03">
+	  <autosize max="500g" increment="10g"/>
 
 	  <volume name="wibble">
 	    <!-- Some custom export options -->
@@ -521,6 +530,8 @@
 
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
+
+	  <volume name="wibble2"/>
 
 	</aggregate>
 
@@ -562,6 +573,11 @@
 	  <ipaddr>10.240.4.226</ipaddr>
 	  <netmask>255.255.255.224</netmask>
 	</primaryip>
+
+	<aggregate name="aggr02">
+	  <autodelete />
+	</aggregate>
+
       </vfiler>
     </filer>
 
@@ -651,6 +667,11 @@
 	  <ipaddr>10.241.XXX.XXX</ipaddr>
 	  <netmask>255.255.255.224</netmask>
 	</primaryip>
+
+	<aggregate name="aggr02">
+	  <autodelete />
+	</aggregate>
+
       </vfiler>
     </filer>
 
