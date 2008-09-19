@@ -607,7 +607,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         in the configuration.
         """
         ns = {}
-        section = Template("""<appendix><title>Switch Activation Commmands for %s</title>
+        section = Template("""<appendix><title>Switch Activation Commands for %s</title>
         $sections
         </appendix>
         """ % switch.name)
@@ -693,7 +693,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
         the services VLANs added to them.
         """
         ns = {}
-        section = Template("""<appendix><title>Firewall Activation Commmands</title>
+        section = Template("""<appendix><title>Firewall Activation Commands</title>
         $sections
         </appendix>
         """)

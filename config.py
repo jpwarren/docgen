@@ -3715,6 +3715,19 @@ class ProjectConfig:
         newmaskstr = socket.inet_ntoa(struct.pack('!L', newmask))
         return newmaskstr
 
+    def switch_vlan_activation_commands(self, switch):
+        """
+        Return activation commands for configuring the VLAN
+        This code is common to both edge and core switches.
+        """
+        cmdset = []
+
+        # Add the main project VLAN
+        cmdset.append('Vlan %s' % self.get_project_vlan(switch.site.type).number)
+        cmdset.append('  name %s_01' % self.shortname)
+        cmdset.append('  mtu 9198')
+        return cmdset
+
     def core_switch_activation_commands(self, switch):
         """
         Return a list of commands that can be used to build the switch configuration.
@@ -3733,19 +3746,6 @@ class ProjectConfig:
             for i, vlan in enumerate(vlans):
                 cmdset.append('Vlan %s' % vlan.number)
                 cmdset.append('  name %s_svc_%02d' % (self.shortname, i+1) )
-
-        return cmdset
-
-    def switch_vlan_activation_commands(self, switch):
-        """
-        Return activation commands for configuring the VLAN
-        """
-        cmdset = []
-
-        # Add the main project VLAN
-        cmdset.append('Vlan %s' % self.get_project_vlan(switch.site.type).number)
-        cmdset.append('  name %s_01' % self.shortname)
-
         return cmdset
 
     def edge_switch_activation_commands(self, switch):
@@ -3766,10 +3766,10 @@ class ProjectConfig:
         vlan = self.get_project_vlan(switch.site.type)
         cmdset = []
 
-        cmdset.append("mac access-list extended FilterL2")
-        cmdset.append("  deny any any")        
-
-        cmdset.append("!")
+        # Removed due to ticket #29
+        #cmdset.append("mac access-list extended FilterL2")
+        #cmdset.append("  deny any any")        
+        #cmdset.append("!")
 
         # inbound access list
         cmdset.append("ip access-list extended %s_in" % self.shortname)
