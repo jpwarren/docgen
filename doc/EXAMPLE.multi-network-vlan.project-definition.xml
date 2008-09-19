@@ -106,7 +106,7 @@
 	 'gateway': the IP address for the VRF in the VLAN. This
 	 may not be used, but should always be assigned.
       -->
-    <vlan type="project" number="3003">
+    <vlan type="project" number="3003" mtu='2447'>
       <network number="10.240.4.0/24" gateway="10.240.4.254"/>
       <network number="10.241.9.0" netmask="255.255.255.0" gateway="10.241.9.254"/>
     </vlan>
@@ -114,7 +114,6 @@
     <vlan type="services" number="3544" network="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
 
     <vlan type="services" number="3189" network="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
-
 
     <host name="primhost01">
 
@@ -164,13 +163,14 @@
       <location>CoLo Level 5</location>
       <description>Database server</description>
 
-      <interface type='storage' mode='active'>
+      <interface type='storage' mode='trunk' mtu='1500'>
+	<vlan_number>3778</vlan_number>
+	<vlan_number>3856</vlan_number>
 	<switchname>sitea-swtedg-0103</switchname>
 	<switchport>GigabitEthernet1/2</switchport>
 	<hostport>PCI 0</hostport>
 	<ipaddr>10.240.4.234</ipaddr>
       </interface>
-
 
       <drhost name="drtesthost01"/>
       <drhost name="drtesthost02"/>

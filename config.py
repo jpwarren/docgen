@@ -145,15 +145,16 @@ class Switch:
 
 class Interface:
 
-    def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None):
+    def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):
 
         self.type = type
         self.mode = mode
         self.switchname = switchname
         self.switchport = switchport
-        #self.vlan = vlan
         self.hostport = hostport
         self.ipaddress = ipaddress
+        self.mtu = mtu
+        self.vlans = vlans
 
     def __repr__(self):
         return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
@@ -180,8 +181,9 @@ class Site:
         # Filers, keyed by unique name
         self.filers = {}
 
-        # VLANs, keyed by unique VLAN id
-        self.vlans = {}
+        # VLANs. This is a list, because the same VLAN number can be used
+        # for different sites.
+        self.vlans = []
 
         # Volumes, just a list
         self.volumes = []
@@ -707,8 +709,9 @@ class Vlan:
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, site='primary', type='project', networks=[], description='', node=None):
+    def __init__(self, number, site='primary', type='project', networks=[], description='', mtu='9198', node=None):
 
+        self.description = description
         self.site = site
         self.sitetype = site
         self.type = type
@@ -721,8 +724,7 @@ class Vlan:
 ##         self.gateway = gateway
 ##         self.maskbits = maskbits
 
-        self.description = description
-
+        self.mtu = mtu
         self.node = node
 
         log.debug("Created vlan: %s", self)
@@ -938,6 +940,8 @@ class ProjectConfig:
 
         self.sites = self.load_sites()
 
+        self.vlans = self.load_vlans()
+
         self.interfaces = []
         self.hosts = self.load_hosts()
 
@@ -948,8 +952,6 @@ class ProjectConfig:
         for host in self.hosts.values():
             for drhostname in host.drhosts:
                 self.drhosts.append(self.hosts[drhostname])
-
-        self.vlans = self.load_vlans()
                 
         self.filers = self.load_filers()
         self.vfilers = self.load_vfilers()
@@ -1160,11 +1162,31 @@ class ProjectConfig:
                 except AttributeError:
                     ipaddr = None
 
+
                 type = ifnode.attrib['type']
                 try:
                     mode = ifnode.attrib['mode']
                 except KeyError:
                     mode = 'passive'
+
+                try:
+                    mtu = int(ifnode.attrib['mtu'])
+                except KeyError:
+                    mtu = 9000
+
+                # Figure out the VLANs this interface should be in.
+                # If one isn't defined, but it in the first 'project' VLAN
+                vlan_nums = ifnode.findall('vlan_number')
+                if len(vlan_nums) == 0:
+                    vlans = [ vlan for vlan in self.vlans if vlan.site == site.type and vlan.type == 'project' ]
+
+                else:
+                    # Find all the vlans this interface can talk to (ie: it's a trunk)
+                    vlans = []
+                    for vlan_num in vlan_nums:
+                        vlans.extend([ vlan for vlan in self.vlans if vlan.site == site.type and vlan.number == vlan_num ])
+                        pass
+                    pass
 
                 # Add the required switch to the project switches list
                 if switchname is not None:
@@ -1196,7 +1218,7 @@ class ProjectConfig:
                     if iface.switchname is not None and iface.switchname == switchname and iface.switchport == switchport:
                         log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
                 
-                iface = Interface(type, mode, switchname, switchport, hostport, ipaddr)
+                iface = Interface(type, mode, switchname, switchport, hostport, ipaddr, mtu, vlans)
                 ifaces.append(iface)
                 self.interfaces.append(iface)
                 
@@ -1318,10 +1340,15 @@ class ProjectConfig:
 
             filer = self.filers[filername]
             try:
+                vlan = None
                 vlan_num = node.xpath("ancestor::site/vlan/@number")[0]
                 for v in self.vlans:
                     if v.type == 'project' and v.number == vlan_num and filer.site.type == v.site:
                         vlan = v
+
+                if vlan is None:
+                    raise ValueError("Cannot find VLAN '%s' for filer '%s'" % (vlan_num, filername) )
+                
             except IndexError:
                 log.error("Cannot find vlan number for %s" % filername )
                 raise
@@ -1378,7 +1405,6 @@ class ProjectConfig:
         """
         Create all the volumes in the configuration
         """
-
         volnodes = self.tree.xpath("site/filer/vfiler/aggregate/volume | site/filer/vfiler/aggregate/volumeset")
 
         # Add root volumes to the filers/vfilers
@@ -1530,7 +1556,7 @@ class ProjectConfig:
                                 log.warn("Qtree description should be wrapped in <description> tags")
                                 qtree_comment = qtree_node.text
 
-                        rwexports, roexports = self.get_export_hostlists(qtree_node, vol.filer.vfilers.values()[0].ipaddress)
+                        rwexports, roexports = self.get_export_hostlists(qtree_node, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
                         
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
@@ -1567,7 +1593,7 @@ class ProjectConfig:
                             log.debug("onhost_names are: %s", onhost_names)
 
                             # Add manually defined exports, if any exist
-                            rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress, default_to_all=False)
+                            rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]), default_to_all=False)
                             log.debug("database hostlists: %s, %s", rwexports, roexports)
                             
                             for hostname in onhost_names:
@@ -1581,7 +1607,7 @@ class ProjectConfig:
                                 pass
 
                         except IndexError:
-                            rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress)
+                            rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
 
                         # If the hostlist is empty, assume qtrees are available to all hosts
                         if len(rwexports) == 0 and len(roexports) == 0:
@@ -1638,7 +1664,7 @@ class ProjectConfig:
                             pass
 
                         # Figure out the hostlist by checking for volume based export definitions
-                        rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress)
+                        rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
 
                         qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                         qtree_list.append(qtree)
@@ -1824,7 +1850,7 @@ class ProjectConfig:
                     log.debug("Allocating %sg storage to LUN", lunsize)
                     lun_total += lunsize
                     
-                    rwexports, roexports = self.get_export_hostlists(lunnode, vol.filer.vfilers.values()[0].ipaddress)
+                    rwexports, roexports = self.get_export_hostlists(lunnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
                     exportlist = rwexports + roexports
 
                     log.debug("LUN will be exported to %s", exportlist)
@@ -1870,7 +1896,7 @@ class ProjectConfig:
                 log.debug("calculated lun size of: %s", lunsize)
                 lun_total += lunsize
 
-                rwexports, roexports = self.get_export_hostlists(vol.volnode, vol.filer.vfilers.values()[0].ipaddress)
+                rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
                 hostlist = rwexports + roexports
 
                 log.debug("LUN will be exported to %s", hostlist)
@@ -2018,6 +2044,7 @@ class ProjectConfig:
                         log.debug("Aha! An iGroup with this exportlist already exists!")
                         if len(matchedgroups) > 1:
                             log.warning("Multiple iGroups exist for the same exportlist! This is a bug!")
+                            log.warning("groups are: %s", matchedgroups)
                         group = matchedgroups[0]
                         log.debug("Appending LUN to iGroup %s", group.name)
                         if group.type != lun.ostype:
@@ -2189,8 +2216,13 @@ class ProjectConfig:
             description = node.text
             if description is None:
                 description = ''
+
+            try:
+                mtu = int(node.attrib['mtu'])
+            except KeyError:
+                mtu = 9128
             
-            vlan = Vlan(number, site, type, network_list, description, node)
+            vlan = Vlan(number, site, type, network_list, description, mtu, node)
             vlans.append(vlan)
             pass
 
@@ -2211,6 +2243,17 @@ class ProjectConfig:
     def get_filers(self, sitetype, type):
 
          return [ filer for filer in self.filers.values() if filer.site.type == sitetype and filer.type == type ]
+
+    def get_vfiler_ips(self, vfiler):
+        """
+        Return a list of all the vfiler IP addresses that are configured.
+        This is the primary IP, plus any aliases
+        """
+        ips = [ vfiler.ipaddress, ]
+        for (ipaddr, netmask) in vfiler.alias_ips:
+            ips.append( ipaddr )
+            pass
+        return ips
 
     def get_volumes(self, site='primary', filertype='primary'):
         """
@@ -2556,7 +2599,7 @@ class ProjectConfig:
             log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
             return exports
 
-    def get_export_hostlists(self, node, default_fromip, default_to_all=True):
+    def get_export_hostlists(self, node, default_iplist, default_to_all=True):
         """
         Find the list of hosts for read/write and readonly mode based
         on the particular qtree, volume or lun node supplied.
@@ -2574,10 +2617,10 @@ class ProjectConfig:
             # See if we're exporting from a specific IP address
             # Override the default passed in if we are.
             try:
-                fromip = exnode.attrib['fromip']
+                fromip_list = [ exnode.attrib['fromip'], ]
             except KeyError:
                 # Use the default passed in
-                fromip = default_fromip
+                fromip_list = default_iplist
                 pass
 
             # get the hostname
@@ -2595,14 +2638,17 @@ class ProjectConfig:
                 pass
 
             log.debug("export to %s found", hostname)
-            try:
-                if exnode.attrib['ro'] == 'yes':
-                    roexports.append( Export(host, fromip, 'ro', toip) )
-                else:
+            for fromip in fromip_list:
+                try:
+                    if exnode.attrib['ro'] == 'yes':
+                        roexports.append( Export(host, fromip, 'ro', toip) )
+                    else:
+                        rwexports.append( Export(host, fromip, 'rw', toip) )
+                    # If the 'ro' attrib isn't set, we export read/write
+                except KeyError, e:
                     rwexports.append( Export(host, fromip, 'rw', toip) )
-            # If the 'ro' attrib isn't set, we export read/write
-            except KeyError, e:
-                rwexports.append( Export(host, fromip, 'rw', toip) )
+                    pass
+                pass
             
         log.debug("roexports for %s: %s", node, roexports)
         log.debug("rwexports for %s: %s", node, rwexports)
@@ -2610,8 +2656,15 @@ class ProjectConfig:
         # If both lists are empty, default to exporting read/write to all hosts
         if default_to_all:
             if len(rwexports) == 0 and len(roexports) == 0:
-                rwexports = [ Export(host, default_fromip, 'rw') for host in self.hosts.values() ]
-
+                rwexports = []
+                for fromip in default_iplist:
+                    for host in self.hosts.values():
+                        rwexports.append( Export(host, fromip, 'rw') )
+                        pass
+                    pass
+                pass
+            pass
+        
         log.debug("roexports for %s: %s", node, roexports)
         log.debug("rwexports for %s: %s", node, rwexports)
 
@@ -3053,14 +3106,19 @@ class ProjectConfig:
     def vfiler_add_storage_interface_commands(self, filer, vfiler):
         cmdset = []
 
+        mtu = vfiler.vlan.mtu
+        if mtu == 9198:
+            mtu = 9000
+
         if filer.type == 'secondary':
-            cmd = "ifconfig svif0-%s mtusize 9000" % ( vfiler.vlan.number )
+            cmd = "ifconfig svif0-%s mtusize %s" % ( vfiler.vlan.number, mtu )
             #cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan.number, vfiler.netmask)
 
         else:
-            cmd = "ifconfig svif0-%s %s netmask %s mtusize 9000 up" % (vfiler.vlan.number,
-                                                                   vfiler.ipaddress,
-                                                                   vfiler.netmask)
+            cmd = "ifconfig svif0-%s %s netmask %s mtusize %s up" % (vfiler.vlan.number,
+                                                                     vfiler.ipaddress,
+                                                                     vfiler.netmask,
+                                                                     mtu)
 
         # Add partner clause if this is a primary or secondary filer
         if filer.type in [ 'primary', 'secondary' ]:
@@ -3071,7 +3129,7 @@ class ProjectConfig:
         # Aliases, if applicable
         #
         for (ipaddr, netmask) in vfiler.alias_ips:
-            cmdset.append("ifconfig svif0-%s alias %s netmask %s mtusize 9000 up" % (vfiler.vlan.number, ipaddr, netmask))
+            cmdset.append("ifconfig svif0-%s alias %s netmask %s mtusize %s up" % (vfiler.vlan.number, ipaddr, netmask, mtu))
 
         #
         # Services VLAN interfaces
@@ -3723,9 +3781,10 @@ class ProjectConfig:
         cmdset = []
 
         # Add the main project VLAN
-        cmdset.append('Vlan %s' % self.get_project_vlan(switch.site.type).number)
+        vlan = self.get_project_vlan(switch.site.type)
+        cmdset.append('Vlan %s' % vlan.number)
         cmdset.append('  name %s_01' % self.shortname)
-        cmdset.append('  mtu 9198')
+        cmdset.append('  mtu %s' % vlan.mtu)
         return cmdset
 
     def core_switch_activation_commands(self, switch):
@@ -3773,8 +3832,7 @@ class ProjectConfig:
 
         # inbound access list
         cmdset.append("ip access-list extended %s_in" % self.shortname)
-        cmdset.append("  remark AntiSpoofing For Storage Devices")
-        
+
         # Stop hosts pretending to be a storage device by blocking
         # inbound packets purporting to be from a storage device address.
         # Storage devices are always the first 8 IPs in the subnet
@@ -3783,22 +3841,30 @@ class ProjectConfig:
         # FIXME: This assumes that networks are assigned on the ideal network
         # boundary, not across nominal /24 boundaries by making a /24 out of
         # 2 /25s that span a third octet. Eg: 10.10.3.128/25 + 10.10.4.0/25
-        hostmask = self.inverse_mask_str(vlan.networks[0].netmask)
+        cmdset.append("  remark AntiSpoofing For Storage Devices")
+
+        for network in vlan.networks:
+            cmdset.append("  deny ip %s 0.0.0.7 any" % network.number)
+            pass
         
-        cmdset.append("  deny ip %s 0.0.0.7 any" % vlan.networks[0].number)
         cmdset.append("  remark Permit Hosts To Storage Devices")
-        cmdset.append("  permit ip %s %s %s 0.0.0.7" % (vlan.networks[0].number, hostmask, vlan.networks[0].number) )
+        for network in vlan.networks:
+            hostmask = self.inverse_mask_str(network.netmask)
+            cmdset.append("  permit ip %s %s %s 0.0.0.7" % (network.number, hostmask, network.number) )
+            pass
 
         # outbound access list
         cmdset.append("ip access-list extended %s_out" % self.shortname)
         cmdset.append("  remark Permit Storage Devices To Hosts")
-        cmdset.append("  permit ip %s 0.0.0.7 %s %s" % (vlan.networks[0].number, vlan.networks[0].number, hostmask) )
+        for network in vlan.networks:
+            cmdset.append("  permit ip %s 0.0.0.7 %s %s" % (network.number, network.number, hostmask) )
+            pass
         
         return cmdset
 
     def edge_switch_interfaces_commands(self, switch):
         """
-        Build the configuration commands required to activation the ports
+        Build the configuration commands required to activate the ports
         for all hosts that have interfaces connected to this switch.
         """
         cmdset = []
@@ -3808,27 +3874,57 @@ class ProjectConfig:
         for host in self.hosts.values():
             for iface in host.interfaces:
                 if iface.switchname == switch.name:
+
                     cmdset.extend(
-                        ["interface %s" % iface.switchport,
-                         "  description %s" % host.name,
-                         #"  switchport mode access",
-                         #"  switchport port-security maximum 10",
-                         #"  switchport port-security aging time 300",
-                         #"  switchport port-security violation restrict",
-                         #"  switchport post-security limit rate invalid-source-mac 5",
-                         "  switchport access vlan %s" % vlan.number,
-                         "  ip access-group %s_in in" % self.shortname,
-                         "  ip access-group %s_out out" % self.shortname,
-                         "  mac access-group FilterL2 in",
-                         #"  flowcontrol receive on",
-                         #"  flowcontrol send on",
-                         #"  mtu 9198",
-                         #"  no cdp enable",
-                         #"  spanning-tree portfast",
-                         "  no shutdown",
-                         "!",
-                         ]
-                        )
+                        [ "interface %s" % iface.switchport,
+                          "  description %s" % host.name,
+                         ])
+
+                    # If we're trunking, we need different config than an access port.
+                    # Trunking is often used for vmware ports
+                    if iface.mode == 'trunk':
+                        log.info("Detected trunk port. Configuring...")
+                        cmdset.extend(
+                            [ "  switchport mode trunk",
+                              ])
+                        for vlan in iface.vlans:
+                            cmdset.append("  switchport trunk allowed vlan add %s" % vlan.number)
+                            pass
+                        
+                    else:
+                        cmdset.extend(
+                            [
+                             #"  switchport mode access",
+                             #"  switchport port-security maximum 10",
+                             #"  switchport port-security aging time 300",
+                             #"  switchport port-security violation restrict",
+                             #"  switchport post-security limit rate invalid-source-mac 5",
+                             "  switchport access vlan %s" % vlan.number,
+                             "  ip access-group %s_in in" % self.shortname,
+                             "  ip access-group %s_out out" % self.shortname,
+                             "  mac access-group FilterL2 in",
+                             #"  flowcontrol receive on",
+                             #"  flowcontrol send on",
+
+                             #"  no cdp enable",
+                             #"  spanning-tree portfast",
+                             ])
+                        pass
+
+                    # finish off with common end pieces
+
+                    mtu = iface.mtu
+                    # If the mtu is 9000, the switchport needs to have MTU of 9198
+                    # in order to cater for various packet overheads.
+                    if mtu == 9000:
+                        mtu = 9198
+                        pass
+
+                    cmdset.extend([
+                        "  mtu %s" % mtu,
+                        "  no shutdown",
+                        "!",
+                        ])
 
         return cmdset
 

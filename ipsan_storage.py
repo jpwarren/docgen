@@ -1318,6 +1318,8 @@ the host activation guides.
         Get the qtree level NFS configuration information for a site.
         @returns rows: an XML string of the rows data.
         """
+        # FIXME: Group this by host after building the rows, and make the left
+        # column the host.
         rows = []
 
         # only create export definition for nfs volumes on primary filers

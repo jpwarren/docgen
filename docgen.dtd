@@ -150,18 +150,22 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
       <!ELEMENT storage (#PCDATA)>
         <!ATTLIST storage type (binary | data) #REQUIRED>
 
-    <!ELEMENT interface (switchname?, switchport?, hostport?, vlan?, ipaddr?)>
+    <!ELEMENT interface (vlan_number*, switchname?, switchport?, hostport?, ipaddr?)>
       <!ATTLIST interface type CDATA #REQUIRED
-                mode (active|passive) 'active'>
+                mode (active|passive|trunk) 'active'
+		mtu CDATA #IMPLIED>
       <!ELEMENT switchname (#PCDATA)>
       <!ELEMENT switchport (#PCDATA)>
       <!ELEMENT hostport (#PCDATA)>
-      <!ELEMENT vlan (network*)>
-        <!ATTLIST vlan type (project|services) 'project'
+      <!ELEMENT vlan_number (#PCDATA)>
+
+    <!ELEMENT vlan (network*)>
+      <!ATTLIST vlan type (project|services) 'project'
 	               number CDATA #REQUIRED
 		       network CDATA #IMPLIED
 		       netmask CDATA #IMPLIED
-		       gateway CDATA #IMPLIED>
+		       gateway CDATA #IMPLIED
+		       mtu CDATA #IMPLIED>
         <!ELEMENT network EMPTY>
 	  <!ATTLIST network number CDATA #REQUIRED
 		            netmask CDATA #IMPLIED
