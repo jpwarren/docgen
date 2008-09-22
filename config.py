@@ -1172,7 +1172,9 @@ class ProjectConfig:
                 try:
                     mtu = int(ifnode.attrib['mtu'])
                 except KeyError:
-                    mtu = 9000
+                    # If the MTU isn't set on the interface, use the project VLAN MTU
+                    vlan = self.get_project_vlan(site.type)
+                    mtu = vlan.mtu
 
                 # Figure out the VLANs this interface should be in.
                 # If one isn't defined, but it in the first 'project' VLAN
@@ -3912,8 +3914,9 @@ class ProjectConfig:
                         pass
 
                     # finish off with common end pieces
-
                     mtu = iface.mtu
+                    #mtu = vlan.mtu
+                    
                     # If the mtu is 9000, the switchport needs to have MTU of 9198
                     # in order to cater for various packet overheads.
                     if mtu == 9000:
