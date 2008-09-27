@@ -3350,7 +3350,7 @@ class ProjectConfig:
                 ro_export_to = []
                 for export in qtree.roexports:
                     if export.toip is not None:
-                        rw_export_to.append( export.toip )
+                        ro_export_to.append( export.toip )
                     else:
                         ro_export_to.extend(export.tohost.get_storage_ips())
                         pass
