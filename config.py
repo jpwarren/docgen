@@ -450,12 +450,28 @@ class Volume:
 
         self.autosize = None
         self.autodelete = None
+
+        # Default volume space guarantee setting is 'volume',
+        # but for NearStores we want the space guarantee to be 'none',
+        # unless overridden in the node definition
+        if self.volnode is not None and self.volnode.attrib.has_key('space_guarantee'):
+            log.debug("vol %s has space_guarantee set!", self)
+            self.space_guarantee(self.volnode.attrib['space_guarantee'])
+        else:
+            log.debug("space_guarantee not set. Using default.")
+            if self.filer.type == 'nearstore':
+                # Default for NearStore volumes
+                self.space_guarantee('none')
+            else:
+                # General default
+                self.vol_space_guarantee = 'volume'
+                pass
+            pass
         
         log.debug("Created: %s", self)
 
     def __str__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw)
- 
 
     def get_create_size(self):
         """
@@ -488,6 +504,20 @@ class Volume:
         """
         if len(self.snaps) > 0 or len(self.snapvaults) > 0 or len(self.snapmirrors) > 0:
             return True
+
+    def space_guarantee(self, value=None):
+        """
+        Set the volume space guarantee value, or fetch
+        the current setting if no value is passed in
+        """
+        if value is not None:
+            # check it's a valid value
+            value = value.lower()
+##             if value not in [ 'none', 'volume' ]:
+##                 raise ValueError("Unsupported space guarantee value of '%s' for volume '%s'" % (value, self))
+            self.vol_space_guarantee = value
+            pass
+        return self.vol_space_guarantee
 
 class VolumeAutoSize:
     """
@@ -2422,7 +2452,8 @@ class ProjectConfig:
             # Set autodelete parameters
             vol.autodelete = VolumeAutoDelete(vol)
             vol.autodelete.configure_from_node(autodelete)
-            
+            pass
+
         volnum += 1
         return vol, volnum
     
@@ -2742,83 +2773,104 @@ class ProjectConfig:
                 log.error("Cannot find snapvaultset definition '%s'" % ref)
                 raise ValueError("snapvaultset not defined: '%s'" % ref)
 
-            # Set the target filer for the snapvault
-            try:
-                target_filername = set_node.attrib['targetfiler']
-            except KeyError:
-                # No target filer specified, so use the first nearstore at the same site as the primary
-                target_filername = self.tree.xpath("site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site.type)[0]
-                pass
-
-            try:
-                target_filer = self.filers[target_filername]
-            except KeyError:
-                log.error("Snapvault target is an unknown filer name: '%s'", target_filername)
-                raise
-
-            # Find the target aggregate for the snapvault
-            try:
-                targetaggr = set_node.attrib['targetaggregate']
-            except:
+            # If a target volume has been pre-defined, we'll use that.
+            # Otherwise, we'll invent one based on certain rules and settings.
+            if set_node.attrib.has_key('targetvolume'):
+                log.debug("Using specific volume for snapvault.")
                 try:
-                    targetaggr = self.tree.xpath("site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
-                except:
-                    # No aggregates are specified on the target filer, so use the same one as the source volume
-                    targetaggr = srcvol.aggregate
+                    filername = set_node.attrib['targetfiler']
+                except KeyError:
+                    raise KeyError("You must specify the target filer as well as target volume for snapvaultset '%s'" % id)
+                volname = set_node.attrib['targetvolume']
+
+                # There should only ever be one of these
+                try:
+                    targetvol = [ vol for vol in self.volumes if vol.filer.name == filername and vol.name == volname ][0]
+                except IndexError:
+                    raise ValueError("Cannot find volume '%s:%s' for snapvaultset" % (filername, volname))
+                log.debug("Found specific volume: %s", targetvol)
+
+            else:
+
+                # Set the target filer for the snapvault
+                try:
+                    target_filername = set_node.attrib['targetfiler']
+                except KeyError:
+                    # No target filer specified, so use the first nearstore at the same site as the primary
+                    target_filername = self.tree.xpath("site[@type = '%s']/filer[@type = 'nearstore']/@name" % srcvol.filer.site.type)[0]
                     pass
-                pass
 
-            # Set a storage multiplier for the SnapVault destination volume.
-            # This number is used to size the destination volume as a multiple
-            # of the primary usable space.
-            # This defaults to 2.5 based on historical averages.
-            try:
-                multiplier = float(set_node.attrib['multiplier'])
-            except KeyError:
-                multiplier = 2.5
+                try:
+                    target_filer = self.filers[target_filername]
+                except KeyError:
+                    log.error("Snapvault target is an unknown filer name: '%s'", target_filername)
+                    raise
 
-            # Set a specific amount to be created for SnapVault destination
-            # volume. This value (in gigabytes) will be used for all volumes
-            # created as a result of applying the snapvault/snapvaultmirror
-            # to volumes, so it will often only be useful for applying to a
-            # single volume. This gives very fine grained control over storage
-            # allocation for backups.
-            try:
-                targetusable = float(set_node.attrib['targetusable'])
-            except KeyError:
-                targetusable = None
+                # Find the target aggregate for the snapvault
+                try:
+                    targetaggr = set_node.attrib['targetaggregate']
+                except:
+                    try:
+                        targetaggr = self.tree.xpath("site/filer[@name = '%s']/aggregate/@name" % target_filername)[0]
+                    except:
+                        # No aggregates are specified on the target filer, so use the same one as the source volume
+                        targetaggr = srcvol.aggregate
+                        pass
+                    pass
 
-            # SnapVault destination volumes are identified by having
-            # a suffix appended to the volume name
-            try:
-                target_suffix = set_node.attrib['target_suffix']
-            except KeyError:
-                target_suffix = 'b'
+                # Set a storage multiplier for the SnapVault destination volume.
+                # This number is used to size the destination volume as a multiple
+                # of the primary usable space.
+                # This defaults to 2.5 based on historical averages.
+                try:
+                    multiplier = float(set_node.attrib['multiplier'])
+                except KeyError:
+                    multiplier = 2.5
 
-            # Figure out how much usable storage to allocate to the target volume
-            if targetusable is None:
-                # iSCSI is special, again. Grr.
-                if srcvol.proto == 'iscsi':
-                    targetusable = srcvol.iscsi_usable * multiplier
-                else:
-                    targetusable = srcvol.usable * multiplier
-                pass
+                # Set a specific amount to be created for SnapVault destination
+                # volume. This value (in gigabytes) will be used for all volumes
+                # created as a result of applying the snapvault/snapvaultmirror
+                # to volumes, so it will often only be useful for applying to a
+                # single volume. This gives very fine grained control over storage
+                # allocation for backups.
+                try:
+                    targetusable = float(set_node.attrib['targetusable'])
+                except KeyError:
+                    targetusable = None
+
+                # SnapVault destination volumes are identified by having
+                # a suffix appended to the volume name
+                try:
+                    target_suffix = set_node.attrib['target_suffix']
+                except KeyError:
+                    target_suffix = 'b'
+
+                # Figure out how much usable storage to allocate to the target volume
+                if targetusable is None:
+                    # iSCSI is special, again. Grr.
+                    if srcvol.proto == 'iscsi':
+                        targetusable = srcvol.iscsi_usable * multiplier
+                    else:
+                        targetusable = srcvol.usable * multiplier
+                    pass
                 
-            # target volume name is the src volume name with a 'b' suffix
-            targetvol = Volume( '%s%s' % (srcvol.name, target_suffix),
-                                self.filers[target_filername],
-                                targetaggr,
-                                targetusable,
-                                snapreserve=0,
-                                type='snapvaultdst',
-                                proto=None,
-                                snapmirrorref=srcvol.snapvaultmirrorref,
-                                )
+                # target volume name is the src volume name with a 'b' suffix
+                targetvol = Volume( '%s%s' % (srcvol.name, target_suffix),
+                                    self.filers[target_filername],
+                                    targetaggr,
+                                    targetusable,
+                                    snapreserve=0,
+                                    type='snapvaultdst',
+                                    proto=None,
+                                    snapmirrorref=srcvol.snapvaultmirrorref,
+                                    )
+                pass
+            # end determination of target volume
 
-            # See if the target volume or aggregate are actually defined in
+            # If the target volume or aggregate are actually defined in
             # the XML, and use those settings for autosize and autodelete.
-            targetvol = self.set_volume_autosize(targetvol, target_filername, targetaggr)
-            targetvol = self.set_volume_autodelete(targetvol, target_filername, targetaggr)
+            targetvol = self.set_volume_autosize(targetvol, targetvol.filer.name, targetvol.aggregate)
+            targetvol = self.set_volume_autodelete(targetvol, targetvol.filer.name, targetvol.aggregate)
             
             self.volumes.append(targetvol)
             #log.debug("target volume filer type: %s", targetvol.filer.type)
@@ -3009,7 +3061,7 @@ class ProjectConfig:
         for vol in filer.volumes:
             
             # volume creation
-            cmd = "vol create %s %s %s" % (vol.name, vol.aggregate, vol.get_create_size())
+            cmd = "vol create %s %s -s %s %s" % (vol.name, vol.aggregate, vol.space_guarantee(), vol.get_create_size())
             cmdset.append(cmd)
 
             # volume options

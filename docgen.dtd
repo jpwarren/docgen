@@ -89,7 +89,9 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 			   oracle IDREF #IMPLIED
 			   restartnumbering CDATA #IMPLIED
 			   oplocks (yes|no) 'no'
-			   iscsi_snapspace CDATA #IMPLIED>
+			   iscsi_snapspace CDATA #IMPLIED
+                           space_guarantee CDATA #IMPLIED>
+
 	  <!ELEMENT usablestorage (#PCDATA)>
 	  <!ELEMENT snapstorage (#PCDATA)>
           <!ELEMENT autosize EMPTY>
@@ -178,6 +180,7 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
   <!ELEMENT snapvaultset (snapvault*)>
     <!ATTLIST snapvaultset id ID #REQUIRED
                            targetfiler IDREF #IMPLIED
+                           targetvolume CDATA #IMPLIED
 			   targetaggregate CDATA #IMPLIED
 			   targetusable CDATA #IMPLIED
 			   multiplier CDATA #IMPLIED>

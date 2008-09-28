@@ -656,6 +656,16 @@
 	  <ipaddr>10.241.XXX.1</ipaddr>
 	  <netmask>255.255.255.224</netmask>
 	</primaryip>
+
+	<aggregate name="aggr17">
+
+	  <volume name="custom_snapvault_test">
+	    <usablestorage>146</usablestorage>
+	    <snapvaultsetref name="specific"/>
+	  </volume>
+
+	</aggregate>
+
       </vfiler>
 
     </filer>
@@ -671,6 +681,10 @@
 
 	<aggregate name="aggr02">
 	  <autodelete />
+
+	  <volume name="mycustomvolume" space_guarantee="volume">
+
+	  </volume>
 
 	</aggregate>
 
@@ -824,7 +838,15 @@
     </snapvault>
   </snapvaultset>
 
-
+  <snapvaultset id="specific" targetfiler='siteb-fasnst-01' targetvolume='mycustomvolume'>
+    <snapvault basename="custom_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="custom_weekly">
+      <snapvaultschedule>3@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
   <!--
       SnapMirrors
       
