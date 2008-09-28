@@ -764,10 +764,17 @@ class Export:
         self.toip = toip
 
     def __eq__(self, export):
-        if export.type == self.type and export.tohost == self.tohost and export.fromip == self.fromip:
+        if export.type == self.type and export.tohost == self.tohost and \
+           export.fromip == self.fromip and export.toip == self.toip:
             return True
-        else:
+        
+        return False
+
+    def __ne__(self, export):
+        if self == export:
             return False
+        
+        return True
 
 class iGroup:
     """
@@ -1753,10 +1760,8 @@ class ProjectConfig:
         # the damn thing to get it to do what you mean.
         if qtree.qtreenode is not None:
             mountoptions.extend( self.get_extra_mountoptions(qtree.qtreenode, host) )
-            log.debug("Added manually defined qtree mountoptions: %s", mountoptions)
         elif qtree.volume.volnode is not None:
             mountoptions.extend( self.get_extra_mountoptions(qtree.volume.volnode, host) )
-            log.debug("Added manually defined volume mountoptions: %s", mountoptions)
 
         # If you don't manually define mount options, use some sensible defaults
         else:
@@ -2020,14 +2025,19 @@ class ProjectConfig:
                         pass
 
                     # Check to see if the exports in both lists are equivalent
-                    # FIXME: This check now needs to be more complex.
+                    # This means that all of the exports in the igroup exportlist
+                    # are to the same host/ip, with the same permissions as the
+                    # lun's exportlist.
                     matchedgroups = []
                     for ig in site_igroups:
+                        match = True
                         for a, b in zip(ig.exportlist, lun.exportlist):
-                            if a == b:
-                                matchedgroups.append(ig)
+                            if a != b:
+                                match = False
                                 pass
                             pass
+                        if match is True:
+                            matchedgroups.append(ig)
                         pass
                     
                     #matchedgroups = [ ig for ig in site_igroups if [ a == b for a,b in zip(ig.exportlist, lun.exportlist)] ]

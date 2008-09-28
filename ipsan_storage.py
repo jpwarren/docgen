@@ -704,7 +704,10 @@ the host activation guides.
                     # Add IP space information
                     vfiler_attributes.append( ('IP Space Name', '&ipspace.name;', '') )
 
-                    vfiler_attributes.append( ('MTU', '9000', '') )
+                    mtu = vfiler.vlan.mtu
+                    if mtu == 9128:
+                        mtu = 9000
+                    vfiler_attributes.append( ('MTU', '%s' % mtu, '') )
 
                     vfiler_attributes.append( ('Storage Protocols', self.storage_protocol_cell(), '') )
 
