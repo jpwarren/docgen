@@ -1595,7 +1595,7 @@ class ProjectConfig:
                                 log.warn("Qtree description should be wrapped in <description> tags")
                                 qtree_comment = qtree_node.text
 
-                        rwexports, roexports = self.get_export_hostlists(qtree_node, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+                        rwexports, roexports = self.get_exports(qtree_node, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
                         
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
@@ -1632,7 +1632,7 @@ class ProjectConfig:
                             log.debug("onhost_names are: %s", onhost_names)
 
                             # Add manually defined exports, if any exist
-                            rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]), default_to_all=False)
+                            rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]), default_to_all=False)
                             log.debug("database hostlists: %s, %s", rwexports, roexports)
                             
                             for hostname in onhost_names:
@@ -1646,7 +1646,7 @@ class ProjectConfig:
                                 pass
 
                         except IndexError:
-                            rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+                            rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
 
                         # If the hostlist is empty, assume qtrees are available to all hosts
                         if len(rwexports) == 0 and len(roexports) == 0:
@@ -1703,7 +1703,7 @@ class ProjectConfig:
                             pass
 
                         # Figure out the hostlist by checking for volume based export definitions
-                        rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+                        rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
 
                         qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
                         qtree_list.append(qtree)
@@ -1887,7 +1887,7 @@ class ProjectConfig:
                     log.debug("Allocating %sg storage to LUN", lunsize)
                     lun_total += lunsize
                     
-                    rwexports, roexports = self.get_export_hostlists(lunnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+                    rwexports, roexports = self.get_exports(lunnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
                     exportlist = rwexports + roexports
 
                     log.debug("LUN will be exported to %s", exportlist)
@@ -1933,15 +1933,16 @@ class ProjectConfig:
                 log.debug("calculated lun size of: %s", lunsize)
                 lun_total += lunsize
 
-                rwexports, roexports = self.get_export_hostlists(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
-                hostlist = rwexports + roexports
+                rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+                exports = rwexports + roexports
 
-                log.debug("LUN will be exported to %s", hostlist)
+                log.debug("LUN will be exported to %s", exports)
 
                 qtree_parent = vol.qtrees.values()[0]
 
-                if hostlist[0].iscsi_initiator is None:
-                    raise ValueError("Host %s has no iSCSI initiator defined." % hostlist[0].name)
+                firsthost = exports[0].tohost
+                if firsthost.iscsi_initiator is None:
+                    raise ValueError("Host %s has no iSCSI initiator defined." % firsthost.name)
 
                 lunid = current_lunid
                 current_lunid += 1
@@ -1951,7 +1952,7 @@ class ProjectConfig:
 
                 # Add the new LUN to the lunlist
                 # The LUN ostype defaults to the same type as the first one in its initiator list
-                newlun = LUN( lunname, qtree_parent, lunid, lunsize, hostlist[0].os, hostlist, lunnode)
+                newlun = LUN( lunname, qtree_parent, lunid, lunsize, firsthost.os, exports, lunnode)
                 lunlist.append( newlun )
 
                 smlun = self.add_mirrored_luns(newlun, vol)
@@ -2642,9 +2643,9 @@ class ProjectConfig:
             log.debug("found exports: %s", [x.xpath("@to")[0] for x in exports ])
             return exports
 
-    def get_export_hostlists(self, node, default_iplist, default_to_all=True):
+    def get_exports(self, node, default_iplist, default_to_all=True):
         """
-        Find the list of hosts for read/write and readonly mode based
+        Find the list of exports for read/write and readonly mode based
         on the particular qtree, volume or lun node supplied.
 
         If default_to_all is set to True, this will set the rwexports
