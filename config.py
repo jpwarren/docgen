@@ -739,7 +739,7 @@ class Vlan:
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
 
-    def __init__(self, number, site='primary', type='project', networks=[], description='', mtu='9198', node=None):
+    def __init__(self, number, site='primary', type='project', networks=[], description='', mtu=9000, node=None):
 
         self.description = description
         self.site = site
@@ -2263,7 +2263,7 @@ class ProjectConfig:
             try:
                 mtu = int(node.attrib['mtu'])
             except KeyError:
-                mtu = 9128
+                mtu = 9000
             
             vlan = Vlan(number, site, type, network_list, description, mtu, node)
             vlans.append(vlan)
@@ -2791,6 +2791,9 @@ class ProjectConfig:
                     raise ValueError("Cannot find volume '%s:%s' for snapvaultset" % (filername, volname))
                 log.debug("Found specific volume: %s", targetvol)
 
+                # Set the type of the volume to be a snapvault destination
+                targetvol.type='snapvaultdst'
+
             else:
 
                 # Set the target filer for the snapvault
@@ -3062,7 +3065,7 @@ class ProjectConfig:
         for vol in filer.volumes:
             
             # volume creation
-            cmd = "vol create %s %s -s %s %s" % (vol.name, vol.aggregate, vol.space_guarantee(), vol.get_create_size())
+            cmd = "vol create %s -s %s %s %s" % (vol.name, vol.space_guarantee(), vol.aggregate, vol.get_create_size())
             cmdset.append(cmd)
 
             # volume options
@@ -3172,8 +3175,6 @@ class ProjectConfig:
         cmdset = []
 
         mtu = vfiler.vlan.mtu
-        if mtu == 9198:
-            mtu = 9000
 
         if filer.type == 'secondary':
             cmd = "ifconfig svif0-%s mtusize %s" % ( vfiler.vlan.number, mtu )
