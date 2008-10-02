@@ -40,7 +40,7 @@ class BaseOptions(optparse.OptionParser):
         self.add_option('', '--logfile',       dest='logfile', type='string', help=help_logfile)
         self.add_option('', '--no-logfile',    dest='no-logfile', action='store_true', default=False, help=help_no_logfile)
 
-        self.add_option('-c', '--configfile',      dest='configfile', type='string', default='/usr/local/docgen/docgen.conf', help=help_config_file)
+        self.add_option('-c', '--configfile',      dest='configfile', type='string', default='/usr/local/docgen/etc/docgen.conf', help=help_config_file)
         self.add_option('-D', '--definition',      dest='definitionfile', type='string', help=help_definition_file)
         self.add_option('-o', '--outfile',     dest='outfile', type='string', help=help_outfile)
         self.add_option('', '--versioned',     dest='versioned', action='store_true', default=False, help=help_versioned)

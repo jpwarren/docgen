@@ -6,7 +6,7 @@
 # Directory that docgen is installed in
 DOCGEN_BASEDIR=/usr/local/docgen
 
-DEFAULT_STYLESHEET=$DOCGEN_BASEDIR/book_fo_styles.xsl
+DEFAULT_STYLESHEET=$DOCGEN_BASEDIR/docbook/book_fo_styles.xsl
 
 LD_LIBRARY_PATH=/usr/local/lib:/usr/lib
 export LD_LIBRARY_PATH

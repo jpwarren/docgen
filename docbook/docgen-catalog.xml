@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <!-- XML Catalog for DocGen -->
+
+  <rewriteURI
+      uriStartString="http://docgen.eigenmagic.com/"
+      rewritePrefix="file:///usr/local/docgen/docbook/"/>
+
+  <rewriteSystem
+      systemIdStartString="http://docgen.eigenmagic.com/"
+      rewritePrefix="file:///usr/local/docgen/docbook/"/>
+
+</catalog>

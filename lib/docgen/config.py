@@ -19,7 +19,7 @@ from lxml import etree
 import logging
 import debug
 
-_configdir = '/usr/local/docgen'
+_configdir = '/usr/local/docgen/etc'
 
 log = logging.getLogger('docgen')
 
