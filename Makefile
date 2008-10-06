@@ -13,6 +13,8 @@ EXPORT_DIR = docgen-export
 
 VIRT_ROOT = soldfm_root
 
+RSYNC_FLAGS = -arv -O --no-p --no-g
+
 # Export the latest code to an export location
 export: 
 	echo "Exporting latest code from repository..."
@@ -37,12 +39,12 @@ build_local.stamp:
 
 sync:
 	echo "Installing latest code to $(ADMIN_HOST)..."
-	rsync --dry-run -arv -O --no-p --no-g -e 'ssh -i $(SSH_ID)' $(VIRT_ROOT)/* $(LOGIN_USER)@$(ADMIN_HOST):/
+	rsync $(RSYNC_FLAGS) -e 'ssh -i $(SSH_ID)' $(VIRT_ROOT)/* $(LOGIN_USER)@$(ADMIN_HOST):/
 	echo "Done."
 
 sync_local: build_local
 	echo "Installing to local host..."
-	rsync -arv -O --no-p --no-g $(VIRT_ROOT)/* /
+	rsync $(RSYNC_FLAGS) $(VIRT_ROOT)/* /
 
 install: export build sync
 

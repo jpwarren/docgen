@@ -5,10 +5,10 @@
 
 __version__ = '$Revision: 1.35 $'
 
+# setuptools doesn't support post-install scripts yet,
+# which we need for this package. Drat.
 ## from ez_setup import use_setuptools
 ## use_setuptools()
-
-## from setuptools import setup, find_packages
 
 import sys
 import time
@@ -21,6 +21,8 @@ import string
 
 from stat import ST_MODE
 from distutils.core import setup
+#from setuptools import setup, find_packages
+
 from distutils.core import Extension
 from distutils.command.build_scripts import build_scripts
 from distutils.command.build_py import build_py
@@ -224,6 +226,12 @@ class InstallLib(install_lib):
         # Remove source library files
         for filepath in outfiles:
             os.unlink(filepath)
+
+def install_docgen():
+    """
+    A custom function that installs DocGen resources into the docgen tree
+    """
+    print "=== This is a custom install function, inserted via an entry point."
     
 class myDistribution(Distribution):
     def __init__(self, *attrs):
@@ -238,6 +246,7 @@ setup(
     name="DocGen",
     version=version,
 
+    #packages = find_packages('lib'),
     packages = packages,
     package_dir = {'':'lib'},
 
@@ -245,11 +254,13 @@ setup(
                 'bin/compile_doc.sh',
                 'bin/create_document.py',
                 ],
-#                ] + glob.glob('bin/*.py'),
       
     data_files = [ ('etc', glob.glob('etc/*')),
                    ('docbook', glob.glob('docbook/*')),
+                   ('doc', glob.glob('doc/*')),
                    ],
+
+    #eager_resources = [ 'etc', 'docbook', 'doc' ],
       
     distclass = myDistribution,
 
@@ -273,6 +284,12 @@ setup(
     "Programming Language :: Python",
     "Topic :: System :: Systems Administration",
     "Topic :: Utilities",
-    ]
+    ],
+
+##     entry_points = { "distutils.commands":
+##                      [ "docgen_install = docgen.setup:docgen_install",
+##                        ],
+    
+##     }
     
     )
