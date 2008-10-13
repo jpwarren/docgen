@@ -40,11 +40,14 @@ packages = ['docgen']
 version_major=1
 version_minor=0
 version_micro=1
-version_devel=__version__
+version_devel='r%s' % __version__.split(':')[1].split()[0]
 #version_devel='-dev-' + time.strftime('%Y-%m-%d-%H%M')
 
-version='%d.%d.%d' % (version_major, version_minor, version_micro)
-#version='%d.%d.%d%s' % (version_major, version_minor, version_micro, version_devel)
+#version='%d.%d.%d' % (version_major, version_minor, version_micro)
+version='%d.%d.%d%s' % (version_major, version_minor, version_micro, version_devel)
+
+print version
+sys.exit()
 
 try:
     username = os.getlogin()
