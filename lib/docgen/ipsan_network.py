@@ -714,13 +714,16 @@ to provide IP connectivity between the project hosts and the storage infrastruct
     def build_firewall_subinterface_commands(self):
         cmds = []
         for i, vlan in enumerate(self.conf.get_services_vlans()):
-            cmds.append('set interface "ethernet0/3.2" tag %s zone "services"' % vlan.number)
-            cmds.append('set interface ethernet0/3.2 ip %s/%s' % (vlan.networks[0].number, vlan.networks[0].maskbits) )
-            cmds.append('set interface ethernet0/3.2 route')
-            cmds.append('set interface ethernet0/3.2 ip manageable')            
-            cmds.append('set interface ethernet0/3.2 manage ping')
-            cmds.append('set address "services" "%s_SVC_%02d" %s %s' % (self.conf.shortname, i, vlan.networks[0].number, vlan.networks[0].netmask) )
-            cmds.append('set address "Untrust" "%s_SVC_%02d" %s.ipaddr 255.255.255.255' % (self.conf.shortname, i, vlan.networks[0].number) )
+            # The subinterface number is the last 2 digits in the VLAN number
+            # We convert it to single digit precision number (no leading zero)
+            subinterface_num = '%d' % int( ('%s' % vlan.number)[-2])
+            cmds.append('set interface ethernet0/3.%s tag %s zone services' % ( subinterface_num, vlan.number)
+            cmds.append('set interface ethernet0/3.%s ip %s/%s' % (subinterface_num, vlan.networks[0].gateway, vlan.networks[0].maskbits) )
+            cmds.append('set interface ethernet0/3.%s route' % (subinterface_num) )
+            cmds.append('set interface ethernet0/3.%s ip manageable' % (subinterface_num))            
+            cmds.append('set interface ethernet0/3.%s manage ping' % (subinterface_num))
+            cmds.append('set address services %s_SVC_%02d %s %s' % (self.conf.shortname, i, vlan.networks[0].number, vlan.networks[0].netmask) )
+            cmds.append('set address Untrust %s_SVC_%02d %s.ipaddr 255.255.255.255' % (self.conf.shortname, i, vlan.networks[0].number) )
             cmds.append('set interface ethernet0/0 ext ip 161.117.180.0 255.255.255.0 dip 5 161.117.180.2 161.117.180.2')
-            cmds.append('set policy from "services" to "Untrust" "%s" 161.117.0.0/16 StorageAD nat src dip-id 5 permit log' % (self.conf.shortname, ))
+            cmds.append('set policy from services to Untrust %s 161.117.0.0/16 StorageAD nat src dip-id 5 permit log' % (self.conf.shortname, ))
         return cmds
