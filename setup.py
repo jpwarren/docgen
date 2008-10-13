@@ -3,7 +3,7 @@
 #
 ##COPYRIGHT##
 
-__version__ = '$Revision: 1.35 $'
+__version__ = '$Revision$'
 
 # setuptools doesn't support post-install scripts yet,
 # which we need for this package. Drat.
