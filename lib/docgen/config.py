@@ -1875,7 +1875,7 @@ class ProjectConfig:
                         # total the number of sized luns
                         sized_luns = vol.volnode.xpath("descendant-or-self::lun[(@size)]")
                         log.debug("sized luns are: %s", sized_luns)
-                        sized_total = sum([ lun.attrib['size'] for lun in sized_luns ])
+                        sized_total = sum([ int(lun.attrib['size']) for lun in sized_luns ])
                         log.debug("sized total is: %s", sized_total)
                         
                         log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)

@@ -257,7 +257,9 @@ setup(
       
     data_files = [ ('etc', glob.glob('etc/*')),
                    ('docbook', glob.glob('docbook/*')),
-                   ('doc', glob.glob('doc/*')),
+                   ('doc', [ 'doc/EXAMPLE.project-definition.xml',
+                             'doc/EXAMPLE.multi-network-vlan.project-definition.xml',
+                             ]),
                    ],
 
     #eager_resources = [ 'etc', 'docbook', 'doc' ],

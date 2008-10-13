@@ -21,6 +21,11 @@ export:
 	-rm -rf $(EXPORT_DIR)
 	svn export $(SVN_PATH) $(EXPORT_DIR)
 
+sdist:
+	echo "Creating source distribution for install."
+	cd $(EXPORT_DIR); \
+	python setup.py sdist
+
 build: build.stamp
 	echo "Building DocGen for soldfm install..."
 	cd $(EXPORT_DIR); \
