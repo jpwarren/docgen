@@ -717,7 +717,7 @@ to provide IP connectivity between the project hosts and the storage infrastruct
             # The subinterface number is the last 2 digits in the VLAN number
             # We convert it to single digit precision number (no leading zero)
             subinterface_num = '%d' % int( ('%s' % vlan.number)[-2])
-            cmds.append('set interface ethernet0/3.%s tag %s zone services' % ( subinterface_num, vlan.number)
+            cmds.append('set interface ethernet0/3.%s tag %s zone services' % ( subinterface_num, vlan.number))
             cmds.append('set interface ethernet0/3.%s ip %s/%s' % (subinterface_num, vlan.networks[0].gateway, vlan.networks[0].maskbits) )
             cmds.append('set interface ethernet0/3.%s route' % (subinterface_num) )
             cmds.append('set interface ethernet0/3.%s ip manageable' % (subinterface_num))            

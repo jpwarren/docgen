@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-#
+# $Id$
 # Makefile to assist with publishing the docgen code to admin host
 
 ADMIN_HOST = soldfm
@@ -11,9 +11,11 @@ SSH_ID = /home/daedalus/.ssh/soldfm-sync
 SVN_PATH = svn+ssh://fnordsvn/home/daedalus/svn/docgen/trunk
 EXPORT_DIR = docgen-export
 
-VIRT_ROOT = soldfm_root
+VIRT_ROOT = sensis_root
 
 RSYNC_FLAGS = -arv -O --no-p --no-g
+
+VERSION := $(shell python setup.py --fullname)
 
 # Export the latest code to an export location
 export: 
@@ -34,13 +36,14 @@ build: build.stamp
 build.stamp:
 	touch build.stamp
 
-build_local: build_local.stamp
-	echo "Building DocGen for soldfm install..."
-	-rm -rf $(VIRT_ROOT)
+# Custom build for binary distribution to Sensis
+build_sensis: build_sensis.stamp
+	echo "Building DocGen for Sensis..."
+	cd $(EXPORT_DIR); \
 	python setup.py install --root $(VIRT_ROOT) --optimize 1 --install-data /usr/local/docgen --install-scripts /usr/local/docgen --install-lib /usr/local/lib/python2.5/site-packages
 
-build_local.stamp:
-	touch build_local.stamp
+build_sensis.stamp:
+	touch build_sensis.stamp
 
 sync:
 	echo "Installing latest code to $(ADMIN_HOST)..."
@@ -55,3 +58,9 @@ install: export build sync
 
 install_local: build_local sync_local
 
+sensis: export build_sensis
+	-mkdir dist
+	cd $(EXPORT_DIR)/$(VIRT_ROOT); \
+	tar cvzf "$(VERSION).sensis.tar.gz" *
+	mv $(EXPORT_DIR)/$(VIRT_ROOT)/$(VERSION).sensis.tar.gz dist/
+	echo "Build of Sensis DocGen distro complete: dist/$(VERSION).sensis.tar.gz"
