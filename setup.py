@@ -46,9 +46,6 @@ version_devel='r%s' % __version__.split(':')[1].split()[0]
 #version='%d.%d.%d' % (version_major, version_minor, version_micro)
 version='%d.%d.%d%s' % (version_major, version_minor, version_micro, version_devel)
 
-print version
-sys.exit()
-
 try:
     username = os.getlogin()
 except OSError:
@@ -263,6 +260,12 @@ setup(
                    ('doc', [ 'doc/EXAMPLE.project-definition.xml',
                              'doc/EXAMPLE.multi-network-vlan.project-definition.xml',
                              ]),
+                   # Make sure the binary builds contain licensing, copyright, etc. information
+                   ('', [ 'LICENSE',
+                          'COPYRIGHT',
+                          'README',
+                          'INSTALL',
+                          ]),
                    ],
 
     #eager_resources = [ 'etc', 'docbook', 'doc' ],
