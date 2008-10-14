@@ -1720,17 +1720,24 @@ class ProjectConfig:
                     dr_rwexports = []
                     dr_roexports = []
 
+                    # The fromip needs to be set to that of the destination vfiler
+                    # FIXME: Use the first snapmirror only. Should this permit multiple snapmirrors?
+                    sm = vol.snapmirrors[0]
+                    target_vfiler = sm.targetvol.filer.vfilers.values()[0]
+                    fromip = target_vfiler.ipaddress
+
                     # Add rw drhosts for the qtree
                     for export in qtree.rwexports:
                         for drhostname in export.tohost.drhosts:
-                            dr_rwexports.append( Export(self.hosts[drhostname], export.fromip, export.type, export.toip))
+                            dr_rwexports.append( Export(self.hosts[drhostname], fromip, export.type, export.toip))
                         pass
 
+                    # Add ro drhosts for the qtree
                     for export in qtree.roexports:
                         for drhostname in export.tohost.drhosts:
-                            dr_roexports.append( Export(self.hosts[drhostname], export.fromip, export.type, export.toip))
+                            dr_roexports.append( Export(self.hosts[drhostname], fromip, export.type, export.toip))
                         pass
-
+                    
                     # If either list is not empty, we need to create a Qtree on the
                     # snapmirror target volume with appropriate exports
                     if len(dr_rwexports) > 0 or len(dr_roexports) > 0:
