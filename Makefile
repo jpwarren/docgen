@@ -17,6 +17,11 @@ RSYNC_FLAGS = -arv -O --no-p --no-g
 
 VERSION := $(shell python setup.py --fullname)
 
+# Some permissions settings required for Sensis
+SENSIS_ROOT := 0
+SENSIS_USER := 6668
+SENSIS_GROUP := 300
+
 # Export the latest code to an export location
 export: 
 	echo "Exporting latest code from repository..."
@@ -44,6 +49,14 @@ build_sensis: build_sensis.stamp
 
 build_sensis.stamp:
 	touch build_sensis.stamp
+
+chown_sensis:
+	cd $(EXPORT_DIR)/$(VIRT_ROOT); \
+	chown -R $(SENSIS_ROOT):$(SENSIS_ROOT) usr/local/lib/python2.5/site-packages/docgen; \
+	chown -R $(SENSIS_ROOT):$(SENSIS_ROOT) usr/local/lib/python2.5/site-packages/DocGen*
+
+	cd $(EXPORT_DIR)/$(VIRT_ROOT); \
+	chown -R $(SENSIS_ROOT):$(SENSIS_GROUP) /usr/local/docgen
 
 sync:
 	echo "Installing latest code to $(ADMIN_HOST)..."
