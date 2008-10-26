@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- This is an example project definition file for the Sensis Document Generator.
+<!-- This is an example project definition file for the DocGen.
 Use this file as a reference for how you might configure a project.
 It contains examples of how to configure various features of a project,
 though not all of them will be present in every project.
@@ -16,10 +16,10 @@ file is well-formed and also a valid file.
 <project>
 
   <!-- A document prefix. This isn't really used at the moment. -->
-  <prefix>Sensis</prefix>
+  <prefix>eigenmagic</prefix>
 
-  <!-- The EI PMO project code, assigned by the Project Management Office -->
-  <code>EI1007</code>
+  <!-- A project code, to uniquely define projects -->
+  <code>1007</code>
 
   <!-- A short name for the project. This is used for the vfiler name. -->
   <shortname>myproj</shortname>
@@ -34,7 +34,7 @@ file is well-formed and also a valid file.
        explanatory background text about the project, of required.
   -->
   <background>
-    <para>The environment consists of Solaris servers at Level 5 CoLo.
+    <para>The environment consists of Solaris servers at the primary site.
     </para>
 
     <itemizedlist>
@@ -110,8 +110,7 @@ file is well-formed and also a valid file.
   </database>
 
   <!-- Every project will have a 'primary' site. This is the site that
-       the storage is provided from. CoLo or DR could be the primary site
-       for a project, depending on where the main use of storage is.
+       the storage is provided from.
        The 'secondary' site is always the SnapMirror destination site.
   -->
   <site name='sitea' type="primary" location="PrimarySite">
@@ -141,7 +140,7 @@ file is well-formed and also a valid file.
       <operatingsystem>Solaris 10</operatingsystem>
 
       <!-- Descriptive text for where the server is located -->
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
 
       <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
       <description>Database server</description>
@@ -173,7 +172,7 @@ file is well-formed and also a valid file.
     <host name="primhost02">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>Database server</description>
 
       <interface type='storage' mode='active'>
@@ -192,7 +191,7 @@ file is well-formed and also a valid file.
     <host name="primhost03">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>Database server</description>
 
       <interface type='storage' mode='active'>
@@ -209,7 +208,7 @@ file is well-formed and also a valid file.
     <host name="virtualhost-01" virtual="yes">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>Virtual Host on primhost02</description>
 
       <interface type='storage' mode='active'>
@@ -226,7 +225,7 @@ file is well-formed and also a valid file.
     <host name="examplehost-01" virtual="yes">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>An example virtual host for sorting</description>
 
       <interface type='storage' mode='active'>

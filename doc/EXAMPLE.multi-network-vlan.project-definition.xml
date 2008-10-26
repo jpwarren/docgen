@@ -9,8 +9,8 @@
 
 <project>
 
-  <prefix>Sensis</prefix>
-  <code>EIXXXX</code>
+  <prefix>eigenmagic</prefix>
+  <code>XXXX</code>
   <shortname>myproj</shortname>
   <longname>My Project</longname>
 
@@ -91,7 +91,7 @@
   </database>
 
   <!-- Every project will have a 'primary' site. This is the site that
-       the storage is provided from. CoLo or DR could be the primary site
+       the storage is provided from. Primary or DR could be the primary site
        for a project, depending on where the main use of storage is.
        The 'secondary' site is always the SnapMirror destination site.
     -->
@@ -124,7 +124,7 @@
       <operatingsystem>Solaris 10</operatingsystem>
 
       <!-- Descriptive text for where the server is located -->
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
 
       <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
       <description>Database server</description>
@@ -160,7 +160,7 @@
     <host name="primhost02">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>Database server</description>
 
       <interface type='storage' mode='trunk' mtu='1500'>
@@ -180,7 +180,7 @@
     <host name="primhost03">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>Database server</description>
 
       <interface type='storage' mode='active'>
@@ -197,7 +197,7 @@
     <host name="virtualhost-01" virtual="yes">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>Virtual Host on primhost02</description>
 
       <interface type='storage' mode='active'>
@@ -214,7 +214,7 @@
     <host name="examplehost-01" virtual="yes">
       <platform>Sun</platform>
       <operatingsystem>Solaris 10</operatingsystem>
-      <location>CoLo Level 5</location>
+      <location>Primary Site</location>
       <description>An example virtual host for sorting</description>
 
       <interface type='storage' mode='active'>

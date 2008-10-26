@@ -1497,9 +1497,23 @@ class ProjectConfig:
             for vfiler in filer.vfilers.values():
                 log.debug("Adding root volume for vfiler '%s' on '%s'...", vfiler.name, filer.name)
                 snapref = []
-                # The expected name of the snapvault schedule for root volumes
-                # is default_primary or default_secondary
-                snapvaultref = ['default_%s' % filer.site.type]
+
+                # Try to find a default snapvaultref for root volumes
+                # to have for backups. If a snapvaultset exists called
+                # default_<filername>, then that one is used, otherwise
+                # if will try to use default_<sitetype>.
+                try:
+                    ref = 'default_%s' % filer.name
+                    set_node = self.tree.xpath("snapvaultset[@id = '%s']" % ref)[0]
+                    snapvaultref = [ ref, ]
+                except IndexError:
+                    try:
+                        log.info("No snapvault ref '%s' for this filer, looking for site default...", ref)
+                        ref = 'default_%s' % filer.site.type                    
+                        set_node = self.tree.xpath("snapvaultset[@id = '%s']" % ref)[0]
+                        snapvaultref = [ ref, ]
+                    except IndexError:
+                        raise KeyError("Can't find a snapvaultset named '%s' for backing up root volumes." % ref)
 
                 # We don't snapmirror root volumes
                 snapmirrorref = []
@@ -2320,7 +2334,11 @@ class ProjectConfig:
         """
         Build a list of all the primary volumes for the project.
         """
-        volumes = [ vol for vol in self.volumes if vol.filer.site.type == site and vol.filer.type == filertype ]
+        # sort volumes by filer name, then aggregate name, then volume name
+        vol_list = [ ('%s-%s-%s' % (vol.filer.name, vol.aggregate, vol.name), vol) for
+                    vol in self.volumes if vol.filer.site.type == site and vol.filer.type == filertype ]
+        vol_list.sort()
+        return [ x[1] for x in vol_list ]
         log.debug("Found %d volumes for site:%s/filer:%s", len(volumes), site, filertype)
         return volumes
 

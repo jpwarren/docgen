@@ -678,7 +678,10 @@ the host activation guides.
             vfiler_config_tables = []
             log.debug("Filers found: %s", site.filers.values())
 
-            for filer in site.filers.values():
+            # sort by filer name
+            filerlist = [ (filer.name, filer) for filer in site.filers.values() ]
+            filerlist.sort()
+            for ignored, filer in filerlist:
                 #for filer in [ filer for filer in site.filers.values() if filer.type == 'primary' ]:
                 for vfiler in filer.vfilers.values():
                     vfiler_attributes = []
