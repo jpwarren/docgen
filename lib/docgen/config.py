@@ -3357,7 +3357,7 @@ class ProjectConfig:
 
         # DNS enablement options for CIFS capable vfilers
         if 'cifs' in self.allowed_protocols:
-            options.append("dns domainname %s" % vfiler.dns_domain_name)
+            options.append("dns.domainname %s" % vfiler.dns_domain_name)
             options.append("dns enable on")
             
         for opt in options:
