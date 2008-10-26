@@ -1426,7 +1426,7 @@ class ProjectConfig:
                                          dns_domain_name, ad_account_location,
                                          site.nameservers, site.winsservers)
 
-            for vlanip in node.xpath("vlanip"):
+            for vlanip in node.findall("vlanip"):
                 # Find the vlan object that relates to the vlan mentioned here
                 log.debug("found additional VLAN ip for vlan %s", vlanip.attrib['vlan'])
                 try:
@@ -1436,6 +1436,7 @@ class ProjectConfig:
                 log.debug("vlan_node is: %s", vlan_node)
                 vlan = [ x for x in self.vlans if x.node == vlan_node ][0]
                 vfilers[vfiler_key].add_service_ip( vlan, vlanip.find('ipaddr').text )
+                log.debug("Added service IP '%s' for vlan '%s' on %s", vlanip.find('ipaddr').text, vlan.number, vfiler_key)
                 pass
 
         return vfilers
@@ -3202,7 +3203,11 @@ class ProjectConfig:
         # Aliases, if applicable
         #
         for (ipaddr, netmask) in vfiler.alias_ips:
-            cmdset.append("ifconfig svif0-%s alias %s netmask %s mtusize %s up" % (vfiler.vlan.number, ipaddr, netmask, mtu))
+            if filer.type == 'secondary':
+                # cluster partner doesn't configure the alias IPs.
+                pass
+            else:
+                cmdset.append("ifconfig svif0-%s alias %s netmask %s mtusize %s up" % (vfiler.vlan.number, ipaddr, netmask, mtu))
 
         #
         # Services VLAN interfaces
@@ -3220,9 +3225,10 @@ class ProjectConfig:
             # Add partner clause if this is a primary or secondary filer
             if filer.type in [ 'primary', 'secondary' ]:
                 cmd += " partner svif0-%s" % vlan.number
-                cmdset.append(cmd)
                 pass
             
+            cmdset.append(cmd)            
+
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
