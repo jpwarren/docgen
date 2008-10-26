@@ -156,6 +156,8 @@ class Interface:
         self.mtu = mtu
         self.vlans = vlans
 
+        log.debug("Created interface with vlans: %s", self.vlans)
+
     def __repr__(self):
         return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
 
@@ -939,6 +941,14 @@ class ProjectConfig:
             raise ValueError("Cannot load defaults file: %s" % defaultsfile)
         
         self.tree = etree.parse(configfile)
+        try:
+            self.tree.xinclude()
+        except etree.XIncludeError, e:
+            log.error("XInclude of a file failed: %s", e)
+            log.error("Use external tool such as xmllint to figure out why.")
+            log.error("Sorry, but lxml.etree won't tell me exactly what went wrong.")
+            raise
+
 
         self.filers = {}
         self.volumes = []
@@ -1223,7 +1233,7 @@ class ProjectConfig:
                     # Find all the vlans this interface can talk to (ie: it's a trunk)
                     vlans = []
                     for vlan_num in vlan_nums:
-                        vlans.extend([ vlan for vlan in self.vlans if vlan.site == site.type and vlan.number == vlan_num ])
+                        vlans.extend([ vlan for vlan in self.vlans if vlan.site == site.type and vlan.number == vlan_num.text ])
                         pass
                     pass
 

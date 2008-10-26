@@ -1,0 +1,55 @@
+<!-- example virtual machine farm definition for inclusion
+     in virutal project definitions that use vmfarms
+-->
+<vlan type="project" number="3031" mtu='1500'>
+  <network number="10.240.31.0/24" gateway="10.240.31.254"/>
+</vlan>
+<vlan type="project" number="3032" mtu='1500'>
+  <network number="10.240.32.0/24" gateway="10.240.32.254"/>
+</vlan>
+
+<host name="vmhost01">
+  <platform>VMware</platform>
+  <operatingsystem>VMware ESX</operatingsystem>
+  <location>VMfarm</location>
+  <description>Virtiual Machine Farm</description>
+
+  <interface type='storage' mode='trunk' mtu='1500'>
+    <vlan_number>3031</vlan_number>
+    <vlan_number>3032</vlan_number>
+    <switchname>sitea-swtedg-0103</switchname>
+    <switchport>GigabitEthernet1/21</switchport>
+    <hostport>PCI 0</hostport>
+  </interface>
+
+  <interface type='storage' mode='trunk' mtu='1500'>
+    <vlan_number>3031</vlan_number>
+    <vlan_number>3032</vlan_number>
+    <switchname>sitea-swtedg-0104</switchname>
+    <switchport>GigabitEthernet1/22</switchport>
+    <hostport>PCI 0</hostport>
+  </interface>
+</host>
+
+<host name="vmhost02">
+  <platform>VMware</platform>
+  <operatingsystem>VMware ESX</operatingsystem>
+  <location>VMfarm</location>
+  <description>Virtual Machine Farm</description>
+
+  <interface type='storage' mode='trunk' mtu='1500'>
+    <vlan_number>3031</vlan_number>
+    <vlan_number>3032</vlan_number>
+    <switchname>sitea-swtedg-0103</switchname>
+    <switchport>GigabitEthernet1/23</switchport>
+    <hostport>PCI 0</hostport>
+  </interface>
+
+  <interface type='storage' mode='trunk' mtu='1500'>
+    <vlan_number>3031</vlan_number>
+    <vlan_number>3032</vlan_number>
+    <switchname>sitea-swtedg-0104</switchname>
+    <switchport>GigabitEthernet1/23</switchport>
+    <hostport>PCI 0</hostport>
+  </interface>
+</host>
