@@ -39,7 +39,7 @@ packages = ['docgen']
 
 version_major=1
 version_minor=0
-version_micro=1
+version_micro=2
 version_devel='r%s' % __version__.split(':')[1].split()[0]
 #version_devel='-dev-' + time.strftime('%Y-%m-%d-%H%M')
 
