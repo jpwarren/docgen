@@ -645,7 +645,14 @@ class VolumeAutoDelete:
         return dict
 
 class Qtree:
-    def __init__(self, volume, qtree_name=None, security='unix', comment='', rwexports=[], roexports=[], qtreenode=None, oplocks=True):
+    def __init__(self, volume, qtree_name=None,
+                 security='unix',
+                 comment='',
+                 rwexports=[],
+                 roexports=[],
+                 qtreenode=None,
+                 oplocks=True,
+                 aliases=[]):
 
         """
         A Qtree representation
@@ -662,7 +669,8 @@ class Qtree:
         self.qtreenode = qtreenode
 
         self.oplocks = oplocks
-
+        self.aliases = aliases
+        
         self.luns = []
         
         log.debug("Created qtree: %s", self)
@@ -1575,7 +1583,8 @@ class ProjectConfig:
                 else:
                     log.warn("No volume node available for: %s", vol)
                     rwexports = [ Export(host, vol.filer.vfilers.values()[0].ipaddress, 'rw') for host in self.hosts.values() ]
-                    qtree = Qtree(vol, rwexports=rwexports )
+                    aliases = self.get_export_aliases(vol.volnode)
+                    qtree = Qtree(vol, rwexports=rwexports, aliases=aliases )
                     qtree_list.append(qtree)
                     pass
                 pass
@@ -1624,8 +1633,8 @@ class ProjectConfig:
                         
 ##                         log.error("Host named '%s' not defined" % hostname)
 ##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
-
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwexports, roexports, qtreenode=qtree_node, oplocks=oplocks)
+                        aliases = self.get_export_aliases(qtree_node)
+                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwexports, roexports, qtreenode=qtree_node, oplocks=oplocks, aliases=aliases)
 
                         qtree_list.append(qtree)
                         pass
@@ -1679,19 +1688,21 @@ class ProjectConfig:
                             rwexports = [ Export(host, vol.filer.vfilers.values()[0].ipaddress, 'rw') for host in self.hosts.values() ]
 
                         log.debug("hostlists are now: %s, %s", rwexports, roexports)
+
+                        aliases = self.get_export_aliases(vol.volnode)
                             
                         if vol.type == 'oraconfig':
                             qtree_name = 'ora_config'
                             security = 'unix'
                             comment = 'Oracle configuration qtree'
-                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
                             qtree_list.append(qtree)
 
                         elif vol.type == 'oracm':
                             qtree_name = 'ora_cm'
                             security = 'unix'
                             comment = 'Oracle quorum qtree'
-                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
                             qtree_list.append(qtree)
 
                         else:
@@ -1699,7 +1710,7 @@ class ProjectConfig:
                             qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
                             security = 'unix'
                             comment = 'Oracle %s qtree' % vol.type[3:]
-                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
+                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
                             qtree_list.append(qtree)
 
                             #
@@ -1710,7 +1721,7 @@ class ProjectConfig:
                                 qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
                                 security = 'unix'
                                 comment = 'Oracle temp qtree'
-                                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
+                                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
                                 qtree_list.append(qtree)
                                 pass
                             pass
@@ -1729,8 +1740,8 @@ class ProjectConfig:
 
                         # Figure out the hostlist by checking for volume based export definitions
                         rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
-
-                        qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks)
+                        aliases = self.get_export_aliases(vol.volnode)
+                        qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
                         qtree_list.append(qtree)
                     pass
                 pass
@@ -1777,7 +1788,8 @@ class ProjectConfig:
                                                     qtree.comment,
                                                     dr_rwexports,
                                                     dr_roexports,
-                                                    oplocks=qtree.oplocks
+                                                    oplocks=qtree.oplocks,
+                                                    aliases=qtree.aliases,
                                                     )
                             qtree_list.append(mirrored_qtree)
                             pass
@@ -2750,6 +2762,15 @@ class ProjectConfig:
 
         return rwexports, roexports
 
+    def get_export_aliases(self, node):
+        # Detect any aliases defined in this node, or children
+        aliasnodes = node.xpath('descendant-or-self::exportalias')
+        aliases = [ alias.text for alias in aliasnodes ]
+        if len(aliases) > 0:
+            log.debug("Found export aliases: %s", aliases)
+            pass
+        return aliases
+
     def get_extra_mountoptions(self, node, host):
         """
         Find any mountoptions defined at a node for a specific host
@@ -3474,14 +3495,28 @@ class ProjectConfig:
 
                 # allow root mount of both rw and ro hosts
                 root_exports = rw_export_to + ro_export_to
-                
-                export_line = "vfiler run %s exportfs -p %s%sroot=%s /vol/%s/%s" % (
-                    vfiler.name,
-                    rw_export_str,
-                    ro_export_str,
-                    ':'.join(root_exports),
-                    vol.name, qtree.name,
-                    )
+
+                if len(qtree.aliases) > 0:
+                    log.debug("Aliases exist. Using 'actual' export option.")
+                    for alias in qtree.aliases:
+                        export_line = "vfiler run %s exportfs -p actual=/vol/%s/%s,%s%sroot=%s %s" % (
+                            vfiler.name,
+                            vol.name,
+                            qtree.name,
+                            rw_export_str,
+                            ro_export_str,
+                            ':'.join(root_exports),
+                            alias,
+                            )
+                else:
+                    export_line = "vfiler run %s exportfs -p %s%sroot=%s /vol/%s/%s" % (
+                        vfiler.name,
+                        rw_export_str,
+                        ro_export_str,
+                        ':'.join(root_exports),
+                        vol.name, qtree.name,
+                        )
+                    pass
                 cmdset.append(export_line)
                 
                 # Manual linewrap setup

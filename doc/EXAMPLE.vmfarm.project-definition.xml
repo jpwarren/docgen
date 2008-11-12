@@ -544,6 +544,10 @@
 	    <!-- An export to a second primary storage interface on a host -->
 	    <export to="primhost03" ro="yes" toip='10.240.4.112'/>
 
+	    <!-- Add an alias for the export -->
+	    <exportalias>/a/fake/export/alias</exportalias>
+	    <exportalias>/another/fake/export/alias</exportalias>
+
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
 
