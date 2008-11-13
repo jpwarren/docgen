@@ -943,165 +943,56 @@ the host activation guides.
         """
         The volume configuration section defines the volume options for each volume.
         """
-        section = Template("""
-        $filer_volume_configuration
-        $nearstore_volume_configuration
-
-        $dr_filer_volume_configuration
-        $dr_nearstore_volume_configuration
-        
-        """)
         
         filer_volume_config = Template("""
           <section>
-            <title>Filer Volume Configuration</title>
+            <title>$filer_name Volume Configuration</title>
             <para>The following table details the volume configuration options
-            used for the volumes on &primary.filer_name;.</para>
+            used for the volumes on $filer_name.</para>
 
             <table tabstyle="techtable-01">
-              <title>Volume Configuration for &primary.filer_name;</title>
-              <tgroup cols="3" align="left">
-                <colspec colnum="1" colwidth="1.5*"/>
-                <colspec colnum="2" colwidth="1.5*"/>
-                <colspec colnum="3" colwidth="1.5*"/>
-                
+              <title>Volume Configuration for $filer_name</title>
+              <tgroup cols="4" align="left">
+                <colspec colnum="1" colwidth="0.75*"/>
+                <colspec colnum="2" colwidth="0.75*"/>
+                <colspec colnum="3" colwidth="0.75*"/>
+                <colspec colnum="4" colwidth="1.5*"/>                
                   <thead>
                     <row valign="middle">
                       <entry><para>Filer</para></entry>
                       <entry><para>Volume</para></entry>
+                      <entry><para>Space Guarantee</para></entry>
                       <entry><para>Options</para></entry>
                     </row>
                   </thead>
 
                   <tbody>
-                    $primary_volume_config_rows
+                    $config_rows
                   </tbody>
                 </tgroup>
               </table>
             </section>
             """)
 
-        nearstore_volume_config = Template("""
-          <section>
-            <title>Nearstore Volume Configuration</title>
-            <para>The following table details the volume configuration options
-            used for the volumes on &nearstore.filer_name;.</para>
+        volume_configs = ''
 
-            <table tabstyle="techtable-01">
-              <title>Volume Configuration for &nearstore.filer_name;</title>
-              <tgroup cols="3" align="left">
-                <colspec colnum="1" colwidth="1.5*"/>
-                <colspec colnum="2" colwidth="1.5*"/>
-                <colspec colnum="3" colwidth="1.5*"/>
-                
-                  <thead>
-                    <row valign="middle">
-                      <entry><para>Filer</para></entry>
-                      <entry><para>Volume</para></entry>
-                      <entry><para>Options</para></entry>
-                    </row>
-                  </thead>
-
-                  <tbody>
-                    $nearstore_volume_config_rows
-                  </tbody>
-                </tgroup>
-              </table>
-            </section>
-            """)
-
-        dr_filer_volume_config = Template("""
-          <section>
-            <title>DR Filer Volume Configuration</title>
-            <para>The following table details the volume configuration options
-            used for the volumes on &dr.primary.filer_name;.</para>
-
-            <table tabstyle="techtable-01">
-              <title>Volume Configuration for &dr.primary.filer_name;</title>
-              <tgroup cols="3" align="left">
-                <colspec colnum="1" colwidth="1.5*"/>
-                <colspec colnum="2" colwidth="1.5*"/>
-                <colspec colnum="3" colwidth="1.5*"/>
-                
-                  <thead>
-                    <row valign="middle">
-                      <entry><para>Filer</para></entry>
-                      <entry><para>Volume</para></entry>
-                      <entry><para>Options</para></entry>
-                    </row>
-                  </thead>
-
-                  <tbody>
-                    $dr_primary_volume_config_rows
-                  </tbody>
-                </tgroup>
-
-              </table>
-            </section>
-            """)
-
-        dr_nearstore_volume_config = Template("""
-          <section>
-            <title>DR Nearstore Volume Configuration</title>
-            <para>The following table details the volume configuration options
-            used for the volumes on &dr.nearstore.filer_name;.</para>
-
-            <table tabstyle="techtable-01">
-              <title>Volume Configuration for &dr.nearstore.filer_name;</title>
-
-              <tgroup cols="3" align="left">
-                <colspec colnum="1" colwidth="1.5*"/>
-                <colspec colnum="2" colwidth="1.5*"/>
-                <colspec colnum="3" colwidth="1.5*"/>
-                
-                  <thead>
-                    <row valign="middle">
-                      <entry><para>Filer</para></entry>
-                      <entry><para>Volume</para></entry>
-                      <entry><para>Options</para></entry>
-                    </row>
-                  </thead>
-
-                  <tbody>
-                    $dr_nearstore_volume_config_rows
-                  </tbody>
-                </tgroup>
-
-              </table>
-            </section>
-            """)
-
-        # Primary volumes should always exist
-        ns['primary_volume_config_rows'] = self.get_volume_options_rows(ns, 'primary', 'primary')
-        ns['filer_volume_configuration'] = filer_volume_config.safe_substitute(ns)
-
-        # If DR volumes aren't required, exclude this section
-        dr_primary_volume_config_rows = self.get_volume_options_rows(ns, 'secondary', 'primary')
-        if len(dr_primary_volume_config_rows) > 0:
-            ns['dr_primary_volume_config_rows'] = dr_primary_volume_config_rows
-            ns['dr_filer_volume_configuration'] = dr_filer_volume_config.safe_substitute(ns)
-        else:
-            ns['dr_filer_volume_configuration'] = ''
+        for sitetype in ['primary', 'secondary']:
+            for filertype in ['primary', 'secondary', 'nearstore']:
+                # Find filers with this site and type
+                filers = [ filer for filer in self.conf.filers.values() if filer.site.type == sitetype and filer.type == filertype ]
+                for filer in filers:
+                    config_ns = {}
+                    config_ns['filer_name'] = filer.name
+                    config_rows = self.get_volume_options_rows(ns, sitetype, filertype)
+                    if len(config_rows) > 0:
+                        config_ns['config_rows'] = config_rows
+                        volume_configs += filer_volume_config.safe_substitute(config_ns)
+                        pass
+                    pass
+                pass
             pass
-
-        # If nearstore volumes aren't required, exclude this section
-        nearstore_volume_config_rows = self.get_volume_options_rows(ns, 'primary', 'nearstore')
-        if len(nearstore_volume_config_rows) > 0:
-            ns['nearstore_volume_config_rows'] = nearstore_volume_config_rows
-            ns['nearstore_volume_configuration'] = nearstore_volume_config.safe_substitute(ns)
-        else:
-            ns['nearstore_volume_configuration'] = ''
-            pass
-
-        # If offsite backup copies of the primary backups aren't required, exclude this section
-        dr_nearstore_volume_config_rows = self.get_volume_options_rows(ns, 'secondary', 'nearstore')
-        if len(dr_nearstore_volume_config_rows) > 0:
-            ns['dr_nearstore_volume_config_rows'] = dr_nearstore_volume_config_rows
-            ns['dr_nearstore_volume_configuration'] = dr_nearstore_volume_config.safe_substitute(ns)
-        else:
-            ns['dr_nearstore_volume_configuration'] = ''
             
-        return section.safe_substitute(ns)
+        return volume_configs
 
     def get_volume_options_rows(self, ns, site, filertype):
         """
@@ -1112,6 +1003,7 @@ the host activation guides.
         for volume in self.conf.get_volumes(site, filertype):
             row_detail = "<entry><para>%s</para></entry>\n" % volume.filer.name
             row_detail += "<entry><para>%s</para></entry>\n" % volume.name
+            row_detail += "<entry><para>%s</para></entry>\n" % volume.space_guarantee()
             option_str = ''.join([ "<para>%s</para>" % x for x in volume.voloptions ])
 
             # Add autosize options

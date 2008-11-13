@@ -38,8 +38,8 @@ packages = ['docgen']
 ## Release version
 
 version_major=1
-version_minor=0
-version_micro=2
+version_minor=1
+version_micro=0
 version_devel='r%s' % __version__.split(':')[1].split()[0]
 #version_devel='-dev-' + time.strftime('%Y-%m-%d-%H%M')
 
@@ -259,6 +259,8 @@ setup(
                    ('docbook', glob.glob('docbook/*')),
                    ('doc', [ 'doc/EXAMPLE.project-definition.xml',
                              'doc/EXAMPLE.multi-network-vlan.project-definition.xml',
+                             'doc/EXAMPLE.vmfarm.project-definition.xml',
+                             'doc/EXAMPLE.vmfarm-includes.xml',
                              ]),
                    # Make sure the binary builds contain licensing, copyright, etc. information
                    ('', [ 'LICENSE',
