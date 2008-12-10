@@ -72,3 +72,6 @@ sensis: export build_sensis
 	tar cvzf "$(VERSION).sensis.tar.gz" *
 	mv $(EXPORT_DIR)/$(VIRT_ROOT)/$(VERSION).sensis.tar.gz dist/
 	echo "Build of Sensis DocGen distro complete: dist/$(VERSION).sensis.tar.gz"
+
+clean:
+	-rm -r $(EXPORT_DIR)
