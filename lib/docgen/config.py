@@ -2342,13 +2342,22 @@ class ProjectConfig:
             pass
         return ips
 
-    def get_volumes(self, site='primary', filertype='primary'):
+    def get_volumes(self, site='primary', filertype='primary', sortby='volume'):
         """
         Build a list of all the primary volumes for the project.
+        @param sortby: If sortby is set, sort by this field. sortby can be
+          one of: 'aggregate', 'volume'.
         """
-        # sort volumes by filer name, then aggregate name, then volume name
-        vol_list = [ ('%s-%s-%s' % (vol.filer.name, vol.aggregate, vol.name), vol) for
-                    vol in self.volumes if vol.filer.site.type == site and vol.filer.type == filertype ]
+        # sort volumes by filer name, then 'sortby' field name
+        if sortby == 'aggregate':
+            vol_list = [ ('%s-%s-%s' % (vol.filer.name, vol.aggregate, vol.name), vol) for
+                         vol in self.volumes if vol.filer.site.type == site and vol.filer.type == filertype ]
+        elif sortby == 'volume':
+            vol_list = [ ('%s-%s-%s' % (vol.filer.name, vol.name, vol.aggregate), vol) for
+                         vol in self.volumes if vol.filer.site.type == site and vol.filer.type == filertype ]
+        else:
+            raise ValueError("Unknown sortby setting '%s'", sortby)
+            
         vol_list.sort()
         return [ x[1] for x in vol_list ]
         log.debug("Found %d volumes for site:%s/filer:%s", len(volumes), site, filertype)

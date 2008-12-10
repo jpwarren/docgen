@@ -1,8 +1,5 @@
 #!/usr/bin/make -f
 # $Id$
-# Makefile to assist with publishing the docgen code to admin host
-
-ADMIN_HOST = soldfm
 
 LOGIN_USER = root
 
@@ -11,7 +8,9 @@ SSH_ID = /home/daedalus/.ssh/soldfm-sync
 SVN_PATH = svn+ssh://fnordsvn/home/daedalus/svn/docgen/trunk
 EXPORT_DIR = docgen-export
 
-VIRT_ROOT = sensis_root
+DOCGEN_ROOT = /usr/local/docgen
+
+VIRT_ROOT = docgen_root
 
 RSYNC_FLAGS = -arv -O --no-p --no-g
 
@@ -22,21 +21,21 @@ SENSIS_ROOT := 0
 SENSIS_USER := 6668
 SENSIS_GROUP := 300
 
+build: build.stamp export
+	echo "Building DocGen for binary installation..."
+	cd $(EXPORT_DIR); \
+	python setup.py install --root $(VIRT_ROOT) --optimize 1 --install-data $(DOCGEN_ROOT) --install-scripts $(DOCGEN_ROOT) --install-lib /usr/local/lib/python2.5/site-packages
+
 # Export the latest code to an export location
 export: 
 	echo "Exporting latest code from repository..."
 	-rm -rf $(EXPORT_DIR)
 	svn export $(SVN_PATH) $(EXPORT_DIR)
 
-sdist:
+sdist: export
 	echo "Creating source distribution for install."
 	cd $(EXPORT_DIR); \
 	python setup.py sdist
-
-build: build.stamp
-	echo "Building DocGen for soldfm install..."
-	cd $(EXPORT_DIR); \
-	python setup.py install --root $(VIRT_ROOT) --optimize 1 --install-data /usr/local/docgen --install-scripts /usr/local/docgen --install-lib /usr/local/lib/python2.5/site-packages
 
 build.stamp:
 	touch build.stamp
@@ -45,7 +44,7 @@ build.stamp:
 build_sensis: build_sensis.stamp
 	echo "Building DocGen for Sensis..."
 	cd $(EXPORT_DIR); \
-	python setup.py install --root $(VIRT_ROOT) --optimize 1 --install-data /usr/local/docgen --install-scripts /usr/local/docgen --install-lib /usr/local/lib/python2.5/site-packages
+	python setup.py install --root $(VIRT_ROOT) --optimize 1 --install-data $(DOCGEN_ROOT) --install-scripts $(DOCGEN_ROOT) --install-lib /usr/local/lib/python2.5/site-packages
 
 build_sensis.stamp:
 	touch build_sensis.stamp
@@ -56,20 +55,16 @@ chown_sensis:
 	chown -R $(SENSIS_ROOT):$(SENSIS_ROOT) usr/local/lib/python2.5/site-packages/DocGen*
 
 	cd $(EXPORT_DIR)/$(VIRT_ROOT); \
-	chown -R $(SENSIS_ROOT):$(SENSIS_GROUP) /usr/local/docgen
+	chown -R $(SENSIS_ROOT):$(SENSIS_GROUP) $(DOCGEN_ROOT)
 
-sync:
-	echo "Installing latest code to $(ADMIN_HOST)..."
-	rsync $(RSYNC_FLAGS) -e 'ssh -i $(SSH_ID)' $(VIRT_ROOT)/* $(LOGIN_USER)@$(ADMIN_HOST):/
-	echo "Done."
-
-sync_local: build_local
+sync_local: build
 	echo "Installing to local host..."
-	rsync $(RSYNC_FLAGS) $(VIRT_ROOT)/* /
+	cd $(EXPORT_DIR)/$(VIRT_ROOT);\
+	rsync $(RSYNC_FLAGS) * /
 
-install: export build sync
+install: export build
 
-install_local: build_local sync_local
+install_local: build sync_local
 
 sensis: export build_sensis
 	-mkdir dist

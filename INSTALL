@@ -24,10 +24,6 @@ Copy all the files into a directory: /usr/local/docgen
 You will then need to set up XML catalogs, by adding the following to
 your /etc/xml/catalog file, or equivalent:
 
-<!-- Old company specific paths -->
-<delegateURI uriStartString="http://docbook.sensis.com.au/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
-<delegateSystem systemIdStartString="http://docbook.sensis.com.au/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
-
 <!-- New generic paths -->
-<delegateURI uriStartString="http://docgen.eigenmagic.com/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
-<delegateSystem systemIdStartString="http://docgen.eigenmagic.com/" catalog="file:///usr/local/docgen/docgen-catalog.xml"/>
+<delegateURI uriStartString="http://docgen.eigenmagic.com/" catalog="file:///usr/local/docgen/docbook/docgen-catalog.xml"/>
+<delegateSystem systemIdStartString="http://docgen.eigenmagic.com/" catalog="file:///usr/local/docgen/docbook/docgen-catalog.xml"/>
