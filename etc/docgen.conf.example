@@ -12,6 +12,16 @@ dns_domain_name: eigenmagic,com
 
 ad_account_location: DC=eigenmagic,DC=com
 
+[document_plugins]
+# DocumentGenerator modules to load, and the name that will be
+# used to reference them.
+ipsan-storage-design: docgen.ipsan_storage.IPSANStorageDesignGenerator
+ipsan-network-design: docgen.ipsan_network.IPSANNetworkDesignGenerator
+ipsan-storage-modipy: docgen.modipy.IPSANStorageModiPyGenerator
+ipsan-storage-commands: docgen.commands.IPSANCommandsGenerator
+vol-sizes: docgen.commands.IPSANVolumeSizeCommandsGenerator
+ipsan-activation-advice: docgen.activation_advice.IPSANActivationAdvice
+
 [document_control]
 # This configuration section contains standard document
 # ownership, company department, contact information, etc.

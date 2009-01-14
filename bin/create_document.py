@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#
+# $Id$
 # Create a document for the IP-SAN
 #
 import sys
@@ -9,22 +9,16 @@ from datetime import datetime
 from zope.interface import Interface
 from string import Template
 from lxml import etree
+from ConfigParser import SafeConfigParser
 
+from docgen.util import load_doc_plugins
 from docgen.config import ProjectConfig, ConfigInvalid
-from docgen.ipsan_storage import IPSANStorageDesignGenerator
-from docgen.ipsan_network import IPSANNetworkDesignGenerator
-from docgen.modipy import IPSANStorageModiPYGenerator
-from docgen.commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
-from docgen.activation_advice import IPSANActivationAdvice
-
 from docgen.options import BaseOptions
 
 import logging
 import docgen.debug
 
 log = logging.getLogger('docgen')
-
-__version__ = '$Revision$'
 
 if __name__ == '__main__':
 
@@ -36,9 +30,18 @@ if __name__ == '__main__':
     # Dynamic namespace information that is passed into document generators
     ns = {}
 
+    # Load configuration file
+    defaults = SafeConfigParser()
+    parsedfiles = defaults.read(optparser.options.configfile)
+    if len(parsedfiles) == 0:
+        raise ValueError("Cannot load configuration file: %s" % optparser.options.configfile)
+
+    # Load the document generation plugins
+    doc_plugins = load_doc_plugins(defaults)
+
     try:
         # load the configuration from a config file
-        proj = ProjectConfig(optparser.options.definitionfile, optparser.options.configfile)
+        proj = ProjectConfig(optparser.options.definitionfile, defaults)
 
     except ConfigInvalid, e:
         log.critical("Cannot load configuration: %s.", e)
@@ -49,29 +52,10 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
+        pass
 
-    # Use the configuration document to decide what goes into the generated document
-    if optparser.options.doctype == 'ipsan-storage-design':
-        docgen = IPSANStorageDesignGenerator(proj)
-        ns['title'] = 'IPSAN Storage Design'
-
-    elif optparser.options.doctype == 'ipsan-network-design':
-        docgen = IPSANNetworkDesignGenerator(proj)
-        ns['title'] = 'IPSAN Network Design'
-    
-    elif optparser.options.doctype == 'ipsan-storage-modipy':
-        docgen = IPSANStorageModiPYGenerator(proj, template_path=optparser.options.modipy_templates)
-
-    elif optparser.options.doctype == 'ipsan-storage-commands':
-        docgen = IPSANCommandsGenerator(proj)
-
-    elif optparser.options.doctype == 'vol-sizes':
-        docgen = IPSANVolumeSizeCommandsGenerator(proj)
-
-    elif optparser.options.doctype == 'ipsan-activation-advice':
-        docgen = IPSANActivationAdvice(proj)
-        
-    else:
-        raise NotImplementedError("DocType of '%s' is not handled yet." % optparser.options.doctype)
+    # Use the '-d' option to determine which document to generate
+    docgen = doc_plugins[optparser.options.doctype](proj)
+    #raise NotImplementedError("DocType of '%s' is not handled yet." % optparser.options.doctype)
 
     docgen.emit(optparser.options.outfile, optparser.options.versioned, ns=ns)

@@ -10,7 +10,7 @@ import socket
 import struct
 import csv
 from warnings import warn
-from ConfigParser import SafeConfigParser
+
 from lxml import etree
 
 #from xml.parsers.expat import ParserCreate
@@ -936,18 +936,15 @@ class ConfigInvalid(Exception):
         
 class ProjectConfig:
 
-    def __init__(self, configfile, defaultsfile):
+    def __init__(self, configfile, defaults):
         """
         Create a ProjectConfig object based on a parsed configuration .xml definition file.
 
         This enables us to more easily represent the configuration as a set of objects,
         rather than an XML document.
         """
-        self.defaults = SafeConfigParser()
-        parsedfiles = self.defaults.read(defaultsfile)
-        if len(parsedfiles) == 0:
-            raise ValueError("Cannot load defaults file: %s" % defaultsfile)
-        
+        self.defaults = defaults
+
         self.tree = etree.parse(configfile)
         try:
             self.tree.xinclude()

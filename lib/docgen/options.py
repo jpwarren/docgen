@@ -46,14 +46,7 @@ class BaseOptions(optparse.OptionParser):
         self.add_option('', '--versioned',     dest='versioned', action='store_true', default=False, help=help_versioned)
         #self.add_option('', '--not-versioned', dest='versioned', action='store_false', default=True, help=help_not_versioned)
         self.add_option('', '--modipy-templates',     dest='modipy_templates', type='string', help=help_modipy_templates)
-        self.add_option('-d', '--doctype',     dest='doctype', type='choice', choices=['ipsan-storage-design',
-                                                                                       'ipsan-network-design',
-                                                                                       'ipsan-storage-cip',
-                                                                                       'ipsan-activation-advice',
-                                                                                       'ipsan-storage-modipy',
-                                                                                       'ipsan-storage-commands',
-                                                                                       'vol-sizes',
-                                                                                       ], default='ipsan-storage-design', help=help_doctype)
+        self.add_option('-d', '--doctype',     dest='doctype', type='string', default='ipsan-storage-design', help=help_doctype)
         
         self.addOptions()
 

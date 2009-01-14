@@ -1,8 +1,8 @@
 #
 # $Id$
-# This module defines a document generator for creating ModiPY templates
+# This module defines a document generator for creating ModiPy templates
 # that can implement a given design.
-# ModiPY is a Python based framework for executing commands on remote devices
+# ModiPy is a Python based framework for executing commands on remote devices
 # to implement a series of changes. http://modipy.seafelt.com
 #
 import sys
@@ -19,7 +19,7 @@ log = logging.getLogger('docgen')
 
 from docgen import IDocumentGenerator
 
-class ModiPYGenerator:
+class ModiPyGenerator:
     """
     An abstract base class that implements some commonly used functions.
     """
@@ -29,9 +29,9 @@ class ModiPYGenerator:
         self.conf = conf
         self.template_path = template_path
 
-class IPSANStorageModiPYGenerator(ModiPYGenerator):
+class IPSANStorageModiPyGenerator(ModiPyGenerator):
     """
-    A generator for creating ModiPY templates to implement an IPSAN storage design.
+    A generator for creating ModiPy templates to implement an IPSAN storage design.
     """
 
     # Define some important Templates
