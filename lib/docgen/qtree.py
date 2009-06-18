@@ -1,5 +1,9 @@
 ## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
 
+import logging
+import debug
+log = logging.getLogger('docgen')
+
 class Qtree:
     def __init__(self, volume, qtree_name=None,
                  security='unix',

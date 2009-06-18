@@ -3,11 +3,16 @@
 """
 Physical site and related design objects
 """
+
+import logging
+import debug
+log = logging.getLogger('docgen')
+
 class Site:
     """
     A site contains Filers, VLANS, etc.
     """
-    def __init__(self, name, type, location, nameservers, winsservers):
+    def __init__(self, name, type, location='', nameservers=[], winsservers=[]):
         """
         @param type: type is one of ('primary' | 'secondary') and is unique for a project.
         @param location: a descriptive string for the site

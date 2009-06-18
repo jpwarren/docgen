@@ -1,5 +1,5 @@
 ##
-## $Id$
+## $Id: ipsan_storage.py 182 2008-11-13 00:33:48Z daedalus $
 ## IPSAN Storage Design generation components
 ## 
 
@@ -22,7 +22,7 @@ import debug
 
 log = logging.getLogger('docgen')
 
-__version__ = '$Revision$'
+__version__ = '$Revision: 182 $'
 
 class IPSANStorageDesignGenerator(DocBookGenerator):
     """

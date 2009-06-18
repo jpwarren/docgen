@@ -45,11 +45,13 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
   <!ELEMENT site (vlan+, host*, filer+)>
     <!ATTLIST site name CDATA #IMPLIED
-                   type (primary|secondary) 'primary'
+                   type (filer|nearstore) 'filer'
+                   partner CDATA #IMPLIED
                    location CDATA #IMPLIED>
 
     <!ELEMENT filer (name?, vfiler?)>
       <!ATTLIST filer type (primary | secondary | nearstore) #REQUIRED
+                      clustered (yes|no) #IMPLIED
                       name ID #REQUIRED>
 
       <!ELEMENT vfiler (name?, protocol*, primaryip?, aliasip*, vlanip*, testip?, aggregate*, igroup*)>

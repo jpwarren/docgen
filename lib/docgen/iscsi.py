@@ -3,6 +3,9 @@
 """
 NetApp iSCSI related objects
 """
+import logging
+import debug
+log = logging.getLogger('docgen')
 
 class LUN:
     """

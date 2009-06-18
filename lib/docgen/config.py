@@ -11,14 +11,26 @@ import struct
 import csv
 from warnings import warn
 
+import ConfigParser
+
 from lxml import etree
+
+from switch import Switch
+from site import Site
+from network import Network, Vlan, Interface
+from host import Host
+from filer import Filer, VFiler
+from volume import Volume
+from qtree import Qtree
+from iscsi import LUN, iGroup
+from snapshots import Snapshot, SnapVault, SnapMirror
+from permissions import Export
 
 import logging
 import debug
+log = logging.getLogger('docgen')
 
 _configdir = '/usr/local/docgen/etc'
-
-log = logging.getLogger('docgen')
 
 xinclude_re = re.compile(r'.*<xi:include href=[\'\"](?P<uri>.*)[\'\"].*')
 
@@ -54,7 +66,7 @@ class ConfigInvalid(Exception):
         
 class ProjectConfig:
 
-    def __init__(self, configfile, defaults):
+    def __init__(self, defaults):
         """
         Create a ProjectConfig object based on a parsed configuration .xml definition file.
 
@@ -62,16 +74,6 @@ class ProjectConfig:
         rather than an XML document.
         """
         self.defaults = defaults
-
-        self.tree = etree.parse(configfile)
-        try:
-            self.tree.xinclude()
-        except etree.XIncludeError, e:
-            log.error("XInclude of a file failed: %s", e)
-            log.error("Use external tool such as xmllint to figure out why.")
-            log.error("Sorry, but lxml.etree won't tell me exactly what went wrong.")
-            raise
-
 
         self.filers = {}
         self.volumes = []
@@ -83,18 +85,35 @@ class ProjectConfig:
 
         self.has_dr = False
 
-        self.load_project_details()
+        self.prefix = None
+        self.code = None
+        self.shortname = None
+        self.longname = None
 
-        # Define a series of attributes that a ProjectConfig can have.
-        # These are all the things that are used by the documentation templates.
-
-        self.primary_project_vlan = self.get_project_vlan('primary').number
-        if self.has_dr:
-            self.secondary_project_vlan = self.get_project_vlan('secondary').number
-
-        self.verify_config()
-
-    def load_project_details(self):
+        self.known_switches = {}
+        self.revlist = []
+        self.sites = {}
+        self.vlans = []
+        self.interfaces = []
+        self.hosts = {}
+        self.drhosts = []
+        self.filers = {}
+        self.vfilers = {}
+        self.volumes = []
+        self.qtrees = []
+        self.luns = []
+        self.igroups = []
+        
+    def load_project_details(self, configfile):
+        
+        self.tree = etree.parse(configfile)
+        try:
+            self.tree.xinclude()
+        except etree.XIncludeError, e:
+            log.error("XInclude of a file failed: %s", e)
+            log.error("Use external tool such as xmllint to figure out why.")
+            log.error("Sorry, but lxml.etree won't tell me exactly what went wrong.")
+            raise
 
         self.prefix = self.tree.xpath('//project/prefix')[0].text
         self.code = self.tree.xpath('//project/code')[0].text
@@ -112,13 +131,11 @@ class ProjectConfig:
 
         self.vlans = self.load_vlans()
 
-        self.interfaces = []
         self.hosts = self.load_hosts()
 
         # Perform some sanity checking on the hosts
         self.sanity_check_hosts(self.hosts)
 
-        self.drhosts = []
         for host in self.hosts.values():
             for drhostname in host.drhosts:
                 self.drhosts.append(self.hosts[drhostname])
@@ -140,6 +157,15 @@ class ProjectConfig:
         self.luns = self.load_luns()
         self.igroups = self.load_igroups()
 
+        # Define a series of attributes that a ProjectConfig can have.
+        # These are all the things that are used by the documentation templates.
+
+        self.primary_project_vlan = self.get_project_vlan('primary').number
+        if self.has_dr:
+            self.secondary_project_vlan = self.get_project_vlan('secondary').number
+
+        self.verify_config()
+        
     def load_revisions(self):
         """
         Load all the document revisions into a list
@@ -217,9 +243,11 @@ class ProjectConfig:
             try:
                 site_name = node.attrib['name']
             except KeyError:
-                log.warning("Site name not set. This is important, but not fatal. Yet.")
-                site_name = node.xpath('filer/@name')[0].split('-')[0]
-                log.debug("site name is set to: %s", site_name)
+                # FIXME: You can only guess the site name if it's
+                # involved somehow in your filer naming convention.
+#                 site_name = node.xpath('filer/@name')[0].split('-')[0]
+#                 log.debug("site name is set to: %s", site_name)
+                raise KeyError("Site name not set.")
                 
             # Get the site type from the defaults if it isn't set
             try:
@@ -238,9 +266,15 @@ class ProjectConfig:
 
             # Add default site servers for CIFS
             # This should be added the DTD to allow manual override
-            nameservers = self.defaults.get(site_name, 'nameservers').split()
-            winsservers = self.defaults.get(site_name, 'winsservers').split()
-            
+            try:
+                nameservers = self.defaults.get(site_name, 'nameservers').split()
+            except ConfigParser.NoSectionError:
+                nameservers = []
+            try:
+                winsservers = self.defaults.get(site_name, 'nameservers').split()
+            except ConfigParser.NoSectionError:
+                winsservers = []
+                
             sites[site_name] = Site(site_name, site_type, site_location, nameservers, winsservers)
             pass
         return sites
@@ -690,7 +724,7 @@ class ProjectConfig:
             # If no volnode exists for the volume, this is an automatically generated volume
             if vol.volnode is None:
                 # If this is the root volume, don't create qtrees
-                if vol.name.endswith('root'):
+                if vol.name.endswith(self.defaults.get('volume', 'root_suffix')):
                     continue
 
                 # otherwise, we only create 1 qtree per volume, by default
@@ -713,50 +747,18 @@ class ProjectConfig:
                 if len(qtree_nodes) > 0:
                     #log.debug("Processing qtree nodes: %s", qtree_nodes)
                     for qtree_node in qtree_nodes:
-                        try:
-                            name = qtree_node.xpath("@name")[0]
-                            qtree_name = '%s' % name
-                        
-                        except IndexError:
-                            log.info("Qtree has no name, using 'data'.")
-                            qtree_name = 'data'
-
-                        try:
-                            qtree_security = qtree_node.xpath("@security")[0]
-                        except IndexError:
-                            # If qtree security isn't set manually, use defaults for
-                            # the kind of volume
-                            log.debug("Determining qtree security mode: %s, %s", vol.name, vol.proto)
-                            if vol.proto == 'cifs':
-                                log.debug("CIFS volume '%s' qtree requires NTFS security.", vol.name)
-                                qtree_security = 'ntfs'
-                            else:
-                                qtree_security = 'unix'
-
-                        oplocks = self.get_oplocks_value(qtree_node)
-
-                        try:
-                            qtree_comment = qtree_node.find('description').text
-                        except AttributeError:
-                            if qtree_node.text is None:
-                                qtree_comment = ''
-                            else:
-                                log.warn("Qtree description should be wrapped in <description> tags")
-                                qtree_comment = qtree_node.text
-
-                        rwexports, roexports = self.get_exports(qtree_node, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
-                        
-##                         log.error("Host named '%s' not defined" % hostname)
-##                         raise ValueError("Attempt to export qtree to non-existant host: '%s'" % hostname)
-                        aliases = self.get_export_aliases(qtree_node)
-                        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwexports, roexports, qtreenode=qtree_node, oplocks=oplocks, aliases=aliases)
-
+                        qtree = self.create_qtree_from_node(vol, qtree_node)
                         qtree_list.append(qtree)
                         pass
+
                     pass
                 else:
                     log.debug("No qtrees defined. Inventing them for this volume.")
 
+                    # FIXME: Split this out into a plugin style thing
+                    # so we can more easily add/change volume/qtree types and
+                    # how they get created.
+                    
                     oplocks = self.get_oplocks_value(vol.volnode)
 
                     # If no qtrees are defined, invent one
@@ -860,7 +862,8 @@ class ProjectConfig:
                         qtree_list.append(qtree)
                     pass
                 pass
-
+            # end else
+            
             # Check to see if we need to export the DR copy of the qtrees to the
             # dr hosts.
             # If this volume is snapmirrored, give any drhosts the same export
@@ -917,6 +920,56 @@ class ProjectConfig:
 
         return qtree_list
 
+    def create_qtree_from_node(self, vol, qtree_node):
+        """
+        Create a qtree from a qtree node
+        """
+        # Set qtree name
+        try:
+            name = qtree_node.xpath("@name")[0]
+            qtree_name = '%s' % name
+        except IndexError:
+            qtree_name = self.defaults.get('qtree', 'default_qtree_type')
+            pass
+
+        # set qtree security
+        try:
+            qtree_security = qtree_node.xpath("@security")[0]
+        except IndexError:
+            # If qtree security isn't set manually, use defaults for
+            # the kind of volume
+            log.debug("Determining qtree security mode: %s, %s", vol.name, vol.proto)
+            if vol.proto == 'cifs':
+                log.debug("CIFS volume '%s' qtree requires NTFS security.", vol.name)
+                qtree_security = 'ntfs'
+            else:
+                qtree_security = self.defaults.get('qtree', 'default_security')
+                pass
+            pass
+
+        # set oplocks
+        oplocks = self.get_oplocks_value(qtree_node)
+
+        # set qtree comment
+        try:
+            qtree_comment = qtree_node.find('description').text
+        except AttributeError:
+            if qtree_node.text is None:
+                qtree_comment = ''
+            else:
+                log.warn("Qtree description should be wrapped in <description> tags")
+                qtree_comment = qtree_node.text
+                pass
+            pass
+
+        # setup exports for this qtree node
+        rwexports, roexports = self.get_exports(qtree_node, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+
+        # setup any export aliases
+        aliases = self.get_export_aliases(qtree_node)
+        qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwexports, roexports, qtreenode=qtree_node, oplocks=oplocks, aliases=aliases)
+        return qtree
+    
     def get_host_qtree_mountoptions(self, host, qtree):
         """
         Find the mountoptions for a host for a specific qtree.
@@ -1483,43 +1536,72 @@ class ProjectConfig:
         Create a volume, using certain defaults as required.
         """
         # Find out which filer the volume is on
-        filername = node.xpath("ancestor::filer/@name")[0]
+        try:
+            filername = node.xpath("ancestor::filer/@name")[0]
+        except IndexError:
+            raise IndexError("Volume node has no filer ancestor")
 
         # Find out which vfiler the volume is on
-        #vfilername = node.xpath("ancestor::vfiler/@name")[0]
+        try:
+            filername = node.xpath("ancestor::vfiler/@name")[0]
+        except IndexError:
+            vfilername = ''
+
+        # Try to find a volume prefix
+        try:
+            volprefix = node.xpath("@prefix")[0]
+        except IndexError:
+            volprefix = self.shortname
+            pass
+
+        # Try to find a volume suffix
+        try:
+            volsuffix = node.xpath("@suffix")[0]
+        except IndexError:
+            volsuffix = ''
+            pass
+
+        # Try to find a volume type
+        try:
+            voltype = node.xpath("@type")[0]
+        except IndexError:
+            voltype = self.defaults.get('volume', 'default_vol_type')
+            pass
+        
+        # Check to see if we want to restart the volume numbering
+        try:
+            volnum = int(node.xpath("@restartnumbering")[0])
+        except IndexError:
+            pass
 
         # Work out the volume name
         try:
             # If the volume has an explicit name set, use that
             volname = node.xpath("@name")[0]
         except IndexError:
+            # otherwise, use the volume naming convention
 
-            # otherwise, invent one
+            # Set up a namespace for use in naming
+            ns = {}
+            ns['voltype'] = voltype
+            ns['volprefix'] = volprefix
+            ns['volsuffix'] = volsuffix
+            ns['volnum'] = volnum
+            ns['filer_name'] = filername
+            ns['vfiler_name'] = vfilername
 
-            # Try to find a volume prefix
+            volname_convention = self.defaults.get('volume', 'volume_name')
+            log.debug("volume naming convention: %s", volname_convention)
             try:
-                volprefix = node.xpath("@prefix")[0]
-            except IndexError:
-                volprefix = self.shortname
-                pass
-
-            # Try to find a volume suffix
-            try:
-                volsuffix = node.xpath("@suffix")[0]
-            except IndexError:
-                volsuffix = ''
-                pass
-
-            # Check to see if we want to restart the volume numbering
-            try:
-                volnum = int(node.xpath("@restartnumbering")[0])
-            except IndexError:
-                pass
-
-            volname = '%s_vol%02d%s' % (volprefix, volnum, volsuffix)
+                volname = volname_convention % ns
+            except KeyError, e:
+                raise KeyError("Unknown variable %s for volume naming convention" % e)
 
         # aggregate is this one, or the same as the previous volume
-        aggr = node.xpath("ancestor::aggregate/@name | preceding-sibling/ancestor::aggregate/@name")[0]
+        try:
+            aggr = node.xpath("ancestor::aggregate/@name | preceding-sibling/ancestor::aggregate/@name")[0]
+        except IndexError:
+            raise IndexError("Volume '%s' has no containing aggregate." % volname)
 
         snapref = node.xpath("snapsetref/@name")
         snapvaultref = node.xpath("snapvaultsetref/@name")
@@ -1552,10 +1634,8 @@ class ProjectConfig:
         # Set the amount of usable space in the volume
         try:
             usable = float(node.xpath("usablestorage")[0].text)
-
         except IndexError:
-            log.warn("No usable size specified for volume number '%02d'. Assuming minimum of 100 GiB usable.", volnum)
-            usable = 100
+            usable = self.defaults.getint('volume', 'default_size')
             pass
 
         # Default snap reserve to 20 unless specified otherwise
@@ -1578,12 +1658,12 @@ class ProjectConfig:
                 try:
                     iscsi_snapspace = node.xpath("@iscsi_snapspace")[0]
                 except IndexError:
-                    iscsi_snapspace = 30
+                    iscsi_snapspace = self.defaults.getint('volume', 'default_iscsi_snapspace')
 
             elif voltype in ['oraundo', 'oraarch', ]:
-                snapreserve = 50
+                snapreserve = self.defaults.getint('volume', 'default_highdelta_snapreserve')
             else:
-                snapreserve = 20
+                snapreserve = self.defaults.getint('volume', 'default_snapreserve')
                 pass
             pass
 

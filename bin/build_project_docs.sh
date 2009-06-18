@@ -6,8 +6,8 @@
 # Directory that docgen is installed in
 DOCGEN_BASEDIR=/usr/local/docgen
 
-CREATE_DOC_BIN="$DOCGEN_BASEDIR/create_document.py"
-COMPILE_DOC_BIN="$DOCGEN_BASEDIR/compile_doc.sh"
+CREATE_DOC_BIN="$DOCGEN_BASEDIR/bin/create_document.py"
+COMPILE_DOC_BIN="$DOCGEN_BASEDIR/bin/compile_doc.sh"
 
 # Default values
 STORAGE_DESIGN_SUFFIX="IPSAN-storage-design.xml"

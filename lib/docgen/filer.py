@@ -12,11 +12,14 @@ import debug
 log = logging.getLogger('docgen')
 
 class Filer:
-
+    FILER_TYPES = [
+        'filer',
+        'nearstore',
+        ]
     def __init__(self, name, type, site):
         self.name = name
 
-        if type not in FILER_TYPES:
+        if type not in self.FILER_TYPES:
             raise ValueError("filer type '%s' not a known filer type", type)
 
         self.type = type
@@ -59,7 +62,8 @@ class Filer:
 
 class VFiler:
     
-    def __init__(self, filer, name, rootaggr, vlan, ipaddress, gateway, netmask='255.255.255.254',
+    def __init__(self, filer, name, rootaggr, ipaddress, gateway, netmask='255.255.255.254',
+                 vlan=None,
                  alias_ips = [],
                  dns_domain_name = 'eigenmagic.com',
                  ad_account_location = 'OU=IPSAN,OU=eigenmagic,OU=com',
@@ -70,10 +74,11 @@ class VFiler:
         self.filer = filer
         self.name = name
         self.rootaggr = rootaggr
-        self.vlan = vlan
+
         self.ipaddress = ipaddress
         self.netmask = netmask
         self.gateway = gateway
+        self.vlan = vlan
         self.alias_ips = alias_ips
         self.volumes = []
 

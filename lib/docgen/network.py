@@ -3,6 +3,11 @@
 """
 Networking related design objects
 """
+
+import logging
+import debug
+log = logging.getLogger('docgen')
+
 class Interface:
 
     def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):

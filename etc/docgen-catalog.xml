@@ -4,10 +4,10 @@
 
   <rewriteURI
       uriStartString="http://docgen.eigenmagic.com/"
-      rewritePrefix="file:///usr/local/docgen/docbook/"/>
+      rewritePrefix="file:///usr/local/docgen/etc/"/>
 
   <rewriteSystem
       systemIdStartString="http://docgen.eigenmagic.com/"
-      rewritePrefix="file:///usr/local/docgen/docbook/"/>
+      rewritePrefix="file:///usr/local/docgen/etc/"/>
 
 </catalog>

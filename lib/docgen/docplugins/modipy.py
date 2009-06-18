@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: modipy.py 189 2009-01-14 23:42:53Z daedalus $
 # This module defines a document generator for creating ModiPy templates
 # that can implement a given design.
 # ModiPy is a Python based framework for executing commands on remote devices

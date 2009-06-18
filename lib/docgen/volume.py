@@ -4,6 +4,9 @@
 NetApp Volumes
 """
 
+import logging
+import debug
+log = logging.getLogger('docgen')
 
 class Volume:
 

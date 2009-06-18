@@ -4,6 +4,9 @@
 Host related design objects.
 Hosts are things like client servers that make use of storage.
 """
+import logging
+import debug
+log = logging.getLogger('docgen')
 
 class Host:
     """

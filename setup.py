@@ -5,10 +5,8 @@
 
 __version__ = '$Revision$'
 
-# setuptools doesn't support post-install scripts yet,
-# which we need for this package. Drat.
-## from ez_setup import use_setuptools
-## use_setuptools()
+#from ez_setup import use_setuptools
+#use_setuptools()
 
 import sys
 import time
@@ -21,7 +19,7 @@ import string
 
 from stat import ST_MODE
 from distutils.core import setup
-#from setuptools import setup, find_packages
+from setuptools import setup, find_packages
 
 from distutils.core import Extension
 from distutils.command.build_scripts import build_scripts

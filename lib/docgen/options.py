@@ -57,11 +57,11 @@ class BaseOptions(optparse.OptionParser):
         """
         pass
         
-    def parseOptions(self):
+    def parseOptions(self, argv=sys.argv[1:]):
         """
         Emulate the twisted options parser API.
         """
-        options, args = self.parse_args(sys.argv[1:])
+        options, args = self.parse_args(argv)
         self.options = options
         self.args = args
         self.postOptions()

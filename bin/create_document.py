@@ -41,7 +41,8 @@ if __name__ == '__main__':
 
     try:
         # load the configuration from a config file
-        proj = ProjectConfig(optparser.options.definitionfile, defaults)
+        proj = ProjectConfig(defaults)
+        proj.load_project_details(optparser.options.definitionfile)
 
     except ConfigInvalid, e:
         log.critical("Cannot load configuration: %s.", e)
