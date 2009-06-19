@@ -67,7 +67,7 @@
 	 for a project, depending on where the main use of storage is.
 	 The 'secondary' site is always the SnapMirror destination site.
     -->
-  <site type="primary" location="PrimarySite">
+  <site name="primary" type="primary" location="PrimarySite">
 
     <host name="primhost01">
 
@@ -104,9 +104,11 @@
 
     </host>
 
-    <vlan type="project" number="3008" network="10.200.1.0/24" gateway="10.200.1.254"/>
+    <vlan type="project" number="3008">
+      <network number="10.200.1.0/24" gateway="10.200.1.254"/>
+    </vlan>
 
-    <filer type="primary" name="sitea-fashda-01">
+    <filer type="filer" name="sitea-fashda-01">
 
       <vfiler rootaggr="aggr01">
 
@@ -142,8 +144,6 @@
       </vfiler>
 
     </filer>
-
-    <filer type="secondary" name="sitea-fashdb-01"/>
 
     <filer type="nearstore" name="sitea-fasnst-01">
 

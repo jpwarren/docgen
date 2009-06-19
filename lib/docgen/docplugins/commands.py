@@ -4,13 +4,13 @@
 #
 
 import zope.interface
-import logging
-import debug
 import sys
 
+import logging
+from docgen import debug
 log = logging.getLogger('docgen')
 
-from docgen import IDocumentGenerator, FileOutputMixin
+from docgen.docgen import IDocumentGenerator, FileOutputMixin
 
 class CommandGenerator(FileOutputMixin):
     """

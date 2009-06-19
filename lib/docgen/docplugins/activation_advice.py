@@ -9,9 +9,9 @@ import sys
 
 import logging
 
-from docgen import IDocumentGenerator
+from docgen.docgen import IDocumentGenerator
 
-import debug
+from docgen import debug
 log = logging.getLogger('docgen')
 
 class IPSANActivationAdvice:

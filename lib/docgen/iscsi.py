@@ -12,7 +12,7 @@ class LUN:
     A LUN lives in a Qtree and is used for iSCSI, predominantly.
     """
 
-    def __init__(self, name, qtree, lunid, size, ostype, exportlist, lunnode=None):
+    def __init__(self, name, qtree, lunid, size, ostype, lunnode=None):
 
         self.name = name
         self.qtree = qtree
@@ -33,7 +33,7 @@ class LUN:
         self.ostype = ostype
         self.lunid = lunid
         self.lunnode = lunnode
-        self.exportlist = exportlist
+        self.exportlist = []
         
         self.igroup = None
 
@@ -71,3 +71,73 @@ class iGroup:
     def __repr__(self):
         return '<iGroup: %s, %s, %s, %s>' % (self.name, self.type, self.filer.name, self.exportlist)
 
+def create_lun():
+    """
+    Create a default LUN for a volume
+    """
+    
+def create_lun_from_node(node, defaults, current_lunid, vol):
+    """
+    Create a LUN object from a node
+    """
+    # Check to see if we need to restart the lunid numbering
+    if node.attrib.has_key('restartnumbering'):
+        current_lunid = int(lunnode.attrib['restartnumbering'])
+
+    # Check to see if the lunid is specified for this lun
+    try:
+        lunid = int(lunnode.attrib['lunid'])
+        log.debug("lunid manually specified: %d", lunid)
+    except KeyError:
+        lunid = current_lunid
+        current_lunid += 1
+
+    try:
+        lunsize = float(lunnode.xpath("@size")[0])
+    except IndexError:
+        log.debug("No LUN size specified. Figuring it out...")
+
+        # If you specify LUN sizes, the system will use exactly
+        # what you define in the config file.
+        # If you don't specify the LUN size, then the system will
+        # divide up however much storage is left in the volume evenly
+        # between the number of LUNs that don't have a size specified.
+        
+        # Count the number of LUNs with no size specified. Available
+        # usable storage will be divided evenly between them
+        nosize_luns = len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+
+        # total the number of sized luns
+        sized_luns = vol.volnode.xpath("descendant-or-self::lun[(@size)]")
+        log.debug("sized luns are: %s", sized_luns)
+        sized_total = sum([ int(lun.attrib['size']) for lun in sized_luns ])
+        log.debug("sized total is: %s", sized_total)
+
+        log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)
+
+        lunsize = float(vol.iscsi_usable - sized_total) / nosize_luns
+        log.debug("calculated lun size of: %s", lunsize)
+        pass
+
+    log.debug("Allocating %sg storage to LUN", lunsize)
+    lun_total += lunsize
+
+    # See if a qtree parent node exists
+    try:
+        qtree_parent_node = lunnode.xpath('parent::qtree')[0]
+        qtree_parent = [ qtree for qtree in vol.qtrees.values() if qtree_parent_node == qtree.qtreenode ][0]
+    except IndexError:
+        # No qtree node defined, so use the first one in the volume.
+        # Technically, there should only be one.
+        qtree_parent = vol.qtrees.values()[0]
+
+    try:
+        lunname = lunnode.xpath("@name")[0]
+    except IndexError:
+        ns = qtree_parent.populate_namespace()
+        ns['lunid'] = lunid
+        lunname = defaults.get('lun', 'default_lun_name') % ns
+        pass
+
+    # ostype defaults to the same as the first host in my exportlist
+    return LUN(name, qtree_parent, lunid, size, ostype, lunnode=node)

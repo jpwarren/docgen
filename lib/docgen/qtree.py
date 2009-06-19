@@ -1,10 +1,12 @@
 ## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
 
+from base import DynamicNaming
+
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Qtree:
+class Qtree(DynamicNaming):
     def __init__(self, volume, qtree_name=None,
                  security='unix',
                  comment='',
@@ -41,6 +43,12 @@ class Qtree:
     def __str__(self):
         return '<Qtree: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.full_path(), self.volume.proto, self.security, [ str(x) for x in self.rwexports ], [ str(x) for x in self.roexports])
 
+    def populate_namespace(self, ns={}):
+        ns = self.volume.populate_namespace(ns)
+        ns['qtree_name'] = self.name
+        ns['qtree_security'] = self.security
+        return ns
+    
     def full_path(self):
         """
         The full qtree path, including the volume prefix.

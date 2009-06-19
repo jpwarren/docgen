@@ -5,13 +5,16 @@ NetApp Filer object
 """
 
 from lxml import etree
-
+from base import DynamicNaming
 import logging
 import debug
 
 log = logging.getLogger('docgen')
 
-class Filer:
+class Filer(DynamicNaming):
+    """
+    A NetApp Filer
+    """
     FILER_TYPES = [
         'filer',
         'nearstore',
@@ -20,7 +23,7 @@ class Filer:
         self.name = name
 
         if type not in self.FILER_TYPES:
-            raise ValueError("filer type '%s' not a known filer type", type)
+            raise ValueError("filer type '%s' not a known filer type" % type)
 
         self.type = type
         self.site = site
@@ -60,7 +63,12 @@ class Filer:
         retstr += '\n'.join(vfiler_strings)
         return retstr
 
-class VFiler:
+    def populate_namespace(self, ns={}):
+        ns = self.site.populate_namespace(ns)
+        ns['filer_name'] = self.name
+        return ns
+    
+class VFiler(DynamicNaming):
     
     def __init__(self, filer, name, rootaggr, ipaddress, gateway, netmask='255.255.255.254',
                  vlan=None,
@@ -128,6 +136,11 @@ class VFiler:
         volume_strings = [ '  %s' % x for x in self.volumes ]
         return retstr
 
+    def populate_namespace(self, ns={}):
+        ns = self.filer.populate_namespace(ns)
+        ns['vfiler_name'] = self.name
+        return ns
+    
     def netbios_name(self):
         """
         Return my NetBIOS name.

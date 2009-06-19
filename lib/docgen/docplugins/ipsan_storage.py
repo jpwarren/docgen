@@ -11,14 +11,14 @@ from zope.interface import Interface
 from string import Template
 from lxml import etree
 
-from docgen import DocBookGenerator
-from config import ProjectConfig
+from docgen.docgen import DocBookGenerator
+from docgen.config import ProjectConfig
 from commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
 from activation_advice import IPSANActivationAdvice
 
-import options
+from docgen import options
 import logging
-import debug
+from docgen import debug
 
 log = logging.getLogger('docgen')
 

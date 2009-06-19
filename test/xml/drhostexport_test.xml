@@ -7,7 +7,7 @@
   <shortname>test</shortname>
   <longname>Test Project</longname>
 
-  <site type='primary' location='primary'>
+  <site name='primary' type='primary' location='primary'>
 
     <host name='testhost01'>
       <platform>Sun</platform>
@@ -28,7 +28,7 @@
 
     <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
 
-    <filer type='primary' name='primary-filer-01'>
+    <filer type='filer' name='primary-filer-01'>
       <vfiler rootaggr='aggr00'>
 	<primaryip>
 	  <ipaddr>10.240.4.225</ipaddr>
@@ -58,7 +58,7 @@
 
   </site>
 
-  <site type='secondary' location='secondary'>
+  <site name="dr" type='secondary' location='secondary'>
 
     <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
 
@@ -77,7 +77,7 @@
 
     </host>
 
-    <filer type='primary' name='secondary-filer-01'>
+    <filer type='filer' name='secondary-filer-01'>
       <vfiler rootaggr='aggr00'>
 	<primaryip>
 	  <ipaddr>10.240.4.231</ipaddr>

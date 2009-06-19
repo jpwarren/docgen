@@ -35,10 +35,6 @@ class ParserTest(unittest.TestCase):
 
         self.defaults = SafeConfigParser()
         configfiles = self.defaults.read(TESTCONF)
-        self.defaults.get('global', 'dns_domain_name')
-        log.debug("Loaded: %s", configfiles)
-        if len(configfiles) == 0:
-            raise ValueError("Cannot load configuration file: %s" % optparser.options.configfile)
 
     def test_parse_minimal(self):
         """
@@ -46,15 +42,17 @@ class ParserTest(unittest.TestCase):
         """
         xmlfile = "minimal_parsable_config.xml"
         filepath = os.path.join(XML_FILE_LOCATION, xmlfile)
-        proj = ProjectConfig(filepath, self.defaults)
-
+        proj = ProjectConfig(self.defaults)
+        proj.load_project_details(filepath)
+        
     def test_parse_drhostexports(self):
         """
         Test parsing of dr host exports syntax
         """
         xmlfile = "drhostexport_test.xml"
         filepath = os.path.join(XML_FILE_LOCATION, xmlfile)
-        proj = ProjectConfig(filepath, self.defaults)
+        proj = ProjectConfig(self.defaults)
+        proj.load_project_details(filepath)
         
     def test_parse_clustered_nearstore(self):
         """
@@ -62,4 +60,6 @@ class ParserTest(unittest.TestCase):
         """
         xmlfile = "clustered_nearstore.xml"
         filepath = os.path.join(XML_FILE_LOCATION, xmlfile)
-        proj = ProjectConfig(filepath, self.defaults)
+        proj = ProjectConfig(self.defaults)
+        proj.load_project_details(filepath)
+        

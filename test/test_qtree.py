@@ -59,40 +59,29 @@ class QtreeTest(unittest.TestCase):
         """
         Test an empty qtree node
         """
-        xmldata = """
-<qtree>
-</qtree>
-"""
-        node = etree.fromstring(xmldata)
+        node = etree.Element('qtree')
         self.proj.create_qtree_from_node(self.volume1, node)
         #self.failUnlessRaises(IndexError, self.proj.create_qtree, node)
 
-    def test_no_aggregate_volume(self):
+    def test_autocreate_qtree_plain(self):
         """
-        Test the simplest possible volume configuration
+        Test a qtree that is autocreated for a plain data volume
         """
-        xmldata = """
-<filer name='testfiler1'>
-  <volume>
-  </volume>
-</filer>
-"""
-        node = etree.fromstring(xmldata)
-        volnode = node.find('volume')
-        self.failUnlessRaises(IndexError, self.proj.create_volume, volnode, 0)
+        volnode = etree.Element('volume')
+        volume = Volume('testvol2', self.filer1, 'aggr01', 100, volnode=volnode)
+        self.proj.volumes.append( volume )
+
+        self.proj.create_qtrees_for_volume(volume)
+
+    def test_autocreate_qtree_oradata(self):
+        """
+        Test a qtree that is autocreated for an oradata volume
+        """
+        raise unittest.SkipTest("Oracle volume/qtree plugin not written yet.")
+        volnode = etree.Element('volume')
+        volnode.attrib['oracle'] = 'ORASID'
+        volume = Volume('testvol2', self.filer1, 'aggr01', 100, type='oradata', volnode=volnode)
+        self.proj.volumes.append( volume )
+
+        self.proj.create_qtrees_for_volume(volume)
         
-    def test_simple_volume(self):
-        """
-        Test the simplest possible volume configuration
-        """
-        xmldata = """
-<filer name='testfiler1'>
-  <aggregate name='testaggr01'>
-    <volume>
-    </volume>
-  </aggregate>
-</filer>
-"""
-        node = etree.fromstring(xmldata)
-        volnode = node.xpath('*/volume')[0]
-        self.proj.create_volume(volnode, 0)

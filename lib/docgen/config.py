@@ -6,8 +6,7 @@ Configuration of the Document Generator
 import re
 import sys
 import os
-import socket
-import struct
+
 import csv
 from warnings import warn
 
@@ -17,7 +16,8 @@ from lxml import etree
 
 from switch import Switch
 from site import Site
-from network import Network, Vlan, Interface
+import network
+#from network import Network, Vlan, Interface
 from host import Host
 from filer import Filer, VFiler
 from volume import Volume
@@ -424,7 +424,7 @@ class ProjectConfig:
                     if iface.switchname is not None and iface.switchname == switchname and iface.switchport == switchport:
                         log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
                 
-                iface = Interface(type, mode, switchname, switchport, hostport, ipaddr, mtu, vlans)
+                iface = network.Interface(type, mode, switchname, switchport, hostport, ipaddr, mtu, vlans)
                 ifaces.append(iface)
                 self.interfaces.append(iface)
                 
@@ -754,112 +754,8 @@ class ProjectConfig:
                     pass
                 else:
                     log.debug("No qtrees defined. Inventing them for this volume.")
-
-                    # FIXME: Split this out into a plugin style thing
-                    # so we can more easily add/change volume/qtree types and
-                    # how they get created.
-                    
-                    oplocks = self.get_oplocks_value(vol.volnode)
-
-                    # If no qtrees are defined, invent one
-                    if vol.type.startswith('ora'):
-                        log.debug("Oracle volume type detected.")
-                        # Build oracle qtrees
-
-                        # We always number from 1
-                        sid_id = 1
-
-                        # Find the SID for the database this volume is for
-                        # Oracle RAC quorum volume doesn't refer to a specific database
-                        try:
-                            sid=vol.volnode.xpath("@oracle")[0]
-                            log.debug("Found oracle SID: %s", sid)
-
-                            # Then find the list of hosts the database is on
-                            onhost_names = self.tree.xpath("database[@id = '%s']/onhost/@name" % sid)
-                            if len(onhost_names) == 0:
-                                log.warn("Database with id '%s' is not defined. Manual exports must be defined for volume '%s'." % (sid, vol.name))
-                            
-                            log.debug("onhost_names are: %s", onhost_names)
-
-                            # Add manually defined exports, if any exist
-                            rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]), default_to_all=False)
-                            log.debug("database hostlists: %s, %s", rwexports, roexports)
-                            
-                            for hostname in onhost_names:
-                                log.debug("Database %s is on host %s. Adding to rwexports." % (sid, hostname) )
-                                try:
-                                    if self.hosts[hostname] not in [ export.tohost for export in rwexports ]:
-                                        rwexports.append(Export(self.hosts[hostname], vol.filer.vfilers.values()[0].ipaddress, 'rw') )
-                                except KeyError:
-                                    log.error("Database '%s' is on host '%s', but the host is not defined." % (sid, hostname) )
-                                    raise
-                                pass
-
-                        except IndexError:
-                            rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
-
-                        # If the hostlist is empty, assume qtrees are available to all hosts
-                        if len(rwexports) == 0 and len(roexports) == 0:
-                            log.debug("rwexports and roexports are both empty. Adding all hosts...")
-                            rwexports = [ Export(host, vol.filer.vfilers.values()[0].ipaddress, 'rw') for host in self.hosts.values() ]
-
-                        log.debug("hostlists are now: %s, %s", rwexports, roexports)
-
-                        aliases = self.get_export_aliases(vol.volnode)
-                            
-                        if vol.type == 'oraconfig':
-                            qtree_name = 'ora_config'
-                            security = 'unix'
-                            comment = 'Oracle configuration qtree'
-                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
-                            qtree_list.append(qtree)
-
-                        elif vol.type == 'oracm':
-                            qtree_name = 'ora_cm'
-                            security = 'unix'
-                            comment = 'Oracle quorum qtree'
-                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
-                            qtree_list.append(qtree)
-
-                        else:
-                            # qtree name is the voltype with the 'ora' prefex stripped off
-                            qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
-                            security = 'unix'
-                            comment = 'Oracle %s qtree' % vol.type[3:]
-                            qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
-                            qtree_list.append(qtree)
-
-                            #
-                            # If this is an oraredo volume, it contains both an ora_redo qtree
-                            # and an ora_temp area to hold the temporary data
-                            #
-                            if vol.type == 'oraredo':
-                                qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
-                                security = 'unix'
-                                comment = 'Oracle temp qtree'
-                                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
-                                qtree_list.append(qtree)
-                                pass
-                            pass
-                        pass
-                    #
-                    # Not an Oracle volume, so this is a standard data volume
-                    #
-
-                    else:
-                        if vol.proto == 'cifs':
-                            log.debug("CIFS volume '%s' qtree requires NTFS security.", vol.name)
-                            qtree_security = 'ntfs'
-                        else:
-                            qtree_security = 'unix'
-                            pass
-
-                        # Figure out the hostlist by checking for volume based export definitions
-                        rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
-                        aliases = self.get_export_aliases(vol.volnode)
-                        qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
-                        qtree_list.append(qtree)
+                    qtrees = self.create_qtrees_for_volume(self, vol)
+                    qtree_list.extend(qtrees)
                     pass
                 pass
             # end else
@@ -1037,6 +933,119 @@ class ProjectConfig:
         #log.debug("mountoptions are: %s", mountoptions)
         return mountoptions
 
+    def create_qtrees_for_volume(self, vol):
+        """
+        Create a qtree automatically for a given volume.
+        """
+        # FIXME: Split this out into a plugin style thing
+        # so we can more easily add/change volume/qtree types and
+        # how they get created.
+
+        oplocks = self.get_oplocks_value(vol.volnode)
+
+        # if vol.type in ['plugin', 'types']:
+        #     create_plugin_qtree()
+        
+        if vol.type.startswith('ora'):
+            log.debug("Oracle volume type detected.")
+            # Build oracle qtrees
+
+            # We always number from 1
+            sid_id = 1
+
+            # Find the SID for the database this volume is for
+            sid=vol.volnode.xpath("@oracle")[0]
+
+            # Oracle RAC quorum volume doesn't refer to a specific database
+            try:
+
+                log.debug("Found oracle SID: %s", sid)
+
+                # Then find the list of hosts the database is on
+                onhost_names = self.tree.xpath("database[@id = '%s']/onhost/@name" % sid)
+                if len(onhost_names) == 0:
+                    log.warn("Database with id '%s' is not defined. Manual exports must be defined for volume '%s'." % (sid, vol.name))
+
+                log.debug("onhost_names are: %s", onhost_names)
+
+                # Add manually defined exports, if any exist
+                rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]), default_to_all=False)
+                log.debug("database hostlists: %s, %s", rwexports, roexports)
+
+                for hostname in onhost_names:
+                    log.debug("Database %s is on host %s. Adding to rwexports." % (sid, hostname) )
+                    try:
+                        if self.hosts[hostname] not in [ export.tohost for export in rwexports ]:
+                            rwexports.append(Export(self.hosts[hostname], vol.filer.vfilers.values()[0].ipaddress, 'rw') )
+                    except KeyError:
+                        log.error("Database '%s' is on host '%s', but the host is not defined." % (sid, hostname) )
+                        raise
+                    pass
+
+            except IndexError:
+                rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+
+            # If the hostlist is empty, assume qtrees are available to all hosts
+            if len(rwexports) == 0 and len(roexports) == 0:
+                log.debug("rwexports and roexports are both empty. Adding all hosts...")
+                rwexports = [ Export(host, vol.filer.vfilers.values()[0].ipaddress, 'rw') for host in self.hosts.values() ]
+
+            log.debug("hostlists are now: %s, %s", rwexports, roexports)
+
+            aliases = self.get_export_aliases(vol.volnode)
+
+            if vol.type == 'oraconfig':
+                qtree_name = 'ora_config'
+                security = 'unix'
+                comment = 'Oracle configuration qtree'
+                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
+                qtree_list.append(qtree)
+
+            elif vol.type == 'oracm':
+                qtree_name = 'ora_cm'
+                security = 'unix'
+                comment = 'Oracle quorum qtree'
+                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
+                qtree_list.append(qtree)
+
+            else:
+                # qtree name is the voltype with the 'ora' prefex stripped off
+                qtree_name = 'ora_%s_%s%02d' % ( sid, vol.type[3:], sid_id)
+                security = 'unix'
+                comment = 'Oracle %s qtree' % vol.type[3:]
+                qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
+                qtree_list.append(qtree)
+
+                #
+                # If this is an oraredo volume, it contains both an ora_redo qtree
+                # and an ora_temp area to hold the temporary data
+                #
+                if vol.type == 'oraredo':
+                    qtree_name = 'ora_%s_temp%02d' % ( sid, sid_id )
+                    security = 'unix'
+                    comment = 'Oracle temp qtree'
+                    qtree = Qtree(vol, qtree_name, security, comment, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
+                    qtree_list.append(qtree)
+                    pass
+                pass
+            pass
+        #
+        # Not an Oracle volume, so this is a standard data volume
+        #
+
+        else:
+            if vol.proto == 'cifs':
+                log.debug("CIFS volume '%s' qtree requires NTFS security.", vol.name)
+                qtree_security = 'ntfs'
+            else:
+                qtree_security = 'unix'
+                pass
+
+            # Figure out the hostlist by checking for volume based export definitions
+            rwexports, roexports = self.get_exports(vol.volnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+            aliases = self.get_export_aliases(vol.volnode)
+            qtree = Qtree(vol, security=qtree_security, rwexports=rwexports, roexports=roexports, oplocks=oplocks, aliases=aliases)
+        
     def load_luns(self):
         """
         Load LUN definitions.
@@ -1055,72 +1064,72 @@ class ProjectConfig:
             if len(luns) > 0:
                 log.debug("found lun nodes: %s", luns)
 
-                # If you specify LUN sizes, the system will use exactly
-                # what you define in the config file.
-                # If you don't specify the LUN size, then the system will
-                # divide up however much storage is left in the volume evenly
-                # between the number of LUNs that don't have a size specified.
-
                 for lunnode in vol.volnode.xpath("descendant-or-self::lun"):
 
-                    # Check to see if we need to restart the lunid numbering
-                    if lunnode.attrib.has_key('restartnumbering'):
-                        current_lunid = int(lunnode.attrib['restartnumbering'])
-
-                    # Check to see if the lunid is specified for this lun
-                    try:
-                        lunid = int(lunnode.attrib['lunid'])
-                        log.debug("lunid manually specified: %d", lunid)
-                    except KeyError:
-                        lunid = current_lunid
-                        current_lunid += 1
-
-                    try:
-                        lunsize = float(lunnode.xpath("@size")[0])
-                    except IndexError:
-                        log.debug("No LUN size specified. Figuring it out...")
-
-                        # Count the number of LUNs with no size specified. Available
-                        # usable storage will be divided evenly between them
-                        nosize_luns = len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
-
-                        # total the number of sized luns
-                        sized_luns = vol.volnode.xpath("descendant-or-self::lun[(@size)]")
-                        log.debug("sized luns are: %s", sized_luns)
-                        sized_total = sum([ int(lun.attrib['size']) for lun in sized_luns ])
-                        log.debug("sized total is: %s", sized_total)
-                        
-                        log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)
-
-                        lunsize = float(vol.iscsi_usable - sized_total) / nosize_luns
-                        log.debug("calculated lun size of: %s", lunsize)
-                        pass
-                    
-                    log.debug("Allocating %sg storage to LUN", lunsize)
-                    lun_total += lunsize
-                    
+                    lun = iscsi.create_lun_from_node(lunnode)
                     rwexports, roexports = self.get_exports(lunnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
                     exportlist = rwexports + roexports
-
                     log.debug("LUN will be exported to %s", exportlist)
+                    lun.set_exports(exportlist)
+                    
+#                     # Check to see if we need to restart the lunid numbering
+#                     if lunnode.attrib.has_key('restartnumbering'):
+#                         current_lunid = int(lunnode.attrib['restartnumbering'])
 
-                    # See if a qtree parent node exists
-                    try:
-                        qtree_parent_node = lunnode.xpath('parent::qtree')[0]
-                        qtree_parent = [ qtree for qtree in vol.qtrees.values() if qtree_parent_node == qtree.qtreenode ][0]
-                    except IndexError:
-                        # No qtree node defined, so use the first one in the volume.
-                        # Technically, there should only be one.
-                        qtree_parent = vol.qtrees.values()[0]
+#                     # Check to see if the lunid is specified for this lun
+#                     try:
+#                         lunid = int(lunnode.attrib['lunid'])
+#                         log.debug("lunid manually specified: %d", lunid)
+#                     except KeyError:
+#                         lunid = current_lunid
+#                         current_lunid += 1
 
-                    try:
-                        lunname = lunnode.xpath("@name")[0]
-                    except IndexError:
-                        if exportlist[0].tohost.iscsi_initiator is None:
-                            raise ValueError("Host %s has no iSCSI initiator defined." % exportlist[0].tohost.name)
+#                     try:
+#                         lunsize = float(lunnode.xpath("@size")[0])
+#                     except IndexError:
+#                         log.debug("No LUN size specified. Figuring it out...")
 
-                        lunname = '%s.lun%02d' % (self.shortname, lunid)
-                        pass
+#                         # Count the number of LUNs with no size specified. Available
+#                         # usable storage will be divided evenly between them
+#                         nosize_luns = len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
+
+#                         # total the number of sized luns
+#                         sized_luns = vol.volnode.xpath("descendant-or-self::lun[(@size)]")
+#                         log.debug("sized luns are: %s", sized_luns)
+#                         sized_total = sum([ int(lun.attrib['size']) for lun in sized_luns ])
+#                         log.debug("sized total is: %s", sized_total)
+                        
+#                         log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)
+
+#                         lunsize = float(vol.iscsi_usable - sized_total) / nosize_luns
+#                         log.debug("calculated lun size of: %s", lunsize)
+#                         pass
+                    
+#                     log.debug("Allocating %sg storage to LUN", lunsize)
+#                     lun_total += lunsize
+                    
+#                     rwexports, roexports = self.get_exports(lunnode, self.get_vfiler_ips(vol.filer.vfilers.values()[0]))
+#                     exportlist = rwexports + roexports
+
+#                     log.debug("LUN will be exported to %s", exportlist)
+
+#                     # See if a qtree parent node exists
+#                     try:
+#                         qtree_parent_node = lunnode.xpath('parent::qtree')[0]
+#                         qtree_parent = [ qtree for qtree in vol.qtrees.values() if qtree_parent_node == qtree.qtreenode ][0]
+#                     except IndexError:
+#                         # No qtree node defined, so use the first one in the volume.
+#                         # Technically, there should only be one.
+#                         qtree_parent = vol.qtrees.values()[0]
+
+#                     try:
+#                         lunname = lunnode.xpath("@name")[0]
+#                     except IndexError:
+#                         if exportlist[0].tohost.iscsi_initiator is None:
+#                             raise ValueError("Host %s has no iSCSI initiator defined." % exportlist[0].tohost.name)
+
+#                         lunname = '%s.lun%02d' % (self.shortname, lunid)
+#                         pass
                 
                     # Add a LUN for each one found within the volume
                     newlun = LUN( lunname, qtree_parent, lunid, lunsize, exportlist[0].tohost.os, exportlist, lunnode)
@@ -1315,94 +1324,6 @@ class ProjectConfig:
 
         return igroups
 
-    def __get_qtree_mountoptions(self, qtree):
-        """
-        DEPRECATED
-        Figure out the automatically defined mount options for a qtree
-        """
-        warn("use get_host_qtree_options instead", DeprecationWarning, stacklevel=1)
-        mountoptions = []
-
-        osname = qtree.rwexports[0].os
-        
-        if qtree.volume.type in ['oracm', ]:
-            log.debug("Oracle quorum qtree detected.")
-            if qtree.name == 'ora_cm':
-                if osname.startswith('Solaris'):
-                    log.debug("NOAC mount option added.")
-                    mountoptions = [ 'forcedirectio', 'noac', 'nointr' ]
-                    pass
-                pass
-            pass
-        pass
-
-        if qtree.volume.type in [ 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
-
-            if osname.lower().startswith('solaris'):
-                #log.debug("Solaris mount option required")
-                mountoptions = [ 'forcedirectio', 'noac', 'nointr' ]
-                
-            elif osname.lower().startswith('linux'):
-                #log.debug("Linux mount option required")
-                mountoptions = [ 'actimeo=0', ]
-                pass
-
-            else:
-                log.error("Unsupported NFS operating system '%s'", osname)
-                mountoptions = []
-                pass
-            pass
-
-        # Non Oracle volume options for Solaris
-        elif osname.lower().startswith('solaris'):
-            mountoptions = [ 'intr', ]
-
-        elif osname.loewr().startswith('linux'):
-            mountoptions = [ 'intr', ]
-
-        return mountoptions
-
-    def setup_vlan_networks(self, nodelist):
-        """
-        Create a list of Network objects from a set of <network/> nodes.
-        The nodes are child elements of a <vlan/> element.
-
-        @return: a list of networks.
-        """
-        network_list = []
-        
-        log.debug("Found network nodes: %s", nodelist)
-        for node in nodelist:
-
-            try:
-                number = node.attrib['number']
-            except KeyError:
-                raise KeyError("<network/> element has no 'number' attribute.")
-
-            # Detect slash notation for network number/mask
-            if number.find('/') > 0:
-                try:
-                    number, netmask, maskbits = self.str2net(number)
-                except:
-                    log.error("Error with network number for VLAN %s", number)
-                    raise
-            else:
-                try:
-                    netmask = node.attrib['netmask']
-                except KeyError:
-                    raise KeyError("network %s has no netmask defined." % number)
-                pass
-
-            try:
-                gateway = node.attrib['gateway']
-            except KeyError:
-                raise KeyError("<network/> element has no 'gateway' attribute.")
-
-            network_list.append( Network(number, netmask, maskbits, gateway) )
-            pass
-
-        return network_list
-
     def load_vlans(self):
         """
         Load all the vlan definitions
@@ -1410,74 +1331,7 @@ class ProjectConfig:
         vlans = []
         vlan_nodes = self.tree.xpath("site/vlan")
         for node in vlan_nodes:
-
-            site = node.xpath("ancestor::site/@type")[0]
-            
-            type = node.xpath("@type")[0]
-
-            number = node.xpath("@number")[0]
-
-            network_list = []
-
-            # Detect the old form of network definition, and accept it
-            # for now, converting it to the new form.
-            try:
-
-                log.warning("Old style network definition detected. Upgrade to new DTD schema should be performed.")
-
-                # Build a network from the old style definitions
-                network = node.xpath("@network")[0]
-                netmask = None
-                
-                # check to see if the network is defined with slash notation for a netmask
-                if network.find('/') > 0:
-                    try:
-                        network, netmask, maskbits = self.str2net(network)
-                    except:
-                        log.error("Error with network number for VLAN %s", number)
-                        raise
-
-                    log.debug("Slash notation found. Network is: %s, netmask is: %s", network, netmask)
-                    pass
-                
-                # If a slashmask isn't used, try to find the netmask definition
-                if netmask is None:
-                    log.debug("netmask is None. Network is: %s", network)
-                    try:
-                        netmask = node.xpath("@netmask")[0]
-
-                        # Also, convert netmask to the number of bits in a slash notation
-                        maskbits = self.mask2bits(netmask)
-                    
-                    except IndexError:
-                        log.error("VLANs must have a netmask defined.")
-                        raise
-                    pass
-
-                gateway = node.xpath("@gateway")[0]
-
-                # Add the network definition to the list of networks
-                netobj = Network( network, netmask, maskbits, gateway )
-
-                network_list.append( netobj )
-                
-            except IndexError:
-                pass
-
-            # Load new style network definitions
-            network_nodes = node.findall('network')
-            network_list.extend( self.setup_vlan_networks( network_nodes ) )
-                
-            description = node.text
-            if description is None:
-                description = ''
-
-            try:
-                mtu = int(node.attrib['mtu'])
-            except KeyError:
-                mtu = 9000
-            
-            vlan = Vlan(number, site, type, network_list, description, mtu, node)
+            vlan = network.create_vlan_from_node(node, self.defaults)
             vlans.append(vlan)
             pass
 
@@ -1531,8 +1385,9 @@ class ProjectConfig:
         log.debug("Found %d volumes for site:%s/filer:%s", len(volumes), site, filertype)
         return volumes
 
-    def create_volume(self, node, volnum):
+    def __create_volume(self, node, volnum):
         """
+        DEPRECATED
         Create a volume, using certain defaults as required.
         """
         # Find out which filer the volume is on
@@ -2306,7 +2161,7 @@ class ProjectConfig:
                 log.debug("oplocks is manually set to true")
                 pass
             pass
-        except IndexError:
+        except (IndexError, AttributeError):
             oplocks = True
             log.debug("oplocks is automatically set to true")
             pass
@@ -3067,57 +2922,6 @@ class ProjectConfig:
             cmdset.append('wrfile -a /vol/vol0/etc/rc "%s"' % line)
 
         return cmdset
-
-    def str2net(self, netstr):
-        """
-        Convert a network string such as 10.0.0.0/8 to a network
-        integer and a netmask
-        """
-
-        fields = netstr.split('/')
-        addrstr = fields[0]
-        if len(fields) > 1:
-            maskbits = int(fields[1])
-        else:
-            maskbits = 32
-            pass
-
-        hostbits = 32 - maskbits
-        mask = 0xFFFFFFFFL - ((1L << hostbits) - 1)
-        maskstr = socket.inet_ntoa(struct.pack('!L',mask))
-
-        addr = socket.inet_aton(addrstr)
-        addr = long(struct.unpack('!I', addr)[0])
-        addr = addr & mask
-
-        return addrstr, maskstr, maskbits
-
-    def mask2bits(self, netmask):
-        """
-        Take a netmask and work out what number it
-        would need on the righthand side of slash notation.
-        eg: A netmask of 255.255.255.0 == /24
-        """
-        mask = socket.inet_aton(netmask)
-        mask = long(struct.unpack('!I', mask)[0])
-
-        bits = 0
-        for byte in range(4):
-            testval = (mask >> (byte * 8)) & 0xff
-            while (testval != 0):
-                if ((testval & 1) == 1):
-                    bits += 1
-                testval >>= 1
-        return bits        
-
-    def inverse_mask_str(self, netmaskstr):
-        """
-        Take a netmask and return the inverse mask, used for Cisco ACLs
-        """
-        maskint = long(struct.unpack('!I', socket.inet_aton(netmaskstr))[0])
-        newmask = 0xFFFFFFFFL - maskint
-        newmaskstr = socket.inet_ntoa(struct.pack('!L', newmask))
-        return newmaskstr
 
     def switch_vlan_activation_commands(self, switch):
         """

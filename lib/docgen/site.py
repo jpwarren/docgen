@@ -3,12 +3,13 @@
 """
 Physical site and related design objects
 """
+from base import DynamicNaming
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Site:
+class Site(DynamicNaming):
     """
     A site contains Filers, VLANS, etc.
     """
@@ -45,3 +46,7 @@ class Site:
         """
         return '<Site: %s, type: %s, location: %s>' % (self.name, self.type, self.location)
 
+    def populate_namespace(self, ns={}):
+        ns['site_name'] = self.name
+        ns['site_type'] = self.type
+        return ns

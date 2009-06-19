@@ -3,14 +3,21 @@
 """
 NetApp Volumes
 """
+from base import DynamicNaming
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Volume:
+class Volume(DynamicNaming):
 
-    def __init__(self, name, filer, aggr, usable, snapreserve=20, raw=None, type="fs", proto="nfs", voloptions=[], volnode=None, snapref=[], snapvaultref=[], snapmirrorref=[], snapvaultmirrorref=[], iscsi_snapspace=0):
+    def __init__(self, name, filer, aggr, usable, snapreserve=20,
+                 raw=None, type="fs", proto="nfs",
+                 voloptions=[], volnode=None,
+                 snapref=[], snapvaultref=[],
+                 snapmirrorref=[], snapvaultmirrorref=[],
+                 iscsi_snapspace=0):
+        
         self.name = name
         self.filer = filer
         self.type = type
@@ -123,6 +130,15 @@ class Volume:
     def __str__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw)
 
+    def populate_namespace(self, ns={}):
+        """
+        Add my own namespace pieces
+        """
+        ns = self.site.populate_namespace(ns)
+        ns['volume_name'] = self.name
+        ns['volume_type'] = self.type
+        return ns
+    
     def get_create_size(self):
         """
         Get the raw size in a format acceptable to the vol create command,
@@ -291,4 +307,173 @@ class VolumeAutoDelete:
             dict[option] = getattr(self, option)
             pass
         return dict
+
+def create_volume_from_node(node, defaults, volnum, filer, vfiler=None):
+    """
+    Create a volume, using certain defaults as required.
+    """
+    # Try to find a volume prefix
+    try:
+        volprefix = node.xpath("@prefix")[0]
+    except IndexError:
+        volprefix = ''
+        pass
+
+    # Try to find a volume suffix
+    try:
+        volsuffix = node.xpath("@suffix")[0]
+    except IndexError:
+        volsuffix = ''
+        pass
+
+    # Try to find a volume type
+    try:
+        voltype = node.xpath("@type")[0]
+    except IndexError:
+        voltype = defaults.get('volume', 'default_vol_type')
+        pass
+
+    # Check to see if we want to restart the volume numbering
+    try:
+        volnum = int(node.xpath("@restartnumbering")[0])
+    except IndexError:
+        pass
+
+    # Work out the volume name
+    try:
+        # If the volume has an explicit name set, use that
+        volname = node.xpath("@name")[0]
+    except IndexError:
+        # otherwise, use the volume naming convention
+
+        # Set up a namespace for use in naming
+        if vfiler is None:
+            ns = filer.populate_namespace()
+        else:
+            ns = vfiler.populate_namespace()
+            pass
+        ns['voltype'] = voltype
+        ns['volprefix'] = volprefix
+        ns['volsuffix'] = volsuffix
+        ns['volnum'] = volnum
+
+        volname_convention = defaults.get('volume', 'volume_name')
+        log.debug("volume naming convention: %s", volname_convention)
+        try:
+            volname = volname_convention % ns
+        except KeyError, e:
+            raise KeyError("Unknown variable %s for volume naming convention" % e)
+
+    # aggregate is this one, or the same as the previous volume
+    try:
+        aggr = node.xpath("ancestor::aggregate/@name | preceding-sibling/ancestor::aggregate/@name")[0]
+    except IndexError:
+        raise IndexError("Volume '%s' has no containing aggregate." % volname)
+
+    snapref = node.xpath("snapsetref/@name")
+    snapvaultref = node.xpath("snapvaultsetref/@name")
+    snapmirrorref = node.xpath("snapmirrorsetref/@name")
+    snapvaultmirrorref = node.xpath("snapvaultmirrorsetref/@name")
+
+    voloptions = [ x.text for x in node.xpath("option") ]
+
+    # The volume protocol is either a protocol set in the volume definition
+    # using the 'proto' attribute, or it will be the first protocol in
+    # the list of possible protocols for the vfiler.
+    # If neither of these are set, it will be set to the default
+    try:
+        proto = node.xpath("@proto")[0].lower()
+        log.debug("Proto defined for volume: %s", proto)
+
+    except IndexError:
+        try:
+            proto = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
+            #log.debug("Found proto in vfiler ancestor: %s", proto)
+        except IndexError:
+            proto = defaults.get('protocol', 'default_storage_protocol')
+            #log.debug("Proto set to default: %s", proto)
+
+    try:
+        voltype = node.xpath("@type")[0]
+    except IndexError:
+        voltype = defaults.get('volume', 'default_vol_type')
+
+    # Set the amount of usable space in the volume
+    try:
+        usable = float(node.xpath("usablestorage")[0].text)
+    except IndexError:
+        usable = defaults.getint('volume', 'default_size')
+        pass
+
+    # Default snap reserve to 20 unless specified otherwise
+    # Default iscsi_snapspace to 0 unless specified otherwise
+    iscsi_snapspace=0
+    try:
+        snapreserve = float(node.attrib['snapreserve'])
+    except KeyError:
+        #log.debug("No snapreserve specified.")
+        if proto == 'iscsi':
+            snapreserve = 0
+            # iSCSI volumes need the ability to define space used for storing
+            # snapshots, but without turning on snapreserve, which functions
+            # differently. This is usable space allocated as overhead for
+            # snapshots, because snapreserve is set to 0, but won't be used
+            # by the LUNs, because they are files of fixed size created inside
+            # the usable space.
+            # This percentage value will be added to the raw space provided for
+            # the volume.
+            try:
+                iscsi_snapspace = node.attrib['iscsi_snapspace']
+            except KeyError:
+                iscsi_snapspace = defaults.getint('volume', 'default_iscsi_snapspace')
+
+        elif voltype in ['oraundo', 'oraarch', ]:
+            snapreserve = defaults.getint('volume', 'default_highdelta_snapreserve')
+        else:
+            snapreserve = defaults.getint('volume', 'default_snapreserve')
+            pass
+        pass
+
+    # See if we want to specify a particular amount of snapshot storage
+    # This will override the snapreserve setting
+    try:
+        snapstorage = float(node.findall("snapstorage")[0].text)
+        #log.info("snapstorage of %.2f GiB set", snapstorage)
+        raw = usable + snapstorage
+        #log.info("raw storage is now: %.2f", raw)
+
+        # snapreserve is always an integer percentage, so round it            
+        snapreserve = int(round(100 - ((usable / raw) * 100.0)))
+        #log.info("snapreserve is: %s", snapreserve)
+
+    except IndexError:
+        snapstorage = None
+
+    if snapstorage is not None:
+        vol = Volume( volname, filer, aggr, usable, snapreserve, raw, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
+    else:
+        vol = Volume( volname, filer, aggr, usable, snapreserve, type=voltype, proto=proto, voloptions=voloptions, volnode=node, snapref=snapref, snapvaultref=snapvaultref, snapmirrorref=snapmirrorref, snapvaultmirrorref=snapvaultmirrorref, iscsi_snapspace=iscsi_snapspace)
+
+    # See if there is an autosize setting on either the volume, or the
+    # containing aggregate. Use the first one we find.
+    autosize = node.xpath('autosize | parent::*/autosize')
+    if len(autosize) > 0:
+        autosize = autosize[0]
+        #log.debug("found autosize: %s", autosize)
+        # Set autosize parameters
+        vol.autosize = VolumeAutoSize(vol, autosize.attrib['max'], autosize.attrib['increment'])
+        pass
+
+    # See if there is an autodelete setting for snapshots
+    autodelete = node.xpath('autodelete | parent::*/autodelete')
+    if len(autodelete) > 0:
+        autodelete = autodelete[0]
+        #log.debug("found autodelete: %s", autodelete)
+        # Set autodelete parameters
+        vol.autodelete = VolumeAutoDelete(vol)
+        vol.autodelete.configure_from_node(autodelete)
+        pass
+
+    volnum += 1
+    return vol, volnum
 
