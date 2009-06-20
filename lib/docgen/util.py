@@ -10,13 +10,14 @@ import debug
 import logging
 log = logging.getLogger('docgen')
 
-def import_module(klass_name):
+def import_module(mod_name):
     """
     Custom dynamic import function to import modules.
     """
-    components = klass_name.split('.')
-    module_name = '.'.join(components[:-1])
-
+    #log.debug("looking for module: %s", mod_name)
+    components = mod_name.split('.')
+    #module_name = '.'.join(components[:-1])
+    module_name = mod_name
     mod = __import__(module_name)
     for comp in components[1:]:
         mod = getattr(mod, comp)

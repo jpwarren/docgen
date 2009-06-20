@@ -1,0 +1,5 @@
+<project name="testproject1">
+  <site name="sitea" type="primary" location="testlab">
+    <vlan number="15" type="testing"/>
+  </site>
+</project>

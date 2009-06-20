@@ -1,0 +1,5 @@
+<project name="testproject1">
+  <site name="sitea" type="primary" location="testlab">
+    <host name="fred" platform="intel" operatingsystem="Linux" />
+  </site>
+</project>

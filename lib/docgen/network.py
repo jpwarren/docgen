@@ -10,47 +10,6 @@ import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Interface:
-
-    def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):
-
-        self.type = type
-        self.mode = mode
-        self.switchname = switchname
-        self.switchport = switchport
-        self.hostport = hostport
-        self.ipaddress = ipaddress
-        self.mtu = mtu
-        self.vlans = vlans
-
-        log.debug("Created interface with vlans: %s", self.vlans)
-
-    def __repr__(self):
-        return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
-
-class Vlan:
-    """
-    A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
-    """
-
-    def __init__(self, number, site='primary', type='project', networks=[], description='', mtu=9000, node=None):
-
-        self.description = description
-        self.site = site
-        self.sitetype = site
-        self.type = type
-        self.number = number
-
-        self.networks = networks
-        
-        self.mtu = mtu
-        self.node = node
-
-        #log.debug("Created vlan: %s", self)
-
-    def __repr__(self):
-        return '<Vlan: %s, %s/%s: %s>' % (self.number, self.site, self.type, self.networks)
-
 class Network:
     """
     A Network object encapsulates an IP network.
@@ -99,31 +58,6 @@ def create_network_from_node(node):
         raise KeyError("<network/> element has no 'gateway' attribute.")
 
     return Network(number, netmask, maskbits, gateway)
-
-def create_vlan_from_node(node, defaults):
-    """
-    Given a VLAN node, create the VLAN
-    """
-    site = node.xpath("ancestor::site/@type")[0]
-    type = node.attrib['type']
-    number = int(node.attrib['number'])
-    network_list = []
-    for netnode in node.findall('network'):
-        network_list.append( create_network_from_node(netnode) )
-        pass
-
-    description = node.text
-    if description is None:
-        description = ''
-        pass
-    
-    try:
-        mtu = int(node.attrib['mtu'])
-    except KeyError:
-        mtu = defaults.get('vlan', 'default_mtu')
-        pass
-    
-    return Vlan(number, site, type, network_list, description, mtu, node)
     
 def str2net(netstr):
     """

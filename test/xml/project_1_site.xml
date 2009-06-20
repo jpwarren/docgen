@@ -1,0 +1,3 @@
+<project name="testproject1">
+  <site name="sitea" type="primary" location="testlab"/>
+</project>

@@ -15,10 +15,10 @@ import ConfigParser
 from lxml import etree
 
 from switch import Switch
-from site import Site
+import site
 import network
 #from network import Network, Vlan, Interface
-from host import Host
+import host
 from filer import Filer, VFiler
 from volume import Volume
 from qtree import Qtree
@@ -115,6 +115,7 @@ class ProjectConfig:
             log.error("Sorry, but lxml.etree won't tell me exactly what went wrong.")
             raise
 
+        # FIXME: Do this smarter
         self.prefix = self.tree.xpath('//project/prefix')[0].text
         self.code = self.tree.xpath('//project/code')[0].text
         self.shortname = self.tree.xpath('//project/shortname')[0].text
@@ -238,44 +239,8 @@ class ProjectConfig:
         sites = {}
         site_nodes = self.tree.xpath('site')
         for node in site_nodes:
-
-            # Site name is a new attribute, so allow a kind of backwards compatibility for now
-            try:
-                site_name = node.attrib['name']
-            except KeyError:
-                # FIXME: You can only guess the site name if it's
-                # involved somehow in your filer naming convention.
-#                 site_name = node.xpath('filer/@name')[0].split('-')[0]
-#                 log.debug("site name is set to: %s", site_name)
-                raise KeyError("Site name not set.")
-                
-            # Get the site type from the defaults if it isn't set
-            try:
-                site_type = node.attrib['type']
-
-            except KeyError:
-                site_type = self.defaults.get(site_name, 'type')
-
-            # Get the site location from the defaults if it isn't set                
-            try:
-                site_location = node.attrib['location']
-            except KeyError:
-                log.warn('Site location not set!')
-                site_location = self.defaults.get(site_name, 'location')
-                pass
-
-            # Add default site servers for CIFS
-            # This should be added the DTD to allow manual override
-            try:
-                nameservers = self.defaults.get(site_name, 'nameservers').split()
-            except ConfigParser.NoSectionError:
-                nameservers = []
-            try:
-                winsservers = self.defaults.get(site_name, 'nameservers').split()
-            except ConfigParser.NoSectionError:
-                winsservers = []
-                
-            sites[site_name] = Site(site_name, site_type, site_location, nameservers, winsservers)
+            newsite = site.create_site_from_node(node, self.defaults)
+            sites[newsite.name] = newsite
             pass
         return sites
 
@@ -291,143 +256,7 @@ class ProjectConfig:
             raise ValueError("No project hosts are defined.")
 
         for node in hostnodes:
-
-            # find some mandatory attributes
-            hostname = node.attrib['name']
-
-            # See if a site name is defined, if not, use the first site of this type
-            # since most implementations only have a single 'primary' site, for example.
-            try:
-                sitename = node.xpath('ancestor::site')[0].attrib['name']
-                site = self.sites[sitename]
-            except KeyError:
-                sitetype = node.xpath('ancestor::site')[0].attrib['type']
-                site = [ site for site in self.sites.values() if site.type == sitetype][0]
-
-            # check to see if the host has already been defined
-            if hostname in hosts.keys():
-                errstr = "Host '%s' is defined more than once. Hostnames must be unique." % hostname
-                log.error(errstr)
-                raise ValueError(errstr)
-            
-            host_attribs = {}
-            for attrib in ['platform', 'operatingsystem', 'location']:
-                try:
-                    host_attribs[attrib] = node.find(attrib).text
-                except AttributeError:
-                    log.error("Cannot find host attribute '%s' for host '%s'", attrib, hostname)
-                    raise
-
-            try:
-                is_virtual = node.attrib['virtual']
-                if is_virtual.lower() == 'yes':
-                    is_virtual=True
-                    log.debug("Host '%s' is virtual.", hostname)
-                else:
-                    is_virtual=False
-            except KeyError:
-                is_virtual=False
-
-            try:
-                description = node.find('description')[0].text
-            except IndexError:
-                description = ''
-
-            try:
-                iscsi_initiator = node.find('iscsi_initiator').text
-            except AttributeError:
-                iscsi_initiator = None
-
-            drhostnodes = node.findall('drhost')
-            drhosts = [ host.attrib['name'] for host in drhostnodes ]
-
-            # Load host interfaces
-            ifaces = []
-            interface_nodes = node.findall('interface')
-            log.debug("found host interfaces: %s", interface_nodes)
-            for ifnode in interface_nodes:
-                try:
-                    switchname = ifnode.find('switchname').text
-                    switchport = ifnode.find('switchport').text
-                except AttributeError, e:
-                    if not is_virtual:
-                        log.warn("Host switch configuration not present for %s: %s", hostname, e)
-                    switchname = None
-                    switchport = None
-
-                try:
-                    hostport = ifnode.find('hostport').text
-                except AttributeError, e:
-                    log.warn("No host port defined for host: %s", hostname)
-                    hostport = None
-
-                try:
-                    ipaddr = ifnode.find('ipaddr').text
-                except AttributeError:
-                    ipaddr = None
-
-
-                type = ifnode.attrib['type']
-                try:
-                    mode = ifnode.attrib['mode']
-                except KeyError:
-                    mode = 'passive'
-
-                try:
-                    mtu = int(ifnode.attrib['mtu'])
-                except KeyError:
-                    # If the MTU isn't set on the interface, use the project VLAN MTU
-                    vlan = self.get_project_vlan(site.type)
-                    mtu = vlan.mtu
-
-                # Figure out the VLANs this interface should be in.
-                # If one isn't defined, but it in the first 'project' VLAN
-                vlan_nums = ifnode.findall('vlan_number')
-                if len(vlan_nums) == 0:
-                    vlans = [ vlan for vlan in self.vlans if vlan.site == site.type and vlan.type == 'project' ]
-
-                else:
-                    # Find all the vlans this interface can talk to (ie: it's a trunk)
-                    vlans = []
-                    for vlan_num in vlan_nums:
-                        vlans.extend([ vlan for vlan in self.vlans if vlan.site == site.type and vlan.number == vlan_num.text ])
-                        pass
-                    pass
-
-                # Add the required switch to the project switches list
-                if switchname is not None:
-                    try:
-                        switch = self.known_switches[switchname]
-                    except KeyError:
-                        raise KeyError("Switch '%s' is not defined. Is it in switches.conf?" % switchname)
-
-                    log.debug("Adding switch '%s' to project switch list at site '%s'", switch, site)
-                    switch.site = site
-                    self.project_switches[switchname] = switch
-
-                    # If this is an edge, make sure its connected cores are added to the
-                    # list of project switches.
-                    if switch.type == 'edge':
-                        for coreswitch in switch.connected_switches:
-                            if coreswitch not in self.project_switches:
-                                self.project_switches[coreswitch] = self.known_switches[coreswitch]
-                                self.project_switches[coreswitch].site = site
-                                pass
-                            pass
-                        pass
-
-                # Sanity check the interface parameters. The combination of switchname+switchport should
-                # only occur once, unless either is None, in which case it doesn't matter.
-                for iface in self.interfaces:
-                    #log.debug("checking interface: %s", iface)
-                    
-                    if iface.switchname is not None and iface.switchname == switchname and iface.switchport == switchport:
-                        log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
-                
-                iface = network.Interface(type, mode, switchname, switchport, hostport, ipaddr, mtu, vlans)
-                ifaces.append(iface)
-                self.interfaces.append(iface)
-                
+            host.create_host_from_node(node, self.defaults, self.sites)
             hosts[hostname] = Host(hostname, platform=host_attribs['platform'],
                                    os=host_attribs['operatingsystem'],
                                    site=site,

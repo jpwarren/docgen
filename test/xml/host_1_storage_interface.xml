@@ -1,0 +1,3 @@
+<host name="fred" operatingsystem="Linux" platform="intel">
+  <netinterface />
+</host>
