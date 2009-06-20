@@ -5,7 +5,7 @@
 Test the configuration loader
 """
 import os.path
-from ConfigParser import SafeConfigParser, NoSectionError
+from ConfigParser import RawConfigParser, NoSectionError
 from StringIO import StringIO
 
 from twisted.trial import unittest, runner, reporter
@@ -35,7 +35,7 @@ class ProjectTest(unittest.TestCase):
         optparser = BaseOptions()
         optparser.parseOptions(['dummyfile.xml', '--debug=%s' % logging._levelNames[log.level].lower()])
 
-        self.defaults = SafeConfigParser()
+        self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
         self.proj = ProjectConfig(self.defaults)
 

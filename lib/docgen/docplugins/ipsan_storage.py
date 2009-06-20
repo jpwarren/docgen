@@ -11,15 +11,12 @@ from zope.interface import Interface
 from string import Template
 from lxml import etree
 
-from docgen.docgen import DocBookGenerator
-from docgen.config import ProjectConfig
-from commands import IPSANCommandsGenerator, IPSANVolumeSizeCommandsGenerator
-from activation_advice import IPSANActivationAdvice
-
 from docgen import options
+from docgen.base import DocBookGenerator
+from docgen.config import ProjectConfig
+
 import logging
 from docgen import debug
-
 log = logging.getLogger('docgen')
 
 __version__ = '$Revision: 182 $'

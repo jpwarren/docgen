@@ -28,7 +28,7 @@ class Network:
 
         return "<Network: %s/%s (%s) -> %s>" % (self.number, self.maskbits, self.netmask, self.gateway)
 
-def create_network_from_node(node):
+def create_network_from_node(node, defaults, parent):
     """
     Parse a network definition node and create a Network object.
     """

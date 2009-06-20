@@ -21,6 +21,7 @@ from docgen.site import Site
 from docgen.filer import Filer, VFiler
 from docgen.volume import Volume
 from docgen import network
+from docgen import vlan
 
 from docgen import debug
 import logging
@@ -36,6 +37,13 @@ class NetworkTest(unittest.TestCase):
     """
     
     def setUp(self):
+        optparser = BaseOptions()
+        optparser.parseOptions(['dummyfile.xml', '--debug=%s' % logging._levelNames[log.level].lower()])
+
+        self.defaults = RawConfigParser()
+        configfiles = self.defaults.read(TESTCONF)
+
+        self.site = Site('testsite', 'primary')
         pass
     
     def test_create_network(self):
@@ -47,7 +55,7 @@ class NetworkTest(unittest.TestCase):
 """
         
         node = etree.fromstring(xmldata)
-        net = network.create_network_from_node(node)
+        net = network.create_network_from_node(node, self.defaults, self.site)
 
         self.failUnlessEqual(net.number, '192.168.1.0')
         self.failUnlessEqual(net.maskbits, 24)
@@ -63,7 +71,7 @@ class NetworkTest(unittest.TestCase):
 """
         
         node = etree.fromstring(xmldata)
-        net = network.create_network_from_node(node)
+        net = network.create_network_from_node(node, self.defaults, self.site)
 
         self.failUnlessEqual(net.number, '10.45.7.0')
         self.failUnlessEqual(net.maskbits, 13)
@@ -79,7 +87,7 @@ class NetworkTest(unittest.TestCase):
 """
         
         node = etree.fromstring(xmldata)
-        net = network.create_network_from_node(node)
+        net = network.create_network_from_node(node, self.defaults, self.site)
 
         self.failUnlessEqual(net.number, '10.45.7.0')
         self.failUnlessEqual(net.maskbits, 21)
@@ -95,13 +103,15 @@ class VlanTest(unittest.TestCase):
         optparser.parseOptions(['dummyfile.xml', '--debug=%s' % logging._levelNames[log.level].lower()])
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
-        self.proj = ProjectConfig(self.defaults)
+
+        self.site = Site('testsite', 'primary')
+        pass
     
     def test_create_vlan_blank(self):
         """
         Test Vlan object creation
         """
-        self.failUnlessRaises(TypeError, network.Vlan)
+        self.failUnlessRaises(TypeError, vlan.Vlan)
 
     def test_create_basic_vlan(self):
         xmldata = """
@@ -111,12 +121,12 @@ class VlanTest(unittest.TestCase):
 """
         tree = etree.fromstring(xmldata)
         node = tree.find('vlan')
-        vlan = network.create_vlan_from_node(node, self.defaults)
+        vlanobj = vlan.create_vlan_from_node(node, self.defaults, self.site)
 
-        self.failUnlessEqual(vlan.site, 'primary')
-        self.failUnlessEqual(vlan.type, 'project')
-        self.failUnlessEqual(vlan.number, 2006)
-        self.failUnlessEqual(len(vlan.networks), 0)
+        self.failUnlessEqual(vlanobj.site, self.site)
+        self.failUnlessEqual(vlanobj.type, 'project')
+        self.failUnlessEqual(vlanobj.number, 2006)
+        self.failUnlessEqual(len(vlanobj.get_networks()), 0)
         
     def test_create_vlan_with_1_network(self):
         """
@@ -131,12 +141,12 @@ class VlanTest(unittest.TestCase):
 """
         tree = etree.fromstring(xmldata)
         node = tree.find('vlan')
-        vlan = network.create_vlan_from_node(node, self.defaults)
+        vlanobj = vlan.create_vlan_from_node(node, self.defaults, self.site)
 
-        self.failUnlessEqual(vlan.site, 'primary')
-        self.failUnlessEqual(vlan.type, 'project')
-        self.failUnlessEqual(vlan.number, 2006)
-        self.failUnlessEqual(len(vlan.networks), 1)
+        self.failUnlessEqual(vlanobj.site, self.site)
+        self.failUnlessEqual(vlanobj.type, 'project')
+        self.failUnlessEqual(vlanobj.number, 2006)
+        self.failUnlessEqual(len(vlanobj.get_networks()), 1)
 
     def test_create_vlan_with_3_networks(self):
         """
@@ -153,12 +163,12 @@ class VlanTest(unittest.TestCase):
 """
         tree = etree.fromstring(xmldata)
         node = tree.find('vlan')
-        vlan = network.create_vlan_from_node(node, self.defaults)
+        vlanobj = vlan.create_vlan_from_node(node, self.defaults, self.site)
 
-        self.failUnlessEqual(vlan.site, 'primary')
-        self.failUnlessEqual(vlan.type, 'project')
-        self.failUnlessEqual(vlan.number, 2006)
-        self.failUnlessEqual(len(vlan.networks), 3)
+        self.failUnlessEqual(vlanobj.site, self.site)
+        self.failUnlessEqual(vlanobj.type, 'project')
+        self.failUnlessEqual(vlanobj.number, 2006)
+        self.failUnlessEqual(len(vlanobj.get_networks()), 3)
 
     def test_create_vlan_with_mtu(self):
         """
@@ -174,10 +184,10 @@ class VlanTest(unittest.TestCase):
 """
         tree = etree.fromstring(xmldata)
         node = tree.find('vlan')
-        vlan = network.create_vlan_from_node(node, self.defaults)
+        vlanobj = vlan.create_vlan_from_node(node, self.defaults, self.site)
 
-        self.failUnlessEqual(vlan.site, 'primary')
-        self.failUnlessEqual(vlan.type, 'project')
-        self.failUnlessEqual(vlan.number, 2006)
-        self.failUnlessEqual(vlan.mtu, 4453)
-        self.failUnlessEqual(len(vlan.networks), 2)
+        self.failUnlessEqual(vlanobj.site, self.site)
+        self.failUnlessEqual(vlanobj.type, 'project')
+        self.failUnlessEqual(vlanobj.number, 2006)
+        self.failUnlessEqual(vlanobj.mtu, 4453)
+        self.failUnlessEqual(len(vlanobj.get_networks()), 2)

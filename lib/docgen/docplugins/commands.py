@@ -10,7 +10,8 @@ import logging
 from docgen import debug
 log = logging.getLogger('docgen')
 
-from docgen.docgen import IDocumentGenerator, FileOutputMixin
+from docgen.interfaces import IDocumentGenerator
+from docgen.base import FileOutputMixin
 
 class CommandGenerator(FileOutputMixin):
     """

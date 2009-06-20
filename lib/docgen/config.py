@@ -15,8 +15,9 @@ import ConfigParser
 from lxml import etree
 
 from switch import Switch
-import site
-import network
+from docgen import site
+from docgen import network
+from docgen import vlan
 #from network import Network, Vlan, Interface
 import host
 from filer import Filer, VFiler
@@ -239,7 +240,7 @@ class ProjectConfig:
         sites = {}
         site_nodes = self.tree.xpath('site')
         for node in site_nodes:
-            newsite = site.create_site_from_node(node, self.defaults)
+            newsite = site.create_site_from_node(node, self.defaults, self)
             sites[newsite.name] = newsite
             pass
         return sites
@@ -257,7 +258,7 @@ class ProjectConfig:
 
         for node in hostnodes:
             host.create_host_from_node(node, self.defaults, self.sites)
-            hosts[hostname] = Host(hostname, platform=host_attribs['platform'],
+            hosts[hostname] = host.Host(hostname, platform=host_attribs['platform'],
                                    os=host_attribs['operatingsystem'],
                                    site=site,
                                    location=host_attribs['location'],
@@ -1160,8 +1161,8 @@ class ProjectConfig:
         vlans = []
         vlan_nodes = self.tree.xpath("site/vlan")
         for node in vlan_nodes:
-            vlan = network.create_vlan_from_node(node, self.defaults)
-            vlans.append(vlan)
+            vlanobj = vlan.create_vlan_from_node(node, self.defaults, self)
+            vlans.append(vlanobj)
             pass
 
         return vlans

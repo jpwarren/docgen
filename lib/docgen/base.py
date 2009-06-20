@@ -8,7 +8,7 @@ import sys
 import os.path
 from string import Template
 from datetime import datetime
-
+from ConfigParser import NoOptionError
 from zope.interface import implements
 
 from docgen.interfaces import IXMLConfigurable
@@ -28,7 +28,12 @@ class XMLConfigurable:
         Configure a project from the project node.
         """
         # Find my known children from the defaults file
-        child_tags = defaults.get('tags', '%s_known_children' % self.xmltag).split()
+        try:
+            child_tags = defaults.get('tags', '%s_known_children' % self.xmltag).split()
+        except NoOptionError:
+            # The option isn't set in the config file, so we've
+            # disabled this child in this installation
+            return
 
         # For each child tag that I know of, find the module that
         # defines it and load it in. Create the object, and then

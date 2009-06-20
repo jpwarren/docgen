@@ -9,10 +9,10 @@
 
   <site name='sitea' type='primary' location='melbourne'>
 
-    <host name='testhost01'>
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>testlab</location>
+    <host name="testhost01"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="testlab">
       <description>Test Host 01</description>
 
     </host>

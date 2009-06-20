@@ -194,7 +194,7 @@ class HostTest(ProjectConfigTest):
         xmldata = """
 <project>
   <site name="fred" type="testing" location="testlab">
-    <host name="dummy1" />
+    <host name="dummy1" platform="intel" operatingsystem="linux"/>
   </site>
 </project>
 """

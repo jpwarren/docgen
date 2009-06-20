@@ -9,7 +9,7 @@ import sys
 
 import logging
 
-from docgen.docgen import IDocumentGenerator
+from docgen.interfaces import IDocumentGenerator
 
 from docgen import debug
 log = logging.getLogger('docgen')
