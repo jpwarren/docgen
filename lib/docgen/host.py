@@ -13,15 +13,15 @@ import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Host(XMLConfigurable, DynamicNaming):
+class Host(XMLConfigurable):
     """
     A host definition
     """
-    implements(IXMLConfigurable, IDynamicNaming)
+    implements(IDynamicNaming)
 
     xmltag = 'host'
     
-    def __init__(self, name, platform, os, site, location, description='',
+    def __init__(self, name, platform, os, site, location=None, description='',
                  drhostnames=[],
                  iscsi_initiator=None,
                  is_virtual=False,
@@ -30,6 +30,7 @@ class Host(XMLConfigurable, DynamicNaming):
         self.name = name
         self.platform = platform
         self.os = os
+        self.site = site
         self.location = location
         self.description = description
 
@@ -52,10 +53,13 @@ class Host(XMLConfigurable, DynamicNaming):
         log.debug("Created host: %s", self)
 
     def __str__(self):
-        return "%s (%s, %s)" % (self.name, self.os, self.location)
+        return "<Host: %s (%s, %s)>" % (self.name, self.os, self.location)
 
     def get_interfaces(self):
         return host.children['netinterface']
+
+    def get_site(self):
+        return self.site
     
     def get_storage_ips(self):
         """

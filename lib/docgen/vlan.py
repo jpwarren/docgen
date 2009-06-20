@@ -32,7 +32,7 @@ class Vlan(XMLConfigurable, DynamicNaming):
         #log.debug("Created vlan: %s", self)
 
     def __repr__(self):
-        return '<Vlan: %s, %s/%s: %s>' % (self.number, self.site, self.type, self.networks)
+        return '<Vlan: %s, %s/%s: %s>' % (self.number, self.site, self.type, self.get_networks())
 
     def get_networks(self):
         try:

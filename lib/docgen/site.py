@@ -58,6 +58,12 @@ class Site(XMLConfigurable, DynamicNaming):
         ns['site_type'] = self.type
         return ns
 
+    def get_vlans(self):
+        try:
+            return self.children['vlan']
+        except KeyError:
+            return []
+
 def create_site_from_node(node, defaults, parent):
     
     # Site name is a new attribute, so allow a kind of backwards compatibility for now

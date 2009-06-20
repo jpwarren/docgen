@@ -10,8 +10,6 @@ definition.
 """
 from docgen.base import XMLConfigurable, DynamicNaming
 
-from docgen.util import import_module
-
 import debug
 import logging
 log = logging.getLogger('docgen')

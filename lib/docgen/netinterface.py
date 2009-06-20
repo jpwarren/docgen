@@ -1,5 +1,24 @@
-class NetInterface:
+# $Id$
 
+"""
+Network interface design objects
+
+These are found on hosts at the moment, though they may
+be found on other objects depending on how things go.
+"""
+from zope.interface import implements
+
+import logging
+import debug
+log = logging.getLogger('docgen')
+
+from docgen.interfaces import IDynamicNaming
+from docgen.base import XMLConfigurable
+
+class NetInterface(XMLConfigurable):
+
+    implements(IDynamicNaming)
+    
     def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):
 
         self.type = type
@@ -16,6 +35,9 @@ class NetInterface:
     def __repr__(self):
         return '<Interface %s:%s %s:%s (%s)>' % (self.type, self.mode, self.switchname, self.switchport, self.ipaddress)
 
+    def get_vlans(self):
+        return self.vlans
+
 def create_netinterface_from_node(node, defaults, parent):
     """
     Create a network interface from an XML node
@@ -24,49 +46,61 @@ def create_netinterface_from_node(node, defaults, parent):
         switchname = node.find('switchname').text
         switchport = node.find('switchport').text
     except AttributeError, e:
-        if not is_virtual:
-            log.warn("Host switch configuration not present for %s: %s", hostname, e)
+        if not parent.is_virtual:
+            log.debug("Switch parameters not present for NetInterface of %s: %s", parent, e)
         switchname = None
         switchport = None
 
     try:
         hostport = node.find('hostport').text
     except AttributeError, e:
-        log.warn("No host port defined for host: %s", hostname)
+        log.debug("No host port defined for host: %s", parent)
         hostport = None
 
     try:
         ipaddr = node.find('ipaddr').text
     except AttributeError:
         ipaddr = None
+        pass
+    
+    # NetInterface must have a type
+    try:    
+        type = node.attrib['type']
+    except KeyError:
+        raise KeyError("NetInterface for %s has no type" % parent)
 
-
-    type = node.attrib['type']
     try:
         mode = node.attrib['mode']
     except KeyError:
         mode = 'passive'
+        pass
+    
+    # Figure out the VLANs this interface should be in.
+    # If one isn't defined, put it in the first VLAN for
+    # the site the parent is in with the same type
+    vlan_nums = node.findall('vlan_number')
+    vlans = []
+    if len(vlan_nums) == 0:
+        vlans = [ vlan for vlan in parent.get_site().get_vlans() if vlan.type == type ]
+
+    else:
+        for vlan_num in vlan_nums:
+            vlans.extend([ vlan for vlan in parent.get_site().get_vlans()
+                           if vlan.number == int(vlan_num.text) ])
+            pass
+        pass
 
     try:
         mtu = int(node.attrib['mtu'])
     except KeyError:
-        # If the MTU isn't set on the interface, use the project VLAN MTU
-        vlan = self.get_project_vlan(site.type)
-        mtu = vlan.mtu
-
-    # Figure out the VLANs this interface should be in.
-    # If one isn't defined, but it in the first 'project' VLAN
-    vlan_nums = node.findall('vlan_number')
-    if len(vlan_nums) == 0:
-        vlans = [ vlan for vlan in self.vlans if vlan.site == site.type and vlan.type == 'project' ]
-
-    else:
-        # Find all the vlans this interface can talk to (ie: it's a trunk)
-        vlans = []
-        for vlan_num in vlan_nums:
-            vlans.extend([ vlan for vlan in self.vlans if vlan.site == site.type and vlan.number == vlan_num.text ])
-            pass
-        pass
+        # If the MTU isn't set on the interface, try to use
+        # the mtu for the VLAN it's in, if one is defined
+        try:
+            vlan = vlans[0]
+            mtu = vlan.mtu
+        except IndexError:
+            # Use the default mtu
+            mtu = defaults.getint('vlan', 'default_mtu')
 
     # Add the required switch to the project switches list
     if switchname is not None:
@@ -90,14 +124,7 @@ def create_netinterface_from_node(node, defaults, parent):
                 pass
             pass
 
-    # Sanity check the interface parameters. The combination of switchname+switchport should
-    # only occur once, unless either is None, in which case it doesn't matter.
-    for iface in self.interfaces:
-        #log.debug("checking interface: %s", iface)
 
-        if iface.switchname is not None and iface.switchname == switchname and iface.switchport == switchport:
-            log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
-
-    iface = network.Interface(type, mode, switchname, switchport, hostport, ipaddr, mtu, vlans)
+    iface = NetInterface(type, mode, switchname, switchport, hostport, ipaddr, mtu, vlans)
     return iface
 

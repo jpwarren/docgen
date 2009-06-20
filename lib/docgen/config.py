@@ -1179,6 +1179,14 @@ class ProjectConfig:
             if vol.usable < 0.1:
                 raise ValueError("oracm volume must be larger than 100m usable; try <usablestorage>0.4</usablestorage>")
 
+        # Sanity check the interface parameters. The combination of switchname+switchport should
+        # only occur once, unless either is None, in which case it doesn't matter.
+        for iface in self.interfaces:
+        #log.debug("checking interface: %s", iface)
+
+            if iface.switchname is not None and iface.switchname == switchname and iface.switchport == switchport:
+                log.warn("switch:port combination '%s:%s' is used more than once in project config." % (switchname, switchport) )
+            
     def get_filers(self, sitetype, type):
 
          return [ filer for filer in self.filers.values() if filer.site.type == sitetype and filer.type == type ]
