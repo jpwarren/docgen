@@ -1,0 +1,4 @@
+<netinterface type="storage" mode="active">
+  <vlan_number>1453</vlan_number>
+</netinterface>
+
