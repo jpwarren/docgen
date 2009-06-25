@@ -191,6 +191,7 @@ class HostTest(ProjectConfigTest):
         """
         Test loading of single host
         """
+        raise unittest.SkipTest("config.py testing may be decommissioned.")
         xmldata = """
 <project>
   <site name="fred" type="testing" location="testlab">

@@ -131,24 +131,11 @@ file is well-formed and also a valid file.
     <vlan type="services" number="3189" network="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
 
 
-    <host name="primhost01">
-
-      <!-- The platform name. One of 'Sun', or 'Intel' -->
-      <platform>Sun</platform>
-
-      <!-- The operating system. Starts with 'Solaris', 'Windows' or 'Linux' -->
-      <operatingsystem>Solaris 10</operatingsystem>
-
-      <!-- Descriptive text for where the server is located -->
-      <location>Primary Site</location>
-
-      <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
+    <host name="primhost01"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site">
       <description>Database server</description>
-
-      <!-- The IP address assigned to the host on the IP-SAN. This is usually
-	   assigned by the network team from a network range specifically for
-	   this project, tracked in the solution control spreadsheets.
-      -->
 
       <interface type='storage' mode='active'>
 	<switchname>sitea-swtedg-0103</switchname>
@@ -169,10 +156,11 @@ file is well-formed and also a valid file.
     </host>
 
     <!-- Continue to add hosts, one at a time, for every host in the project. -->
-    <host name="primhost02">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
+    <host name="primhost02"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site">
+
       <description>Database server</description>
 
       <interface type='storage' mode='active'>
@@ -188,10 +176,10 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="primhost03">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
+    <host name="primhost03"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site">
       <description>Database server</description>
 
       <interface type='storage' mode='active'>
@@ -205,10 +193,11 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="virtualhost-01" virtual="yes">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
+    <host name="virtualhost-01" virtual="yes"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site">
+
       <description>Virtual Host on primhost02</description>
 
       <interface type='storage' mode='active'>
@@ -222,10 +211,10 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="examplehost-01" virtual="yes">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
+    <host name="examplehost-01" virtual="yes"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site">
       <description>An example virtual host for sorting</description>
 
       <interface type='storage' mode='active'>
@@ -578,10 +567,10 @@ The site type is 'secondary' for the DR site.
     <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
 
     <!-- Some hosts that are purportedly at DR -->
-    <host name="drtesthost01">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>DR Room O</location>
+    <host name="drtesthost01"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="DR Site">
       <description>Database server</description>
 
       <interface type='storage' mode='active'>
@@ -607,10 +596,11 @@ The site type is 'secondary' for the DR site.
 
     </host>
 
-    <host name="drtesthost02">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>DR Room O</location>
+    <host name="drtesthost02"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="DR Site">
+
       <description>Database server</description>
 
       <interface type='storage' mode='active'>

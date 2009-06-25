@@ -14,6 +14,7 @@ import ConfigParser
 
 from lxml import etree
 
+from project import Project
 from switch import Switch
 from docgen import site
 from docgen import network
@@ -116,57 +117,64 @@ class ProjectConfig:
             log.error("Sorry, but lxml.etree won't tell me exactly what went wrong.")
             raise
 
-        # FIXME: Do this smarter
-        self.prefix = self.tree.xpath('//project/prefix')[0].text
-        self.code = self.tree.xpath('//project/code')[0].text
-        self.shortname = self.tree.xpath('//project/shortname')[0].text
-        self.longname = self.tree.xpath('//project/longname')[0].text
+        # Load the project
+        # FIXME: This probably replaces most of the functionality
+        # that is in this ProjectConfig class, so we can probably
+        # do away with it, and just use the Project class instead.
+        self.project = Project()
+        self.project.configure_from_node(self.tree, self.defaults, self)
+
+#         self.prefix = self.tree.xpath('//project/prefix')[0].text
+#         self.code = self.tree.xpath('//project/code')[0].text
+#         self.shortname = self.tree.xpath('//project/shortname')[0].text
+#         self.longname = self.tree.xpath('//project/longname')[0].text
 
         self.known_switches = self.load_known_switches()
 
-        # Project switches is populated when loading the hosts.
-        self.project_switches = {}
-
-        self.revlist = self.load_revisions()
-
-        self.sites = self.load_sites()
-
-        self.vlans = self.load_vlans()
-
-        self.hosts = self.load_hosts()
-
-        # Perform some sanity checking on the hosts
-        self.sanity_check_hosts(self.hosts)
-
-        for host in self.hosts.values():
-            for drhostname in host.drhosts:
-                self.drhosts.append(self.hosts[drhostname])
-                
-        self.filers = self.load_filers()
-        self.vfilers = self.load_vfilers()
-
-        self.sanity_check_vfilers(self.vfilers)
         
-        self.volumes = self.load_volumes()
+#         # Project switches is populated when loading the hosts.
+#         self.project_switches = {}
 
-        for vol in self.volumes:
-            if vol.proto not in self.allowed_protocols and vol.proto is not None:
-                self.allowed_protocols.append(vol.proto)
+#         self.revlist = self.load_revisions()
 
-        self.qtrees = self.load_qtrees('primary')
-        self.qtrees.extend( self.load_qtrees('secondary') )
+#         self.sites = self.load_sites()
 
-        self.luns = self.load_luns()
-        self.igroups = self.load_igroups()
+#         self.vlans = self.load_vlans()
 
-        # Define a series of attributes that a ProjectConfig can have.
-        # These are all the things that are used by the documentation templates.
+#         self.hosts = self.load_hosts()
 
-        self.primary_project_vlan = self.get_project_vlan('primary').number
-        if self.has_dr:
-            self.secondary_project_vlan = self.get_project_vlan('secondary').number
+#         # Perform some sanity checking on the hosts
+#         #self.sanity_check_hosts(self.hosts)
 
-        self.verify_config()
+#         for hostobj in self.hosts.values():
+#             for drhostname in hostobj.drhosts:
+#                 self.drhosts.append(self.hosts[drhostname])
+                
+#         self.filers = self.load_filers()
+#         self.vfilers = self.load_vfilers()
+
+#         self.sanity_check_vfilers(self.vfilers)
+        
+#         self.volumes = self.load_volumes()
+
+#         for vol in self.volumes:
+#             if vol.proto not in self.allowed_protocols and vol.proto is not None:
+#                 self.allowed_protocols.append(vol.proto)
+
+#         self.qtrees = self.load_qtrees('primary')
+#         self.qtrees.extend( self.load_qtrees('secondary') )
+
+#         self.luns = self.load_luns()
+#         self.igroups = self.load_igroups()
+
+#         # Define a series of attributes that a ProjectConfig can have.
+#         # These are all the things that are used by the documentation templates.
+
+#         self.primary_project_vlan = self.get_project_vlan('primary').number
+#         if self.has_dr:
+#             self.secondary_project_vlan = self.get_project_vlan('secondary').number
+
+#         self.verify_config()
         
     def load_revisions(self):
         """
@@ -257,17 +265,11 @@ class ProjectConfig:
             raise ValueError("No project hosts are defined.")
 
         for node in hostnodes:
-            host.create_host_from_node(node, self.defaults, self.sites)
-            hosts[hostname] = host.Host(hostname, platform=host_attribs['platform'],
-                                   os=host_attribs['operatingsystem'],
-                                   site=site,
-                                   location=host_attribs['location'],
-                                   description=description,
-                                   drhosts=drhosts,
-                                   interfaces=ifaces,
-                                   iscsi_initiator=iscsi_initiator,
-                                   is_virtual=is_virtual)
-            site.hosts[hostname] = hosts[hostname]
+            sitename = node.xpath("ancestor::*/site")[0].attrib['name']
+            siteobj = self.sites[sitename]
+            hostobj = host.create_host_from_node(node, self.defaults, siteobj)
+            hosts[hostobj.name] = hostobj
+            #site.hosts[hostobj.name] = hosts[hostobj.name]
         return hosts
 
     def sanity_check_hosts(self, hostdict):
@@ -277,8 +279,9 @@ class ProjectConfig:
         IP addresses, or assigning the same interfaces to 2 hosts.
         """
         ifaces = []
-        for host in hostdict.values():
-            for host_iface in host.interfaces:
+        raise NotImplementedError("Sanity check isn't working yet")
+        for hostobj in hostdict.values():
+            for host_iface in hostobj.children['interfaces']:
                 for known_iface in ifaces:
                     # Check the same switchport isn't allocated to different hosts
                     # Multiple zones on a single physical host will use the same physical ports, though.
