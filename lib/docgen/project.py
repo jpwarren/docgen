@@ -19,8 +19,13 @@ class Project(XMLConfigurable, DynamicNaming):
     The core of the DocGen system: the Project
     """
     xmltag = 'project'
+    child_tags = [ 'title', 'background', 'revhistory',
+        'site', 'snapvaultset', 'snapmirrorset' ]
+
+    mandatory_attribs = [ 'prefix', 'code' ]
 
     def __init__(self):
         self.name = ''
         self.children = {}
+        
         

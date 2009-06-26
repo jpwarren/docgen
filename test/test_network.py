@@ -111,7 +111,7 @@ class VlanTest(unittest.TestCase):
         """
         Test Vlan object creation
         """
-        self.failUnlessRaises(TypeError, vlan.Vlan)
+        vlanobj = vlan.Vlan()
 
     def test_create_basic_vlan(self):
         xmldata = """
@@ -189,5 +189,5 @@ class VlanTest(unittest.TestCase):
         self.failUnlessEqual(vlanobj.site, self.site)
         self.failUnlessEqual(vlanobj.type, 'project')
         self.failUnlessEqual(vlanobj.number, 2006)
-        self.failUnlessEqual(vlanobj.mtu, 4453)
+        self.failUnlessEqual(vlanobj.get_mtu(), 4453)
         self.failUnlessEqual(len(vlanobj.get_networks()), 2)

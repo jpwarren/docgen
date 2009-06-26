@@ -13,21 +13,12 @@ file is well-formed and also a valid file.
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
-<project>
-
-  <!-- A document prefix. This isn't really used at the moment. -->
-  <prefix>eigenmagic</prefix>
-
-  <!-- A project code, to uniquely define projects -->
-  <code>1007</code>
-
-  <!-- A short name for the project. This is used for the vfiler name. -->
-  <shortname>myproj</shortname>
+<project prefix="eigenmagic" code="1007">
 
   <!-- A longer, more descriptive name. This is used on the title page of
        documents, and in the page headers.
   -->
-  <longname>My Project</longname>
+  <title>My Project</title>
 
   <!-- The background tag contains verbatim DocBook XML markup that is inserted
        into the Background section of the design document. Use this to insert some

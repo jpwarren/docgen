@@ -122,7 +122,7 @@ class ProjectConfig:
         # that is in this ProjectConfig class, so we can probably
         # do away with it, and just use the Project class instead.
         self.project = Project()
-        self.project.configure_from_node(self.tree, self.defaults, self)
+        self.project.configure_from_node(self.tree.getroot(), self.defaults, self)
 
 #         self.prefix = self.tree.xpath('//project/prefix')[0].text
 #         self.code = self.tree.xpath('//project/code')[0].text

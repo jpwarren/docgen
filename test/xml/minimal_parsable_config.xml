@@ -1,11 +1,8 @@
 <!-- The absolute minimum parsable DocGen XML file -->
 
-<project>
+<project prefix="test" code="01">
 
-  <prefix>MyPrefix</prefix>
-  <code>TEST</code>
-  <shortname>test</shortname>
-  <longname>Test Project</longname>
+  <title>Test Project</title>
 
   <site name='sitea' type='primary' location='melbourne'>
 

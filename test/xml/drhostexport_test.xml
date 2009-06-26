@@ -1,11 +1,8 @@
 <!-- An XML document used for testing DR host exports -->
 
-<project>
+<project prefix="MyPrefix" code="test">
 
-  <prefix>MyPrefix</prefix>
-  <code>TEST</code>
-  <shortname>test</shortname>
-  <longname>Test Project</longname>
+  <title>Test Project</title>
 
   <site name='primary' type='primary' location='primary'>
 

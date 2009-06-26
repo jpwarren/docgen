@@ -10,21 +10,12 @@
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
-<project>
-
-  <!-- A document prefix. This isn't really used at the moment. -->
-  <prefix>DocGen</prefix>
-
-  <!-- Project Code. Should be unique. -->
-  <code>DG0001</code>
-
-  <!-- A short name for the project. This is used for the vfiler name. -->
-  <shortname>modipy</shortname>
+<project prefix="modipy" code="DG0001">
 
   <!-- A longer, more descriptive name. This is used on the title page of
        documents, and in the page headers.
   -->
-  <longname>ModiPy Test Project</longname>
+  <title>ModiPy Test Project</title>
 
   <!-- The background tag contains verbatim DocBook XML markup that is inserted
        into the Background section of the design document. Use this to insert some

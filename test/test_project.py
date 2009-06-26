@@ -43,34 +43,38 @@ class ProjectTest(unittest.TestCase):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_bare.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree, self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
         
     def test_create_project_1_site(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree, self.defaults, self.proj)
-
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        # see if the convenience functions are set correctly
+        log.debug("projsites: %s, %s", project.children, project.get_sites())
+        self.failUnlessEqual( len(project.get_sites()), 1)
+        
     def test_create_project_multiple_sites(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_multiple_sites.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree, self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        self.failUnlessEqual( len(project.get_sites()), 3)
         
     def test_create_project_1_site_vlans(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_vlans.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree, self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
 
     def test_create_project_1_site_multiple_vlans(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_multiple_vlans.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree, self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
 
     def test_create_project_1_site_1_host(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_1_host.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree, self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)

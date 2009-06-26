@@ -23,51 +23,109 @@ __version__ = '$Revision: 165 $'
 class XMLConfigurable:
     implements(IXMLConfigurable)
 
+    # A list of child tags that I have. Can be overridden by
+    # a configuration file.
+    child_tags = []
+    children = {}
+
+    # FIXME: Maybe make these overridable by config file also
+    mandatory_attribs = []
+    optional_attribs = []
+
     def configure_from_node(self, node, defaults, parent):
         """
-        Configure a project from the project node.
+        Configure an object from its XML node
         """
-        # Find my known children from the defaults file
+        # See if my child tags are set in the config file. If so,
+        # they override my default set of tags.
         try:
             child_tags = defaults.get('tags', '%s_known_children' % self.xmltag).split()
         except NoOptionError:
-            # The option isn't set in the config file, so we've
-            # disabled this child in this installation
-            return
+            # The option isn't set in the config file, so we use
+            # my default set.
+            child_tags = self.child_tags
 
+        self.configure_mandatory_attributes(node, defaults)
+        
+        self.configure_optional_attributes(node, defaults)
+        
         # For each child tag that I know of, find the module that
         # defines it and load it in. Create the object, and then
         # configure it from the XML
         for tag in child_tags:
+            # Set up a list of these child objects
+            self.children[tag] = []
+
+            # Add convenience accessors for the children
+            funcname = "get_%ss" % tag
+            log.debug("Adding convenience accessor: %s", funcname)
+            value = self.children[tag]
+            def get_tag():
+                return self.children[tag]
+            setattr(self, funcname, get_tag)
 
             # See if we have any of these child nodes defined
             child_nodes = node.findall(tag)
             if len(child_nodes) > 0:
-                module_name = 'docgen.%s' % tag
-                # Try loading it from core modules
+                log.debug("Adding children: %s", tag)
+                module_name = 'docgen.plugins.%s' % tag
+                # Try loading it from plugin modules first
                 try:
                     module = import_module(module_name)
-                except AttributeError, e:
-                    log.debug("Module load failed: %s", e)
-                    # If it didn't work, try the plugins area
-                    module_name = 'docgen.plugins.%s' % tag
+                except (AttributeError, ImportError), e:
+                    log.debug("Plugin module load failed: %s, trying core modules...", e)
+                    # If it didn't work, try the core area
+                    module_name = 'docgen.%s' % tag
                     try:
                         module = import_module(module_name)
-                    except AttributeError:
-                        raise AttributeError("Can't find module %s for %s child tag '%s'" % ( module_name, self.__class__.__name__, tag) )
+                    except (AttributeError, ImportError):
+                        raise ImportError("Can't find module %s for %s child tag '%s'" % ( module_name, self.__class__.__name__, tag) )
                     pass
 
-                # Set up a list of these child objects
-                self.children[tag] = []
                 create_func = getattr(module, 'create_%s_from_node' % tag)
                 for childnode in child_nodes:
                     child = create_func(childnode, defaults, self)
                     self.children[tag].append(child)
                     pass
+
                 pass
             pass
         pass
-    
+
+    def configure_mandatory_attributes(self, node, defaults):
+        """
+        If an object has mandatory attributes that must be found,
+        configure them, and provide convenience functions for
+        accessing them.
+        """
+        for attrib in self.mandatory_attribs:
+            # Add convenience accessors
+            funcname = "get_%s" % attrib
+            #log.debug("Adding convenience accessor: %s", funcname)
+            setattr(self, funcname, lambda: getattr(self, attrib) )
+
+            try:
+                setattr(self, attrib, node.attrib[attrib])
+            except KeyError:
+                raise KeyError("'%s' node mandatory attribute '%s' not set" % (self.xmltag, attrib))
+
+    def configure_optional_attributes(self, node, defaults):
+        """
+        If an object has mandatory attributes that must be found,
+        configure them, and provide convenience functions for
+        accessing them.
+        """
+        for attrib in self.optional_attribs:
+            # Add convenience accessors
+            funcname = "get_%s" % attrib
+            #log.debug("Adding convenience accessor: %s", funcname)
+            setattr(self, funcname, lambda: getattr(self, attrib) )
+
+            try:
+                setattr(self, attrib, node.attrib[attrib])
+            except KeyError:
+                pass
+
 class DynamicNaming:
     """
     A Mixin class used for doing dynamic naming
