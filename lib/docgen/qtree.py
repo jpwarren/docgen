@@ -1,12 +1,15 @@
 ## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
 
-from base import DynamicNaming
+"""
+NetApp Qtree object
+"""
+from docgen.base import XMLConfigurable, DynamicNaming
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Qtree(DynamicNaming):
+class Qtree(XMLConfigurable, DynamicNaming):
     def __init__(self, volume, qtree_name=None,
                  security='unix',
                  comment='',

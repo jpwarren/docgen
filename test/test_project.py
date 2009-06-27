@@ -65,15 +65,39 @@ class ProjectTest(unittest.TestCase):
         tree = etree.parse(xmlfile)
         project = Project()
         project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        self.failUnlessEqual( len(project.get_sites()), 1)
 
+        site = project.get_sites()[0]
+        vlans = project.get_sites()[0].get_vlans()
+        self.failUnlessEqual( len(vlans), 1)
+        
     def test_create_project_1_site_multiple_vlans(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_multiple_vlans.xml")
         tree = etree.parse(xmlfile)
         project = Project()
         project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        self.failUnlessEqual( len(project.get_sites()), 1)
 
+        site = project.get_sites()[0]
+        vlans = project.get_sites()[0].get_vlans()
+        self.failUnlessEqual( len(vlans), 3)
+        
     def test_create_project_1_site_1_host(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_1_host.xml")
         tree = etree.parse(xmlfile)
         project = Project()
         project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        self.failUnlessEqual( len(project.get_sites()), 1)
+        site = project.get_sites()[0]
+        hosts = project.get_sites()[0].get_hosts()
+        self.failUnlessEqual( len(hosts), 1)
+        
+    def test_create_project_1_site_3_hosts(self):
+        xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_3_hosts.xml")
+        tree = etree.parse(xmlfile)
+        project = Project()
+        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        self.failUnlessEqual( len(project.get_sites()), 1)
+        site = project.get_sites()[0]
+        hosts = project.get_sites()[0].get_hosts()
+        self.failUnlessEqual( len(hosts), 3)

@@ -1,0 +1,10 @@
+<project prefix="testproject1" code="01">
+  <site name="sitea" type="primary" location="testlab">
+    <host name="fred" platform="intel" operatingsystem="Linux" />
+
+    <host name="wibble" platform="Sun" operatingsystem="Solaris" />
+
+    <host name="albert" platform="intel" operatingsystem="ESX" />
+
+  </site>
+</project>

@@ -41,12 +41,19 @@ class QtreeTest(unittest.TestCase):
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
         self.defaults.get('global', 'dns_domain_name')
-        if len(configfiles) == 0:
-            raise ValueError("Cannot load configuration file: %s" % optparser.options.configfile)
 
         self.proj = ProjectConfig(self.defaults)
-        self.sitea = Site('sitea', 'primary')
-        self.proj.sites[self.sitea.name] = self.sitea
+        xmldata = """
+<project prefix="test" code="qtree">
+  <site name="sitea" type="primary">
+    <filer name="testfiler1" type="filer">
+      <vfiler name="vfiler01" rootaggr="aggr0">
+         <volume=""/>
+      </vfiler>
+    </filer>
+  </site>
+</project>
+"""
         self.filer1 = Filer('testfiler1', 'filer', self.sitea)
         self.proj.filers[self.filer1.name] = self.filer1
 

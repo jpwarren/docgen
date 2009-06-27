@@ -21,7 +21,7 @@ from docgen import network
 from docgen import vlan
 #from network import Network, Vlan, Interface
 import host
-from filer import Filer, VFiler
+from filer import Filer
 from volume import Volume
 from qtree import Qtree
 from iscsi import LUN, iGroup

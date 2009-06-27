@@ -16,8 +16,22 @@ class Site(XMLConfigurable, DynamicNaming):
     A site contains Filers, VLANS, etc.
     """
     xmltag = 'site'
+
+    child_tags = [ 'vlan',
+                   'host',
+                   'nameserver',
+                   'winsserver',
+                   ]
     
-    def __init__(self, name, type, location='', nameservers=[], winsservers=[]):
+    mandatory_attribs = [ 'name',
+                          'type',
+                          'location',
+                          ]
+
+    optional_attribs = [ ]
+
+    # Deprecated, as we use auto-config now.
+    def _depr__init__(self, name, type, location='', nameservers=[], winsservers=[]):
         """
         @param type: type is one of ('primary' | 'secondary') and is unique for a project.
         @param location: a descriptive string for the site
@@ -58,50 +72,44 @@ class Site(XMLConfigurable, DynamicNaming):
         ns['site_type'] = self.type
         return ns
 
-    def get_vlans(self):
-        try:
-            return self.children['vlan']
-        except KeyError:
-            return []
-
 def create_site_from_node(node, defaults, parent):
     
-    # Site name is a new attribute, so allow a kind of backwards compatibility for now
-    try:
-        site_name = node.attrib['name']
-    except KeyError:
-        # FIXME: You can only guess the site name if it's
-        # involved somehow in your filer naming convention.
-        raise KeyError("Site name not set.")
+#     # Site name is a new attribute, so allow a kind of backwards compatibility for now
+#     try:
+#         site_name = node.attrib['name']
+#     except KeyError:
+#         # FIXME: You can only guess the site name if it's
+#         # involved somehow in your filer naming convention.
+#         raise KeyError("Site name not set.")
 
-    # Get the site type from the defaults if it isn't set
-    try:
-        site_type = node.attrib['type']
+#     # Get the site type from the defaults if it isn't set
+#     try:
+#         site_type = node.attrib['type']
 
-    except KeyError:
-        site_type = defaults.get(site_name, 'type')
+#     except KeyError:
+#         site_type = defaults.get(site_name, 'type')
 
-    # Get the site location from the defaults if it isn't set                
-    try:
-        site_location = node.attrib['location']
-    except KeyError:
-        site_location = defaults.get('site_%s' % site_name, 'location')
-        pass
+#     # Get the site location from the defaults if it isn't set                
+#     try:
+#         site_location = node.attrib['location']
+#     except KeyError:
+#         site_location = defaults.get('site_%s' % site_name, 'location')
+#         pass
 
-    # Add default site servers for CIFS
-    # This should be added the DTD to allow manual override
-    try:
-        nameservers = defaults.get('site_%s' % site_name, 'nameservers').split()
-    except ConfigParser.NoSectionError:
-        nameservers = []
-    try:
-        winsservers = defaults.get('site_%s' % site_name, 'nameservers').split()
-    except ConfigParser.NoSectionError:
-        winsservers = []
+#     # Add default site servers for CIFS
+#     # This should be added the DTD to allow manual override
+#     try:
+#         nameservers = defaults.get('site_%s' % site_name, 'nameservers').split()
+#     except ConfigParser.NoSectionError:
+#         nameservers = []
+#     try:
+#         winsservers = defaults.get('site_%s' % site_name, 'nameservers').split()
+#     except ConfigParser.NoSectionError:
+#         winsservers = []
 
-    site = Site(site_name, site_type, site_location, nameservers, winsservers)
+    site = Site()
+    #site = Site(site_name, site_type, site_location, nameservers, winsservers)
 
     # configure child elements
     site.configure_from_node(node, defaults, parent)
-    
     return site
