@@ -51,7 +51,6 @@ class ProjectTest(unittest.TestCase):
         project = Project()
         project.configure_from_node(tree.getroot(), self.defaults, self.proj)
         # see if the convenience functions are set correctly
-        log.debug("projsites: %s, %s", project.children, project.get_sites())
         self.failUnlessEqual( len(project.get_sites()), 1)
         
     def test_create_project_multiple_sites(self):

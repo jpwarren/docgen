@@ -58,22 +58,24 @@ class XMLConfigurable:
 
             # Add convenience accessors for the children
             funcname = "get_%ss" % tag
-            log.debug("Adding convenience accessor: %s", funcname)
-            value = self.children[tag]
-            def get_tag():
-                return self.children[tag]
-            setattr(self, funcname, get_tag)
-
+            #log.debug("Adding convenience accessor: %s", funcname)
+            # FIXME: This first version doesn't work, but the second
+            # version does. Not sure why. It seems the second one
+            # isn't actually evaluated at runtime for some reason.
+            # I don't actually want you to be able to pass in a value, though.
+            #setattr(self, funcname, lambda: self.children[tag])
+            setattr(self, funcname, lambda tag=tag: self.children[tag])
+            
             # See if we have any of these child nodes defined
             child_nodes = node.findall(tag)
             if len(child_nodes) > 0:
-                log.debug("Adding children: %s", tag)
+                #log.debug("Adding children: %s", tag)
                 module_name = 'docgen.plugins.%s' % tag
                 # Try loading it from plugin modules first
                 try:
                     module = import_module(module_name)
                 except (AttributeError, ImportError), e:
-                    log.debug("Plugin module load failed: %s, trying core modules...", e)
+                    #log.debug("Plugin module load failed: %s, trying core modules...", e)
                     # If it didn't work, try the core area
                     module_name = 'docgen.%s' % tag
                     try:
