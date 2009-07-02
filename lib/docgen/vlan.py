@@ -3,14 +3,14 @@
 """
 Networking related design objects
 """
+from docgen.base import DynamicNamedXMLConfigurable
+from docgen import network
+
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-from docgen.base import XMLConfigurable, DynamicNaming
-from docgen import network
-
-class Vlan(XMLConfigurable, DynamicNaming):
+class Vlan(DynamicNamedXMLConfigurable):
     """
     A vlan defines the layer 2 network a vfiler belongs to, or a services vlan.
     """
@@ -48,9 +48,14 @@ class Vlan(XMLConfigurable, DynamicNaming):
 
     def configure_from_node(self, node, defaults, site):
         self.site = site
-        XMLConfigurable.configure_from_node(self, node, defaults, site)
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, site)
 
+    def configure_mandatory_attributes(self, node, defaults):
+        DynamicNamedXMLConfigurable.configure_mandatory_attributes(self, node, defaults)
         self.number = int(self.number)
+
+    def configure_optional_attributes(self, node, defaults):
+        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
         self.mtu = int(self.mtu)
 
 def create_vlan_from_node(node, defaults, site):

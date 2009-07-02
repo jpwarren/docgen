@@ -81,9 +81,10 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
          <!ATTLIST aggregate name CDATA #REQUIRED>
 
 	<!-- The volume declaration -->
-	<!ELEMENT volume (usablestorage?, snapstorage?, description?, autosize?, autodelete?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref | exportalias)* )>
+	<!ELEMENT volume (usablestorage?, snapstorage?, autosize?, autodelete?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref | exportalias)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
+                           description CDATA #IMPLIED
 			   prefix CDATA #IMPLIED
 			   suffix CDATA #IMPLIED
 			   snapreserve CDATA #IMPLIED
@@ -107,8 +108,9 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
                                  defer_delete (scheduled | user_created | prefix | none) #IMPLIED
                                  prefix CDATA #IMPLIED>
 
-	  <!ELEMENT qtree (description?, lun*, exportalias*)>
+	  <!ELEMENT qtree (lun*, exportalias*)>
 	    <!ATTLIST qtree name CDATA #IMPLIED
+                            description CDATA #IMPLIED
 	              oplocks (yes|no) 'no'>
 
           <!ELEMENT lun (export*, mapto*)>
@@ -140,15 +142,13 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 	  <!ELEMENT snapvaultmirrorsetref EMPTY>
 	    <!ATTLIST snapvaultmirrorsetref name IDREF #REQUIRED>
 
-  <!ELEMENT host (platform, operatingsystem, location, description?,
-    filesystem*, interface*, backup*, iscsi_initiator?, drhost*)>
+  <!ELEMENT host (filesystem*, interface*, backup*, iscsi_initiator?, drhost*)>
     <!ATTLIST host name ID #REQUIRED
+                   platform CDATA #REQUIRED
+                   operatingsystem CDATA #REQUIRED
+                   location CDATA #REQUIRED
+                   description CDATA #IMPLIED
 	      virtual (yes | no) 'no'>
-
-    <!ELEMENT platform (#PCDATA)>
-    <!ELEMENT operatingsystem (#PCDATA)>
-    <!ELEMENT location (#PCDATA)>
-    <!ELEMENT description (#PCDATA)>
 
     <!ELEMENT filesystem (name*, storage+) >
       <!ATTLIST filesystem type ( local | san | nas | database ) #REQUIRED

@@ -10,7 +10,7 @@ from twisted.trial import unittest, runner, reporter
 from twisted.internet import reactor
 from twisted.python.util import sibpath
 
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 from StringIO import StringIO
 
 from docgen.options import BaseOptions
@@ -33,7 +33,7 @@ class ParserTest(unittest.TestCase):
         optparser = BaseOptions()
         optparser.parseOptions(['dummyfile.xml', '--debug=%s' % logging._levelNames[log.level].lower()])
 
-        self.defaults = SafeConfigParser()
+        self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
 
     def test_parse_minimal(self):

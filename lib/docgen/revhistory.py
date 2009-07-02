@@ -6,13 +6,13 @@ RevHistory
 
 A collection of Revision nodes.
 """
-from docgen.base import XMLConfigurable, DynamicNaming
+from docgen.base import DynamicNamedXMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class RevHistory(XMLConfigurable, DynamicNaming):
+class RevHistory(DynamicNamedXMLConfigurable):
     """
     A collection of revision history nodes
     """

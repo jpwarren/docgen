@@ -15,11 +15,8 @@ from twisted.python.util import sibpath
 from ConfigParser import RawConfigParser
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
-
-from docgen.site import Site
-from docgen.filer import Filer, VFiler
-from docgen.volume import Volume
+from docgen.project import Project
+from docgen import qtree
 
 from docgen import debug
 import logging
@@ -42,43 +39,42 @@ class QtreeTest(unittest.TestCase):
         configfiles = self.defaults.read(TESTCONF)
         self.defaults.get('global', 'dns_domain_name')
 
-        self.proj = ProjectConfig(self.defaults)
         xmldata = """
 <project prefix="test" code="qtree">
-  <site name="sitea" type="primary">
+  <site name="sitea" type="primary" location="testlab">
     <filer name="testfiler1" type="filer">
       <vfiler name="vfiler01" rootaggr="aggr0">
-         <volume=""/>
+         <aggregate name="aggr01">
+           <volume name="testvol1"/>
+         </aggregate>
       </vfiler>
     </filer>
   </site>
 </project>
 """
-        self.filer1 = Filer('testfiler1', 'filer', self.sitea)
-        self.proj.filers[self.filer1.name] = self.filer1
 
-        self.vfiler1 = VFiler(self.filer1, 'vfiler01', 'aggr0', '10.10.10.1', '10.10.10.254')
+        node = etree.fromstring(xmldata)
+        self.proj = Project()        
+        self.proj.configure_from_node(node, self.defaults, None)
 
-        self.volume1 = Volume('testvol1', self.filer1, 'aggr01', 100)
-        self.proj.volumes.append( self.volume1 )
+        self.volume = self.proj.get_volumes()[0]
 
     def test_empty_qtree(self):
         """
         Test an empty qtree node
         """
-        node = etree.Element('qtree')
-        self.proj.create_qtree_from_node(self.volume1, node)
-        #self.failUnlessRaises(IndexError, self.proj.create_qtree, node)
+        xmldata = """
+<qtree />
+"""
+        node = etree.fromstring(xmldata)
+        qtreeobj = qtree.create_qtree_from_node(node, self.defaults, self.volume)
+        log.debug("qtree: %s", qtreeobj)
 
     def test_autocreate_qtree_plain(self):
         """
         Test a qtree that is autocreated for a plain data volume
         """
-        volnode = etree.Element('volume')
-        volume = Volume('testvol2', self.filer1, 'aggr01', 100, volnode=volnode)
-        self.proj.volumes.append( volume )
-
-        self.proj.create_qtrees_for_volume(volume)
+        raise unittest.SkipTest("Move this test to the volume tests")
 
     def test_autocreate_qtree_oradata(self):
         """

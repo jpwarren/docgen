@@ -6,13 +6,13 @@ Title element
 
 This is used for the document titles.
 """
-from docgen.base import XMLConfigurable, DynamicNaming
+from docgen.base import DynamicNamedXMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class Title(XMLConfigurable, DynamicNaming):
+class Title(DynamicNamedXMLConfigurable):
     """
     The project title, used in various documents.
     """

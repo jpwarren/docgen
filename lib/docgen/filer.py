@@ -3,13 +3,13 @@
 """
 NetApp Filer object
 """
-from docgen.base import XMLConfigurable, DynamicNaming
+from base import DynamicNamedXMLConfigurable
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Filer(XMLConfigurable, DynamicNaming):
+class Filer(DynamicNamedXMLConfigurable):
     """
     A NetApp Filer
     """
@@ -21,13 +21,21 @@ class Filer(XMLConfigurable, DynamicNaming):
     xmltag = 'filer'
 
     child_tags = [ 'vfiler',
-                   'volume',
+                   'aggregate',
                    ]
 
     mandatory_attribs = [ 'name',
                           'type',
                           ]
 
+    optional_attribs = [
+        ]
+
+    def __init__(self):
+        self.name = None
+        self.type = None
+        self.last_volnum = 0
+    
     def _depr__init__(self, name, type, site):
 
         self.volumes = []
@@ -43,9 +51,9 @@ class Filer(XMLConfigurable, DynamicNaming):
         self.cluster_partner = None
 
     def configure_from_node(self, node, defaults, site):
-        XMLConfigurable.configure_from_node(self, node, defaults, site)
-
         self.site = site
+        
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, site)
 
         if self.type not in self.FILER_TYPES:
             raise ValueError("Filer type '%s' not a known Filer type" % self.type)
@@ -74,4 +82,28 @@ class Filer(XMLConfigurable, DynamicNaming):
         ns = self.site.populate_namespace(ns)
         ns['filer_name'] = self.name
         return ns
-    
+
+    def get_filer(self):
+        return self
+
+    def get_next_volnum(self):
+        self.last_volnum += 1
+        return self.last_volnum
+
+    def set_volnum(self, num):
+        self.last_volnum = num
+
+    def get_volumes(self):
+        """
+        Get all volumes defined on me, and any vFilers I might have
+        """
+        volumes = []
+        for vfiler in self.get_vfilers():
+            volumes.extend(vfiler.get_volumes())
+            pass
+        return volumes
+        
+def create_filer_from_node(node, defaults, site):
+    filer = Filer()
+    filer.configure_from_node(node, defaults, site)
+    return filer

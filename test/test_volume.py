@@ -15,9 +15,7 @@ from twisted.python.util import sibpath
 from ConfigParser import RawConfigParser
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
-from docgen.site import Site
-from docgen.filer import Filer, VFiler
+from docgen.project import Project
 from docgen import volume
 
 from docgen import debug
@@ -38,13 +36,26 @@ class VolumeTest(unittest.TestCase):
         optparser.parseOptions(['dummyfile.xml', '--debug=%s' % logging._levelNames[log.level].lower()])
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
-        self.proj = ProjectConfig(self.defaults)
-        sitea = Site('sitea', 'primary')
-        self.proj.sites[sitea.name] = sitea
-        self.filer1 = Filer('testfiler1', 'filer', sitea)
-        self.proj.filers[self.filer1.name] = self.filer1
 
-        self.vfiler1 = VFiler(self.filer1, 'vfiler01', 'aggr0', '10.20.30.10', '10.20.30.1')
+        xmldata = """
+<project prefix="testproj" code="01">
+  <site name="sitea" type="primary" location="testlab">
+    <filer name="filer1" type="filer">
+      <vfiler name="vftest01" rootaggr="aggr0">
+        <aggregate name="aggr01"/>
+      </vfiler>
+    </filer>
+  </site>
+</project>
+"""
+        node = etree.fromstring(xmldata)
+        self.project = Project()
+        self.project.configure_from_node(node, self.defaults, None)
+
+        self.sitea = self.project.get_sites()[0]
+        self.filer1 = self.sitea.get_filers()[0]
+        self.vfiler1 = self.filer1.get_vfilers()[0]
+        self.aggr1 = self.vfiler1.get_aggregates()[0]
 
     def test_line_volume(self):
         """
@@ -55,21 +66,8 @@ class VolumeTest(unittest.TestCase):
 </volume>
 """
         node = etree.fromstring(xmldata)
-        self.failUnlessRaises(IndexError, volume.create_volume_from_node, node, self.defaults, 0, self.filer1, self.vfiler1)
-
-    def test_no_aggregate_volume(self):
-        """
-        Test the simplest possible volume configuration
-        """
-        xmldata = """
-<filer name='testfiler1'>
-  <volume>
-  </volume>
-</filer>
-"""
-        node = etree.fromstring(xmldata)
-        volnode = node.find('volume')
-        self.failUnlessRaises(IndexError, volume.create_volume_from_node, volnode, self.defaults, 0, self.filer1, self.vfiler1)
+        vol = volume.create_volume_from_node(node, self.defaults, self.aggr1)
+        self.failUnlessEqual(vol.name, "filer1_vftest01_fs_01")
         
     def test_simple_volume(self):
         """
@@ -85,4 +83,4 @@ class VolumeTest(unittest.TestCase):
 """
         node = etree.fromstring(xmldata)
         volnode = node.xpath('*/volume')[0]
-        volume.create_volume_from_node(volnode, self.defaults, 0, self.filer1, self.vfiler1)
+        volume.create_volume_from_node(volnode, self.defaults, self.aggr1)

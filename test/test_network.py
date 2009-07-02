@@ -18,7 +18,8 @@ from docgen.options import BaseOptions
 from docgen.config import ProjectConfig
 
 from docgen.site import Site
-from docgen.filer import Filer, VFiler
+from docgen.filer import Filer
+from docgen.vfiler import VFiler
 from docgen.volume import Volume
 from docgen import network
 from docgen import vlan
@@ -43,7 +44,10 @@ class NetworkTest(unittest.TestCase):
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
 
-        self.site = Site('testsite', 'primary')
+        self.site = Site()
+        self.site.name = 'sitea'
+        self.site.type = 'primary'
+        self.site.location = 'testlab'
         pass
     
     def test_create_network(self):
@@ -104,7 +108,10 @@ class VlanTest(unittest.TestCase):
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
 
-        self.site = Site('testsite', 'primary')
+        self.site = Site()
+        self.site.name = 'sitea'
+        self.site.type = 'primary'
+        self.site.location = 'testlab'
         pass
     
     def test_create_vlan_blank(self):

@@ -8,7 +8,7 @@ from twisted.trial import unittest, runner, reporter
 from twisted.internet import reactor
 from twisted.python.util import sibpath
 
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 from StringIO import StringIO
 
 from docgen.util import load_doc_plugins
@@ -44,7 +44,7 @@ class PluginsTest(unittest.TestCase):
 
     def test_load_plugins(self):
         raise unittest.SkipTest("Plugins temporarily disabled during refactor")
-        defaults = SafeConfigParser()
+        defaults = RawConfigParser()
         defaults.readfp(StringIO(config_file_data))
         plugins = load_doc_plugins(defaults)
 

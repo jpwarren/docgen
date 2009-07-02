@@ -6,19 +6,14 @@ Network interface design objects
 These are found on hosts at the moment, though they may
 be found on other objects depending on how things go.
 """
-from zope.interface import implements
+from docgen.base import DynamicNamedXMLConfigurable
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-from docgen.interfaces import IDynamicNaming
-from docgen.base import XMLConfigurable
+class NetInterface(DynamicNamedXMLConfigurable):
 
-class NetInterface(XMLConfigurable):
-
-    implements(IDynamicNaming)
-    
     def __init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):
 
         self.type = type

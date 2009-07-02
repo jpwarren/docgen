@@ -3,15 +3,58 @@
 """
 NetApp Volumes
 """
-from base import DynamicNaming
+from docgen.base import DynamicNamedXMLConfigurable
+
+from ConfigParser import NoSectionError, NoOptionError
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Volume(DynamicNaming):
+class Volume(DynamicNamedXMLConfigurable):
+    """
+    A NetApp volume object
+    """
+    xmltag = 'volume'
 
-    def __init__(self, name, filer, aggr, usable, snapreserve=20,
+    child_tags = [
+        'qtree',
+        'lun',
+        'snapsetref',
+        'snapvaultsetref',
+        'snapmirrorsetref',
+        'snapvaultmirrorsetref',
+        'option',
+        'protocol',
+        'autosize',
+        'autodelete',
+        ]
+
+    mandatory_attribs = [
+        ]
+
+    optional_attribs = [
+        'name',
+        'prefix',
+        'suffix',
+        'type',
+        'usable',
+        'snapreserve',
+        'iscsi_snapspace',
+        'snapstorage',
+        'autosize',
+        'autodelete',
+        'protocol',
+        ]
+
+    # FIXME: May not need the parent_type_names feature
+#     parent_type_names = [ 'Aggregate',
+#                           ]
+
+    def __str__(self):
+        return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.parent.get_filer().name, self.name, self.type, self.parent.name, self.usable, self.raw)
+
+    def _depr__init__(self, name, filer, aggr, usable, snapreserve=20,
                  raw=None, type="fs", proto="nfs",
                  voloptions=[], volnode=None,
                  snapref=[], snapvaultref=[],
@@ -25,35 +68,45 @@ class Volume(DynamicNaming):
         self.aggregate = aggr
         self.usable = float(usable)
 
-        # A special kind of usable that is used for the actual iscsi LUN space
-        # iSCSI really is a pain to allocate on WAFL
-        self.iscsi_usable = self.usable
-        self.iscsi_snapspace = iscsi_snapspace
+    def configure_from_node(self, node, defaults, parent):
+        """
+        Volume configuration is quite complex, due to the way we attempt
+        to cater for all kinds of situations automatically, using configurable
+        defaults and various overrides.
+        """
+        self.parent = parent
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
 
-        # Check that the filer doesn't already have a volume of this name on it
-        if len([ vol for vol in self.filer.volumes if vol.name == self.name ]) > 0:
-            raise ValueError("Filer '%s' already has a volume named '%s'" % (filer.name, self.name))
+        # Check if iscsi is an enabled protocol. If so, use 'iscsi_snapspace' instead
+        # of snapreserve
+        if 'iscsi' in [ x.name for x in self.get_protocols() ]:
+            self.snapreserve = 0
+            if getattr(self, 'iscsi_snapspace', None):
+                self.iscsi_snapspace = defaults.getint('volume', 'default_iscsi_snapspace')
+            else:
+                self.iscsi_snapspace = int(self.iscsi_snapspace)
+                pass
+            pass
 
-        # iSCSI LUN sizing is... interesting
-        # Best practice is to have no snapreserve for volumes
-        # used for iscsi, but we need to have some storage
-        # available for snapshots. Because LUNs are just files full
-        # of blocks, we have to allocate enough storage for all
-        # of the blocks to change, so we need 2 * LUNsize GiB to
-        # store the snapshots.
-        # If you're not using snapshots, you will need a little extra
-        # space in the volume so the LUN can fit within it. The LUN
-        # can't take up 100% of the volume (i.e.: A LUN of 100GiB
-        # will require a volume of 101GiB in size)
+            # iSCSI LUN sizing is... interesting
+            # Best practice is to have no snapreserve for volumes
+            # used for iscsi, but we need to have some storage
+            # available for snapshots. Because LUNs are just files full
+            # of blocks, we have to allocate enough storage for all
+            # of the blocks to change, so we need 2 * LUNsize GiB to
+            # store the snapshots.
+            # If you're not using snapshots, you will need a little extra
+            # space in the volume so the LUN can fit within it. The LUN
+            # can't take up 100% of the volume (i.e.: A LUN of 100GiB
+            # will require a volume of 101GiB in size)
 
-        if proto == 'iscsi':
             log.debug("volume proto is iscsi")
             # If snapshots are configured, double the usable storage to allow for 50% 'snapreserve'
-##             log.debug("snapref: %s", snapref)
-##             log.debug("snapvaultref: %s", snapvaultref)
-##             log.debug("snapvaultmirrorref: %s", snapvaultmirrorref)
-##             log.debug("snapmirrorref: %s", snapmirrorref)
-            if len(snapref) > 0 or len(snapvaultref) > 0 or len(snapmirrorref) > 0 or len(snapvaultmirrorref) > 0:
+            if len(self.get_snaprefs()) > 0 or \
+                    len(self.get_snapvaultrefs()) > 0 or \
+                    len(self.get_snapmirrorrefs()) > 0 or \
+                    len(self.get_snapvaultmirrorrefs()) > 0:
+                
                 log.debug("snapshots present. doubling usable space of %s GiB for iscsi volume", self.usable)
                 #snapdiv = (100 - float(iscsi_snapspace))/100
                 snapspace = self.usable * ( float(iscsi_snapspace)/100 )
@@ -63,81 +116,163 @@ class Volume(DynamicNaming):
             else:
                 # If no snapshots are configured, make the raw slightly more than usable
                 log.debug("No snapshots, adding 1 GiB usable to volume size.")
-                raw = self.usable + 1
-
-        if raw is None:
-            try:
-                raw = self.usable / ( (100 - float(snapreserve) )/100 )
-            except ZeroDivisionError, e:
-                log.critical("snapreserve of 100% is not a valid value. You probably mean 50%.")
-                raise ConfigInvalid(e)
-            
-        self.raw = raw
-
-        self.snapreserve = int(round(snapreserve))
-
-        self.snapref = snapref
-        self.snapvaultref = snapvaultref
-        self.snapmirrorref = snapmirrorref
-        self.snapvaultmirrorref = snapvaultmirrorref
+                self.raw = self.usable + 1
+                pass
+            pass
+        
+#         self.snapref = snapref
+#         self.snapvaultref = snapvaultref
+#         self.snapmirrorref = snapmirrorref
+#         self.snapvaultmirrorref = snapvaultmirrorref
 
         # Lists of the actual snapX objects, added when they're created
         self.snaps = []
         self.snapvaults = []
         self.snapmirrors = []
 
-        self.qtrees = {}
+        #self.qtrees = {}
 
         # Set default volume options
-        if len(voloptions) == 0:
+        # FIXME: Broken
+        if len(self.get_options()) == 0:
             voloptions = [ 'nvfail=on',
                            'create_ucode=on',
                            'convert_ucode=on',
                            ]
         self.voloptions = voloptions
-        self.volnode = volnode
+        self.volnode = node
 
-        if self.name.endswith("root"):
-            self.filer.volumes.insert(0, self)
-        else:
-            self.filer.volumes.append(self)
-            pass
+#         if self.name.endswith("root"):
+#             self.filer.volumes.insert(0, self)
+#         else:
+#             self.filer.volumes.append(self)
+#             pass
 
-        self.filer.site.volumes.append(self)
+#        self.filer.site.volumes.append(self)
 
         self.autosize = None
         self.autodelete = None
 
+    def configure_optional_attributes(self, node, defaults):
+        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        
+        # Set volume name prefix
+        self.prefix = getattr(self, 'prefix', '')
+
+        # Set volume name suffix
+        self.suffix = getattr(self, 'suffix', '')
+
+        # Set volume name suffix
+        self.type = getattr(self, 'type', defaults.get('volume', 'default_vol_type'))
+
+        # Check to see if we want to restart the volume numbering
+        # FIXME: Get the current volume numbering thing from parent
+        volnum = getattr(self, 'restartnumbering', None)
+        if volnum is None:
+            self.volnum = self.parent.get_next_volnum()
+        else:
+            self.volnum = int(volnum)
+            parent.set_volnum(self.volnum)
+
+        # Set usable storage
+        if getattr(self, 'usable', None) is None:
+            self.usable = defaults.getint('volume', 'default_size')
+        else:
+            self.usable = int(self.usable)
+
+        # Set allowable protocols for the volume
+        # The volume protocol is either a protocol set in the volume definition
+        # using the 'proto' attribute, or it will be the first protocol in
+        # the list of possible protocols for the vfiler.
+        # If neither of these are set, it will be set to the default
+        try:
+            self.protocol = node.attrib['protocol'].lower()
+            log.debug("Proto defined for volume: %s", proto)
+
+        except KeyError:
+            try:
+                protocol = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
+                #log.debug("Found proto in vfiler ancestor: %s", proto)
+            except IndexError:
+                protocol = defaults.get('protocol', 'default_storage_protocol')
+                #log.debug("Proto set to default: %s", proto)
+            
+        # Set snapreserve and iSCSI snapspace
+        if getattr(self, 'snapreserve', None) is None:
+
+            # If the volume is a type that we know has a high rate of change,
+            # we set a different snapreserve.
+            try:
+                highdelta_types = defaults.get('volume', 'high_delta_types')
+            except (NoSectionError, NoOptionError):
+                highdelta_types = []
+                pass
+            
+            if self.type in highdelta_types:
+                self.snapreserve = defaults.getint('volume', 'default_highdelta_snapreserve')
+            else:
+                self.snapreserve = defaults.getint('volume', 'default_snapreserve')
+        else:
+            self.snapreserve = float(self.snapreserve)
+            pass
+
+        # Round the snapreserve
+        self.snapreserve = int(round(self.snapreserve))
+            
+        # A special kind of usable that is used for the actual iscsi LUN space
+        # iSCSI really is a pain to allocate on WAFL
+        self.iscsi_usable = self.usable
+        try:
+            self.iscsi_snapspace = defaults.get('volume', 'iscsi_snapspace')
+        except (NoOptionError, NoSectionError):
+            self.iscsi_snapspace = 0
+
+        if getattr(self, 'raw', None) is None:
+            try:
+                self.raw = self.usable / ( (100 - float(self.snapreserve) )/100 )
+            except ZeroDivisionError, e:
+                log.critical("snapreserve of 100% is not a valid value. You probably mean 50%.")
+                raise ConfigInvalid(e)
+            
         # Default volume space guarantee setting is 'volume',
         # but for NearStores we want the space guarantee to be 'none',
         # unless overridden in the node definition
-        if self.volnode is not None and self.volnode.attrib.has_key('space_guarantee'):
-            log.debug("vol %s has space_guarantee set!", self)
-            self.space_guarantee(self.volnode.attrib['space_guarantee'])
-        else:
+        # FIXME: Do this using defaults config file
+        if getattr(self, 'space_guarantee', None) is None:
             log.debug("space_guarantee not set. Using default.")
-            if self.filer.type == 'nearstore':
-                # Default for NearStore volumes
-                self.space_guarantee('none')
-            else:
-                # General default
-                self.vol_space_guarantee = 'volume'
-                pass
+            option_name = "%s_space_guarantee_default" % self.parent.get_filer().type
+            self.space_guarantee = defaults.get('volume', option_name)
             pass
         
-        log.debug("Created: %s", self)
+    def name_dynamically(self, defaults):
+        # Work out the volume name, if it isn't set
+        if getattr(self, 'name', None) is None:
 
-    def __str__(self):
-        return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.filer.name, self.name, self.type, self.aggregate, self.usable, self.raw)
+            # Set up a namespace for use in naming
+            ns = self.populate_namespace()
 
+            volname_convention = defaults.get('volume', 'volume_name')
+            #log.debug("volume naming convention: %s", volname_convention)
+            try:
+                self.name = volname_convention % ns
+            except KeyError, e:
+                raise KeyError("Unknown variable %s for volume naming convention" % e)
+        
     def populate_namespace(self, ns={}):
         """
         Add my own namespace pieces
         """
-        ns = self.site.populate_namespace(ns)
+        ns = self.parent.populate_namespace(ns)
         ns['volume_name'] = self.name
         ns['volume_type'] = self.type
+        ns['voltype'] = self.type
+        ns['volprefix'] = self.prefix
+        ns['volsuffix'] = self.suffix
+        ns['volnum'] = self.volnum
         return ns
+
+    def get_filer(self):
+        return self.parent.filer
     
     def get_create_size(self):
         """
@@ -308,102 +443,25 @@ class VolumeAutoDelete:
             pass
         return dict
 
-def create_volume_from_node(node, defaults, volnum, filer, vfiler=None):
+def create_volume_from_node(node, defaults, parent):
+    """
+    Create a volume from a node
+    """
+    vol = Volume()
+    vol.configure_from_node(node, defaults, parent)
+    return vol
+    
+def _depr_create_volume_from_node(node, defaults, parent):
     """
     Create a volume, using certain defaults as required.
     """
-    # Try to find a volume prefix
-    try:
-        volprefix = node.xpath("@prefix")[0]
-    except IndexError:
-        volprefix = ''
-        pass
 
-    # Try to find a volume suffix
-    try:
-        volsuffix = node.xpath("@suffix")[0]
-    except IndexError:
-        volsuffix = ''
-        pass
+#     snapref = node.xpath("snapsetref/@name")
+#     snapvaultref = node.xpath("snapvaultsetref/@name")
+#     snapmirrorref = node.xpath("snapmirrorsetref/@name")
+#     snapvaultmirrorref = node.xpath("snapvaultmirrorsetref/@name")
 
-    # Try to find a volume type
-    try:
-        voltype = node.xpath("@type")[0]
-    except IndexError:
-        voltype = defaults.get('volume', 'default_vol_type')
-        pass
-
-    # Check to see if we want to restart the volume numbering
-    try:
-        volnum = int(node.xpath("@restartnumbering")[0])
-    except IndexError:
-        pass
-
-    # Work out the volume name
-    try:
-        # If the volume has an explicit name set, use that
-        volname = node.xpath("@name")[0]
-    except IndexError:
-        # otherwise, use the volume naming convention
-
-        # Set up a namespace for use in naming
-        if vfiler is None:
-            ns = filer.populate_namespace()
-        else:
-            ns = vfiler.populate_namespace()
-            pass
-        ns['voltype'] = voltype
-        ns['volprefix'] = volprefix
-        ns['volsuffix'] = volsuffix
-        ns['volnum'] = volnum
-
-        volname_convention = defaults.get('volume', 'volume_name')
-        log.debug("volume naming convention: %s", volname_convention)
-        try:
-            volname = volname_convention % ns
-        except KeyError, e:
-            raise KeyError("Unknown variable %s for volume naming convention" % e)
-
-    # aggregate is this one, or the same as the previous volume
-    try:
-        aggr = node.xpath("ancestor::aggregate/@name | preceding-sibling/ancestor::aggregate/@name")[0]
-    except IndexError:
-        raise IndexError("Volume '%s' has no containing aggregate." % volname)
-
-    snapref = node.xpath("snapsetref/@name")
-    snapvaultref = node.xpath("snapvaultsetref/@name")
-    snapmirrorref = node.xpath("snapmirrorsetref/@name")
-    snapvaultmirrorref = node.xpath("snapvaultmirrorsetref/@name")
-
-    voloptions = [ x.text for x in node.xpath("option") ]
-
-    # The volume protocol is either a protocol set in the volume definition
-    # using the 'proto' attribute, or it will be the first protocol in
-    # the list of possible protocols for the vfiler.
-    # If neither of these are set, it will be set to the default
-    try:
-        proto = node.xpath("@proto")[0].lower()
-        log.debug("Proto defined for volume: %s", proto)
-
-    except IndexError:
-        try:
-            proto = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
-            #log.debug("Found proto in vfiler ancestor: %s", proto)
-        except IndexError:
-            proto = defaults.get('protocol', 'default_storage_protocol')
-            #log.debug("Proto set to default: %s", proto)
-
-    try:
-        voltype = node.xpath("@type")[0]
-    except IndexError:
-        voltype = defaults.get('volume', 'default_vol_type')
-
-    # Set the amount of usable space in the volume
-    try:
-        usable = float(node.xpath("usablestorage")[0].text)
-    except IndexError:
-        usable = defaults.getint('volume', 'default_size')
-        pass
+#     voloptions = [ x.text for x in node.xpath("option") ]
 
     # Default snap reserve to 20 unless specified otherwise
     # Default iscsi_snapspace to 0 unless specified otherwise

@@ -26,18 +26,34 @@ class XMLConfigurable:
     # A list of child tags that I have. Can be overridden by
     # a configuration file.
     child_tags = []
-    children = {}
 
     # FIXME: Maybe make these overridable by config file also
     mandatory_attribs = []
     optional_attribs = []
 
+    # Limit myself to only be allowed to be contained by
+    # certain parent objects, or raise an error
+    parent_type_names = []
+
     def configure_from_node(self, node, defaults, parent):
         """
         Configure an object from its XML node
         """
+        self.parent = parent
+        
+        if len(self.parent_type_names) > 0:
+            if parent.__class__.__name__ not in parent_type_names:
+                raise ValueError("Parent of '%s' cannot be a '%s'" % ( self.__class__.__name__, parent.__class__.__name__))
+        self.configure_mandatory_attributes(node, defaults)
+        self.configure_optional_attributes(node, defaults)
+        self.configure_children(node, defaults, parent)
+        
+    def configure_children(self, node, defaults, parent):
+        
+        self.children = {}
         # See if my child tags are set in the config file. If so,
         # they override my default set of tags.
+        #log.debug("Configuring %s", self.__class__.__name__)
         try:
             child_tags = defaults.get('tags', '%s_known_children' % self.xmltag).split()
         except NoOptionError:
@@ -45,15 +61,12 @@ class XMLConfigurable:
             # my default set.
             child_tags = self.child_tags
 
-        self.configure_mandatory_attributes(node, defaults)
-        
-        self.configure_optional_attributes(node, defaults)
-        
         # For each child tag that I know of, find the module that
         # defines it and load it in. Create the object, and then
         # configure it from the XML
         for tag in child_tags:
             # Set up a list of these child objects
+            #log.debug("adding '%s:%s' children...", self.__class__.__name__, tag)
             self.children[tag] = []
 
             # Add convenience accessors for the children
@@ -126,6 +139,7 @@ class XMLConfigurable:
             try:
                 setattr(self, attrib, node.attrib[attrib])
             except KeyError:
+                setattr(self, attrib, None)
                 pass
 
 class DynamicNaming:
@@ -141,6 +155,33 @@ class DynamicNaming:
         level to the namespace.
         """
         return ns
+
+class DynamicNamedXMLConfigurable(XMLConfigurable, DynamicNaming):
+    """
+    A combined class that is XMLConfigurable, and can do DynamicNaming
+    """
+    def configure_from_node(self, node, defaults, parent):
+        """
+        Configure an object from its XML node
+        """
+        self.parent = parent
+        
+        if len(self.parent_type_names) > 0:
+            if parent.__class__.__name__ not in self.parent_type_names:
+                raise ValueError("Parent of '%s' cannot be a '%s'" % ( self.__class__.__name__, parent.__class__.__name__))
+
+        self.configure_mandatory_attributes(node, defaults)
+        self.configure_optional_attributes(node, defaults)
+
+        self.name_dynamically(defaults)
+        
+        self.configure_children(node, defaults, parent)
+
+    def name_dynamically(self, defaults):
+        """
+        Do any dynamic naming that may need to be done.
+        """
+        pass
 
 class FileOutputMixin:
     """

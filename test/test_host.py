@@ -44,8 +44,10 @@ class HostTest(unittest.TestCase):
             raise ValueError("Cannot load configuration file: %s" % optparser.options.configfile)
 
         self.proj = ProjectConfig(self.defaults)
-        self.sitea = Site('sitea', 'primary')
-        self.proj.sites[self.sitea.name] = self.sitea
+        self.sitea = Site()
+        self.sitea.name = 'sitea'
+        self.sitea.type = 'primary'
+        self.sitea.location = 'testlab'
 
     def test_empty_host(self):
         """

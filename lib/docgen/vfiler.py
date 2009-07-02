@@ -5,13 +5,13 @@
 VFiler object definition
 
 """
-from docgen.base import XMLConfigurable, DynamicNaming
+from base import DynamicNamedXMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class VFiler(XMLConfigurable, DynamicNaming):
+class VFiler(DynamicNamedXMLConfigurable):
     """
     A NetApp vFiler object
     """
@@ -21,21 +21,27 @@ class VFiler(XMLConfigurable, DynamicNaming):
         'protocol',
         'ipaddress',
         'aggregate',
-        'volume',
+        #'volume',
         'nameserver',
         'winsserver',
         #'qtree',
         ]
 
-    mandatory_attribs = [ 'name',
-                          'rootaggr',
-                          ]
+    mandatory_attribs = [ 
+        'rootaggr',
+        ]
 
-    optional_attribs = [ 'netmask',
-                         'dns_domain',
-                         'ad_account_location',
-                          ]
-   
+    optional_attribs = [
+        'name',
+        'netmask',
+        'dns_domain',
+        'ad_account_location',
+        ]
+
+    def __init__(self):
+
+        self.name = None
+    
     def _depr__init__(self):
         self.name = ''
         self.children = {}
@@ -100,14 +106,31 @@ class VFiler(XMLConfigurable, DynamicNaming):
         """
         Customise the configuration from a node slightly.
         """
-        XMLConfigurable.configure_from_node(self, node, defaults, filer)
         self.filer = filer
         self.site = filer.site
-    
+
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, filer)
+
+    def name_dynamically(self, defaults):
+        if getattr(self, 'name', None) is None:
+            # Name via naming convention
+            ns = self.populate_namespace()
+            naming_convention = defaults.get('vfiler', 'vfiler_name')
+            self.name = naming_convention % ns
+        
     def populate_namespace(self, ns={}):
         ns = self.filer.populate_namespace(ns)
         ns['vfiler_name'] = self.name
         return ns
+
+    def get_filer(self):
+        return self.filer
+
+    def get_next_volnum(self):
+        return self.filer.get_next_volnum()
+
+    def set_volnum(self, num):
+        return self.filer.set_volnum(self, num)
     
     def netbios_name(self):
         """
@@ -152,3 +175,18 @@ class VFiler(XMLConfigurable, DynamicNaming):
     def add_service_ip(self, vlan, ipaddress):
         self.services_ips.append( (vlan, ipaddress) )
     pass
+
+    def get_volumes(self):
+        """
+        Find all the project volumes
+        """
+        volumes = []
+        for aggr in self.get_aggregates():
+            volumes.extend(aggr.get_volumes())
+            pass
+        return volumes
+
+def create_vfiler_from_node(node, defaults, site):
+    vf = VFiler()
+    vf.configure_from_node(node, defaults, site)
+    return vf

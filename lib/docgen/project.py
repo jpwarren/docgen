@@ -8,13 +8,13 @@ The <project/> node is the root of all DocGen projects,
 and is used to dynamically configure and build the project
 definition.
 """
-from docgen.base import XMLConfigurable, DynamicNaming
+from base import DynamicNamedXMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class Project(XMLConfigurable, DynamicNaming):
+class Project(DynamicNamedXMLConfigurable):
     """
     The core of the DocGen system: the Project
     """
@@ -25,7 +25,24 @@ class Project(XMLConfigurable, DynamicNaming):
     mandatory_attribs = [ 'prefix', 'code' ]
 
     def __init__(self):
-        self.name = ''
+        self.prefix = None
+        self.code = None
         self.children = {}
         
-        
+    def populate_namespace(self, ns={}):
+        """
+        Add my namespace pieces to the namespace
+        """
+        ns['project_prefix'] = self.prefix
+        ns['project_code'] = self.code
+        return ns
+
+    def get_volumes(self):
+        """
+        Find all the project volumes
+        """
+        volumes = []
+        for site in self.get_sites():
+            volumes.extend(site.get_volumes())
+            pass
+        return volumes

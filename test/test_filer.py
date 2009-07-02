@@ -41,6 +41,9 @@ class FilerTest(unittest.TestCase):
         self.proj = ProjectConfig(self.defaults)
 
         self.site = Site()
+        self.site.name = "testsite"
+        self.site.type = "primary"
+        self.site.locaion = "testlab"
 
     def test_create_filer_bare(self):
         xmldata = """
@@ -87,3 +90,16 @@ class FilerTest(unittest.TestCase):
         node = etree.fromstring(xmldata)
         filer = Filer()
         self.failUnlessRaises(ValueError, filer.configure_from_node, node, self.defaults, self.site)
+
+    def test_filer_site_correct(self):
+        """
+        Test the filer's site is set correctly
+        """
+        xmldata = """
+<filer name="testfiler1" type="filer" />
+"""
+        node = etree.fromstring(xmldata)
+        filer = Filer()
+        filer.configure_from_node(node, self.defaults, self.site)
+
+        self.failUnlessEqual(filer.site.name, 'testsite')

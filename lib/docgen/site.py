@@ -5,13 +5,14 @@ Physical site and related design objects
 """
 
 import ConfigParser
-from base import XMLConfigurable, DynamicNaming
+
+from base import DynamicNamedXMLConfigurable
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Site(XMLConfigurable, DynamicNaming):
+class Site(DynamicNamedXMLConfigurable):
     """
     A site contains Filers, VLANS, etc.
     """
@@ -19,16 +20,17 @@ class Site(XMLConfigurable, DynamicNaming):
 
     child_tags = [ 'vlan',
                    'host',
+                   'filer',
                    'nameserver',
                    'winsserver',
                    ]
     
     mandatory_attribs = [ 'name',
                           'type',
-                          'location',
                           ]
 
-    optional_attribs = [ ]
+    optional_attribs = [ 'location',
+                         ]
 
     # Deprecated, as we use auto-config now.
     def _depr__init__(self, name, type, location='', nameservers=[], winsservers=[]):
@@ -68,10 +70,30 @@ class Site(XMLConfigurable, DynamicNaming):
         return '<Site: %s, type: %s, location: %s>' % (self.name, self.type, self.location)
 
     def populate_namespace(self, ns={}):
+        ns = self.parent.populate_namespace(ns)
         ns['site_name'] = self.name
         ns['site_type'] = self.type
         return ns
 
+    def configure_from_node(self, node, defaults, parent):
+        """
+        A site can also use defaults for its location, based on its name
+        """
+        self.parent = parent
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
+
+    def name_dynamically(self, defaults):
+        if getattr(self, 'location', None) is None:
+            self.location = defaults.get('site_%s' % self.name, 'location')
+
+    def get_volumes(self):
+        volumes = []
+        for filer in self.get_filers():
+            volumes.extend(filer.get_volumes())
+            pass
+        return volumes
+
+        
 def create_site_from_node(node, defaults, parent):
     
 #     # Site name is a new attribute, so allow a kind of backwards compatibility for now

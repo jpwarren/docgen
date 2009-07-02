@@ -40,15 +40,19 @@ class NetInterfaceTest(unittest.TestCase):
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
 
-        self.site = Site('primary', 'prod', 'testlab')
-        self.host = Host('fred', 'intel', 'linux', self.site)
-        self.vlan1 = Vlan(1453, self.site, 'storage')
-        self.vlan2 = Vlan(100, self.site, 'storage')
-        self.vlan3 = Vlan(300, self.site, 'storage')
-        self.site.children['vlan'] = [ self.vlan1,
-                                       self.vlan2,
-                                       self.vlan3,
-                                       ]
+        xmldata = """
+<site name="primary" type="prod" location="testlab">
+  <vlan number="1453" type="storage"/>
+  <vlan number="100" type="storage"/>
+  <vlan number="300" type="storage"/>
+  <host name="fred" platform="intel" operatingsystem="linux"/>
+</site>
+"""
+        node = etree.fromstring(xmldata)
+        self.site = Site()
+        self.site.configure_from_node(node, self.defaults, None)
+
+        self.host = self.site.get_hosts()[0]
 
     def test_create_netinterface_bare(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "netinterface_bare.xml")
