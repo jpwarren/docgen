@@ -105,6 +105,21 @@ class Qtree(DynamicNamedXMLConfigurable):
             pass
         return retstr
 
+    def get_next_lunid(self):
+        """
+        Get the next available lunid for the volume
+        """
+        return self.parent.get_next_lunid()
+    
+    def get_iscsi_usable(self):
+        return self.parent.get_iscsi_usable()
+
+    def set_current_lunid(self, value):
+        return self.parent.set_current_lunid(value)
+    
+    def add_to_lun_total(self, amount):
+        return self.parent.add_to_lun_total(amount)
+    
 def create_qtree_from_node(node, defaults, volume):
     """
     Create a qtree from an XML definition

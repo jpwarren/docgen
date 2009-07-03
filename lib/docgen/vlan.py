@@ -56,6 +56,8 @@ class Vlan(DynamicNamedXMLConfigurable):
 
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        if self.mtu is None:
+            self.mtu = defaults.get('vlan', 'default_mtu')
         self.mtu = int(self.mtu)
 
 def create_vlan_from_node(node, defaults, site):

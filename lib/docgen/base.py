@@ -69,15 +69,17 @@ class XMLConfigurable:
             #log.debug("adding '%s:%s' children...", self.__class__.__name__, tag)
             self.children[tag] = []
 
-            # Add convenience accessors for the children
+            # Add convenience accessors for the children, if there isn't one
+            # already defined for the class
             funcname = "get_%ss" % tag
-            #log.debug("Adding convenience accessor: %s", funcname)
-            # FIXME: This first version doesn't work, but the second
-            # version does. Not sure why. It seems the second one
-            # isn't actually evaluated at runtime for some reason.
-            # I don't actually want you to be able to pass in a value, though.
-            #setattr(self, funcname, lambda: self.children[tag])
-            setattr(self, funcname, lambda tag=tag: self.children[tag])
+            if not hasattr(self, funcname):
+                #log.debug("Adding convenience accessor: %s", funcname)
+                # FIXME: This first version doesn't work, but the second
+                # version does. Not sure why. It seems the second one
+                # isn't actually evaluated at runtime for some reason.
+                # I don't actually want you to be able to pass in a value, though.
+                #setattr(self, funcname, lambda: self.children[tag])
+                setattr(self, funcname, lambda tag=tag: self.children[tag])
             
             # See if we have any of these child nodes defined
             child_nodes = node.findall(tag)
@@ -142,6 +144,16 @@ class XMLConfigurable:
                 setattr(self, attrib, None)
                 pass
 
+    def add_child(self, obj):
+        """
+        Add a child object to myself.
+        @param obj: a L{XMLConfigurable} object
+        """
+        if obj.xmltag not in self.child_tags:
+            raise ValueError("%s is not a valid child of %s" % (obj, self) )
+
+        self.children[obj.xmltag].append(obj)
+    
 class DynamicNaming:
     """
     A Mixin class used for doing dynamic naming

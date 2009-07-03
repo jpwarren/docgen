@@ -4,6 +4,7 @@
 NetApp Volumes
 """
 from docgen.base import DynamicNamedXMLConfigurable
+from docgen import util
 
 from ConfigParser import NoSectionError, NoOptionError
 
@@ -20,10 +21,7 @@ class Volume(DynamicNamedXMLConfigurable):
     child_tags = [
         'qtree',
         'lun',
-        'snapsetref',
-        'snapvaultsetref',
-        'snapmirrorsetref',
-        'snapvaultmirrorsetref',
+        'setref',
         'option',
         'protocol',
         'autosize',
@@ -51,6 +49,10 @@ class Volume(DynamicNamedXMLConfigurable):
 #     parent_type_names = [ 'Aggregate',
 #                           ]
 
+    def __init__(self):
+        self.current_lunid = 0
+        self.lun_total = 0
+    
     def __str__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.parent.get_filer().name, self.name, self.type, self.parent.name, self.usable, self.raw)
 
@@ -132,14 +134,23 @@ class Volume(DynamicNamedXMLConfigurable):
 
         #self.qtrees = {}
 
-        # Set default volume options
-        # FIXME: Broken
-        if len(self.get_options()) == 0:
-            voloptions = [ 'nvfail=on',
-                           'create_ucode=on',
-                           'convert_ucode=on',
-                           ]
-        self.voloptions = voloptions
+        # Set volume options as a dictionary
+        options = {}
+        log.info("setting options: %s", self.children['option'])
+        if len(self.children['option']) == 0:
+            # FIXME: deal with user errors in the config file better
+            for opt in defaults.get('volume', 'default_options').split(','):
+                name, value = opt.split('=')
+                options[name] = value
+                pass
+        else:
+            for opt in self.children['option']:
+                name, value = opt.split('=')
+                options[name] = value
+                pass
+            pass
+        self.children['option'] = options
+
         self.volnode = node
 
 #         if self.name.endswith("root"):
@@ -163,7 +174,8 @@ class Volume(DynamicNamedXMLConfigurable):
         self.suffix = getattr(self, 'suffix', '')
 
         # Set volume name suffix
-        self.type = getattr(self, 'type', defaults.get('volume', 'default_vol_type'))
+        if self.type is None:
+            self.type = defaults.get('volume', 'default_vol_type')
 
         # Check to see if we want to restart the volume numbering
         # FIXME: Get the current volume numbering thing from parent
@@ -176,9 +188,9 @@ class Volume(DynamicNamedXMLConfigurable):
 
         # Set usable storage
         if getattr(self, 'usable', None) is None:
-            self.usable = defaults.getint('volume', 'default_size')
+            self.usable = defaults.getfloat('volume', 'default_size')
         else:
-            self.usable = int(self.usable)
+            self.usable = float(self.usable)
 
         # Set allowable protocols for the volume
         # The volume protocol is either a protocol set in the volume definition
@@ -279,7 +291,7 @@ class Volume(DynamicNamedXMLConfigurable):
         Get the raw size in a format acceptable to the vol create command,
         ie: integer amounts, and the appropriate scale (0.02g == 20m)
         """
-        return get_create_size(self.raw)
+        return util.get_create_size(self.raw)
 
     def shortpath(self):
         """
@@ -319,6 +331,27 @@ class Volume(DynamicNamedXMLConfigurable):
             self.vol_space_guarantee = value
             pass
         return self.vol_space_guarantee
+
+    def get_next_lunid(self):
+        """
+        Get the next available lunid for the volume
+        """
+        value = self.current_lunid
+        self.current_lunid += 1
+        return value
+
+    def set_current_lunid(self, value):
+        self.current_lunid = value
+
+    def add_to_lun_total(self, amount):
+        """
+        Add an amount of gigabytes to the running lun total for
+        the volume.
+        """
+        self.lun_total += amount
+
+    def get_iscsi_usable(self):
+        return self.iscsi_usable
 
 class VolumeAutoSize:
     """
@@ -427,6 +460,8 @@ class VolumeAutoDelete:
         # then, actually turn on autodelete
         cmdset.append("snap autodelete %s on" % (self.volume.name))
         return cmdset
+
+                
 
     def get_settings(self):
         """

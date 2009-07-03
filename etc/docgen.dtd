@@ -55,9 +55,9 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
                       name ID #REQUIRED>
 
       <!ELEMENT vfiler (name?, protocol*, primaryip?, aliasip*, vlanip*, testip?, aggregate*, igroup*)>
-        <!ATTLIST vfiler rootaggr CDATA #REQUIRED
-	                 name CDATA #IMPLIED>
-        <!ELEMENT protocol (#PCDATA)>
+        <!ATTLIST vfiler name CDATA #IMPLIED>
+        <!ELEMENT protocol EMPTY>
+          <!ATTLIST protocol name ('nfs', 'cifs', 'iscsi') #REQUIRED
         <!ELEMENT primaryip (ipaddr, netmask)>
 	  <!ELEMENT ipaddr (#PCDATA)>
 	  <!ELEMENT netmask (#PCDATA)>
@@ -78,10 +78,11 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 	    <!ATTLIST member name IDREF #REQUIRED>
 
         <!ELEMENT aggregate (autosize?, autodelete?, volume*)>
-         <!ATTLIST aggregate name CDATA #REQUIRED>
+         <!ATTLIST aggregate name CDATA #REQUIRED
+                             type CDATA #IMPLIED>
 
 	<!-- The volume declaration -->
-	<!ELEMENT volume (usablestorage?, snapstorage?, autosize?, autodelete?, (qtree | lun | export | snapsetref | snapvaultsetref | snapvaultmirrorsetref | snapmirrorsetref | exportalias)* )>
+	<!ELEMENT volume (usablestorage?, snapstorage?, autosize?, autodelete?, (qtree | lun | export | setref | exportalias)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
                            description CDATA #IMPLIED
@@ -130,17 +131,9 @@ revhistory, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, back
 
           <!ELEMENT exportalias (#PCDATA)>
 
-	  <!ELEMENT snapsetref EMPTY>
-	    <!ATTLIST snapsetref name IDREF #REQUIRED>
-
-	  <!ELEMENT snapvaultsetref EMPTY>
-	    <!ATTLIST snapvaultsetref name IDREF #REQUIRED>
-
-	  <!ELEMENT snapmirrorsetref EMPTY>
-	    <!ATTLIST snapmirrorsetref name IDREF #REQUIRED>
-
-	  <!ELEMENT snapvaultmirrorsetref EMPTY>
-	    <!ATTLIST snapvaultmirrorsetref name IDREF #REQUIRED>
+	  <!ELEMENT setref EMPTY>
+	    <!ATTLIST setref type (snap, snapvault, snapmirror, snapvaultmirror, snapmirrorvault) #REQUIRED
+                             name IDREF #REQUIRED>
 
   <!ELEMENT host (filesystem*, interface*, backup*, iscsi_initiator?, drhost*)>
     <!ATTLIST host name ID #REQUIRED

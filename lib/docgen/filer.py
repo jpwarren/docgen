@@ -35,21 +35,16 @@ class Filer(DynamicNamedXMLConfigurable):
         self.name = None
         self.type = None
         self.last_volnum = 0
-    
-    def _depr__init__(self, name, type, site):
-
-        self.volumes = []
-        self.vfilers = {}
-
-        # If I am a secondary, who am I a secondary for?
-        self.secondary_for = None
-
-        # If I have a secondary, who is it?
-        self.secondary_is = None
 
         # If I have a cluster partner, who is it?
         self.cluster_partner = None
-
+        # Am I the active node?
+        # This means I get the IP addresses, etc. for vFilers
+        # and my partner gets configured ready for failover
+        # FIXME: How to sanely cope with active/active on
+        # both cluster nodes?
+        self.is_active_node = True
+        
     def configure_from_node(self, node, defaults, site):
         self.site = site
         

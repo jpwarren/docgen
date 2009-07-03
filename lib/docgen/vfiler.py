@@ -28,7 +28,6 @@ class VFiler(DynamicNamedXMLConfigurable):
         ]
 
     mandatory_attribs = [ 
-        'rootaggr',
         ]
 
     optional_attribs = [
@@ -36,12 +35,23 @@ class VFiler(DynamicNamedXMLConfigurable):
         'netmask',
         'dns_domain',
         'ad_account_location',
+        'vlan_number',
         ]
 
     def __init__(self):
 
         self.name = None
-    
+        self.filer = None
+        self.site = None
+        # We will need at least one additional 'services' VLAN
+        # This will have a separate interface, IP address and gateway route
+        # The format of each entry in the list is a tuple:
+        # (vlan, ipaddress)
+        self.services_ips = []
+
+        # Which vlan I belong to, if any
+        self.vlan = None
+
     def _depr__init__(self):
         self.name = ''
         self.children = {}
@@ -53,14 +63,8 @@ class VFiler(DynamicNamedXMLConfigurable):
         self.netmask = netmask
         self.gateway = gateway
         self.vlan = vlan
-        self.alias_ips = alias_ips
+        self.alias_ips = []
         self.volumes = []
-
-        # We will need at least one additional 'services' VLAN
-        # This will have a separate interface, IP address and gateway route
-        # The format of each entry in the list is a tuple:
-        # (vlan, ipaddress)
-        self.services_ips = []
 
         #
         # CIFS related configuration stuff
@@ -111,6 +115,17 @@ class VFiler(DynamicNamedXMLConfigurable):
 
         DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, filer)
 
+        # If a vlan number is defined, use that vlan, otherwise
+        # use the first project vlan we find.
+        # FIXME: Need to cope with non-VLAN projects
+        # Ticket: #48
+        if self.vlan_number is not None:
+            self.vlan = [ vlan for vlan in self.site.get_vlans() if vlan.number == self.vlan_number ][0]
+        else:
+            self.vlan = [ vlan for vlan in self.site.get_vlans() if vlan.type == 'project'][0]
+            pass
+        
+
     def name_dynamically(self, defaults):
         if getattr(self, 'name', None) is None:
             # Name via naming convention
@@ -131,6 +146,9 @@ class VFiler(DynamicNamedXMLConfigurable):
 
     def set_volnum(self, num):
         return self.filer.set_volnum(self, num)
+
+    def get_vlan(self):
+        return self.vlan
     
     def netbios_name(self):
         """
@@ -185,6 +203,12 @@ class VFiler(DynamicNamedXMLConfigurable):
             volumes.extend(aggr.get_volumes())
             pass
         return volumes
+
+    def get_root_aggregate(self):
+        """
+        Get the root aggregate for the vfiler
+        """
+        return [ x for x in self.get_aggregates() if x.type == 'root' ][0]
 
 def create_vfiler_from_node(node, defaults, site):
     vf = VFiler()

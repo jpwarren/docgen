@@ -93,7 +93,6 @@ class Site(DynamicNamedXMLConfigurable):
             pass
         return volumes
 
-        
 def create_site_from_node(node, defaults, parent):
     
 #     # Site name is a new attribute, so allow a kind of backwards compatibility for now

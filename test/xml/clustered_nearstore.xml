@@ -39,37 +39,33 @@ file is well-formed and also a valid file.
   </background>
 
   <!-- Design revision history -->
-  <revhistory>
 
-    <!-- Every time you modify the design, you should add a revision, to track
-	 who makes changes, a summary of what they were, and when they were made.
+  <!-- Every time you modify the design, you should add a revision, to track
+       who makes changes, a summary of what they were, and when they were made.
     -->
-    <revision>
-      <majornumber>1</majornumber>
-      <minornumber>0</minornumber>
-      <date>31 July 2007</date>
-      <authorinitials>PoD</authorinitials>
-      <revremark>
-	Initial version by Peter O'Dowd.
-      </revremark>
-      <reviewer>Someone</reviewer>
-      <reviewdate>33 July 2008</reviewdate>
-    </revision>
+  <revision>
+    <majornumber>1</majornumber>
+    <minornumber>0</minornumber>
+    <date>31 July 2007</date>
+    <authorinitials>PoD</authorinitials>
+    <revremark>
+      Initial version by Peter O'Dowd.
+    </revremark>
+    <reviewer>Someone</reviewer>
+    <reviewdate>33 July 2008</reviewdate>
+  </revision>
 
-    <revision>
-      <majornumber>2</majornumber>
-      <minornumber>0</minornumber>
-      <date>4 October 2007</date>
-      <authorinitials>JPW</authorinitials>
-      <revremark>
-	Addition of extra server and storage for other things
-      </revremark>
-      <reviewer>Someone Else</reviewer>
-      <reviewdate>38 August 2008</reviewdate>
-
-    </revision>
-
-  </revhistory>
+  <revision>
+    <majornumber>2</majornumber>
+    <minornumber>0</minornumber>
+    <date>4 October 2007</date>
+    <authorinitials>JPW</authorinitials>
+    <revremark>
+      Addition of extra server and storage for other things
+    </revremark>
+    <reviewer>Someone Else</reviewer>
+    <reviewdate>38 August 2008</reviewdate>
+  </revision>
 
   <!-- Every project host that needs shared storage should be defined here. 
        The 'name' attribute for the tag is a unique name for the host that
@@ -240,8 +236,8 @@ file is well-formed and also a valid file.
 	     This will automatically add any protocols you may have missed, so
 	     this tag is optional.
 	-->
-	<protocol>NFS</protocol>
-	<protocol>CIFS</protocol>
+	<protocol name="nfs"/>
+	<protocol name="cifs"/>
 
 	<!--
 	    Each filer must have a primaryip. This is the IP address used to
@@ -259,7 +255,7 @@ file is well-formed and also a valid file.
 	     in the services VLAN so you can access external services, such
 	     as ActiveDirectory for doing CIFS authentication.
 	-->
-	<vlanip vlan='3544'>
+	<vlanip vlan_number='3544'>
 	  <ipaddr>10.10.10.15</ipaddr>
 	</vlanip>
 
@@ -310,7 +306,7 @@ file is well-formed and also a valid file.
 	  -->
 	  <volume type="oraconfig">
 	    <usablestorage>5</usablestorage>
-	    <snapvaultsetref name="default_primary"/>
+	    <setref type="snapvault" name="default_primary"/>
 	  </volume>
 
 	  <!-- The following sequence of volumes define a standard
@@ -337,20 +333,20 @@ file is well-formed and also a valid file.
 		 when creating a snapvault for this volume. More information on
 		 snapvaultsets can be found below.
 	    -->
-	    <snapvaultsetref name="MYDB01-data"/>
+	    <setref type="snapvault" name="MYDB01-data"/>
 
 	    <!-- A 'snapmirrorsetref' is similar to a snapvaultsetref. It refers
 		 to a snapmirrorset definition later in the file, and is used to
 		 define the SnapMirror relationship between the primary volume
 		 and the DR site.
 	    -->
-	    <snapmirrorsetref name="default_sm"/>
+	    <setref type="snapmirror" name="default_sm"/>
 	  </volume>
 
 	  <volume oracle="MYDB01" type="oraindx">
 	    <!-- The 'oraindx' type is for an oracle index volume. -->
 	    <usablestorage>30</usablestorage>
-	    <snapvaultsetref name="MYDB01-data"/>
+	    <setref type="snapvault" name="MYDB01-data"/>
 	    <!--
 		A 'snapvaultmirrorsetref' is a reference to a snapmirror definition
 		that is used for creating a volume SnapMirror of the snapvault
@@ -358,7 +354,7 @@ file is well-formed and also a valid file.
 		to define a remote site copy of the snapvault backups of this volume.
 	    -->
 	    <snapvaultmirrorsetref name="default_svm"/>
-	    <snapmirrorsetref name="default_sm"/>
+	    <setref type="snapmirror" name="default_sm"/>
 	  </volume>
 
 	  <volume oracle="MYDB01" type="oraredo">
@@ -378,8 +374,8 @@ file is well-formed and also a valid file.
 	  -->
 	  <volume oracle="MYDB01" type="oraarch">
 	    <usablestorage>23</usablestorage>
-	    <snapmirrorsetref name="default_sm"/>
-	    <snapvaultsetref name="MYDB01-arch"/>
+	    <setref type="snapmirror" name="default_sm"/>
+	    <setref type="snapvault" name="MYDB01-arch"/>
 
 	  </volume>
 
@@ -395,7 +391,7 @@ file is well-formed and also a valid file.
 		 the corresponding snapreserve percentage for you.
 		-->
 	    <snapstorage>150</snapstorage>
-	    <snapvaultsetref name="custom-multiplier"/>	      
+	    <setref type="snapvault" name="custom-multiplier"/>	      
 	  </volume>
 
 	  <!-- We might want to restart the automatic volume numbering
@@ -407,7 +403,7 @@ file is well-formed and also a valid file.
 	  -->
 	  <volume restartnumbering="19">
 	    <usablestorage>50</usablestorage>
-	    <snapvaultsetref name="custom-storage"/>
+	    <setref type="snapvault" name="custom-storage"/>
 	  </volume>
 
 	  <!-- This is a volume with some manual qtree definitions -->
@@ -434,8 +430,8 @@ file is well-formed and also a valid file.
 		 <mapto igroup='igroup_fred'/>
 		 </lun>
 	    -->
-	    <snapvaultsetref name="MYDB01-arch"/>
-	    <snapmirrorsetref name="default_sm"/>
+	    <setref type="snapvault" name="MYDB01-arch"/>
+	    <setref type="snapmirror" name="default_sm"/>
 	  </volume>
 
 	  <!-- A volume with a specific qtree name, and a LUN automatically placed inside it. -->
@@ -447,7 +443,7 @@ file is well-formed and also a valid file.
 	    </qtree>
 
 	    <export to="primhost01"/>
-	    <snapvaultsetref name="MYDB01-arch"/>
+	    <setref type="snapvault" name="MYDB01-arch"/>
 	  </volume>
 
 	  <!-- A volume with multiple qtrees, a LUN defined outside the qtree, and
@@ -479,7 +475,7 @@ file is well-formed and also a valid file.
 
 	    <export to="primhost01"/>
 
-	    <snapvaultsetref name="MYDB01-arch"/>
+	    <setref type="snapvault" name="MYDB01-arch"/>
 	  </volume>
 
 	  <volume proto="cifs">
@@ -501,7 +497,7 @@ file is well-formed and also a valid file.
 	    </export>
 	    <export to="primhost03" ro="yes"/>
 
-	    <snapmirrorsetref name="default_sm"/>
+	    <setref type="snapmirror" name="default_sm"/>
 	  </volume>
 
 	</aggregate>

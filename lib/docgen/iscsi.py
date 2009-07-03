@@ -76,52 +76,10 @@ def create_lun():
     Create a default LUN for a volume
     """
     
-def create_lun_from_node(node, defaults, current_lunid, vol):
+def __depr_create_lun_from_node(node, defaults, current_lunid, vol):
     """
     Create a LUN object from a node
     """
-    # Check to see if we need to restart the lunid numbering
-    if node.attrib.has_key('restartnumbering'):
-        current_lunid = int(lunnode.attrib['restartnumbering'])
-
-    # Check to see if the lunid is specified for this lun
-    try:
-        lunid = int(lunnode.attrib['lunid'])
-        log.debug("lunid manually specified: %d", lunid)
-    except KeyError:
-        lunid = current_lunid
-        current_lunid += 1
-
-    try:
-        lunsize = float(lunnode.xpath("@size")[0])
-    except IndexError:
-        log.debug("No LUN size specified. Figuring it out...")
-
-        # If you specify LUN sizes, the system will use exactly
-        # what you define in the config file.
-        # If you don't specify the LUN size, then the system will
-        # divide up however much storage is left in the volume evenly
-        # between the number of LUNs that don't have a size specified.
-        
-        # Count the number of LUNs with no size specified. Available
-        # usable storage will be divided evenly between them
-        nosize_luns = len(vol.volnode.xpath("descendant-or-self::lun[not(@size)]"))
-
-        # total the number of sized luns
-        sized_luns = vol.volnode.xpath("descendant-or-self::lun[(@size)]")
-        log.debug("sized luns are: %s", sized_luns)
-        sized_total = sum([ int(lun.attrib['size']) for lun in sized_luns ])
-        log.debug("sized total is: %s", sized_total)
-
-        log.debug("Available for allocation: %s", vol.iscsi_usable - sized_total)
-
-        lunsize = float(vol.iscsi_usable - sized_total) / nosize_luns
-        log.debug("calculated lun size of: %s", lunsize)
-        pass
-
-    log.debug("Allocating %sg storage to LUN", lunsize)
-    lun_total += lunsize
-
     # See if a qtree parent node exists
     try:
         qtree_parent_node = lunnode.xpath('parent::qtree')[0]
