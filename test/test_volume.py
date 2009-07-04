@@ -38,7 +38,7 @@ class VolumeTest(unittest.TestCase):
         configfiles = self.defaults.read(TESTCONF)
 
         xmldata = """
-<project prefix="testproj" code="01">
+<project name="testproj" code="01">
   <site name="sitea" type="primary" location="testlab">
     <filer name="filer1" type="filer">
       <vfiler name="vftest01" rootaggr="aggr0">

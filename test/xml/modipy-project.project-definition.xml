@@ -10,7 +10,7 @@
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
-<project prefix="modipy" code="DG0001">
+<project name="modipy" code="DG0001">
 
   <!-- A longer, more descriptive name. This is used on the title page of
        documents, and in the page headers.

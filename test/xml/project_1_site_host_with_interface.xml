@@ -1,4 +1,4 @@
-<project prefix="testproject1" code="01">
+<project name="testproject1" code="01">
   <site name="sitea" type="primary" location="testlab">
     <host name="fred" platform="intel" operatingsystem="Linux">
       <netinterface switchname="switcha" />

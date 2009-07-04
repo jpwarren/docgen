@@ -40,7 +40,7 @@ class QtreeTest(unittest.TestCase):
         self.defaults.get('global', 'dns_domain_name')
 
         xmldata = """
-<project prefix="test" code="qtree">
+<project name="test" code="qtree">
   <site name="sitea" type="primary" location="testlab">
     <filer name="testfiler1" type="filer">
       <vfiler name="vfiler01" rootaggr="aggr0">

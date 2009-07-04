@@ -382,12 +382,11 @@ class NetAppCommandsGenerator(CommandGenerator):
         for vol in filer.get_volumes():
             
             # volume creation
-            cmd = "vol create %s -s %s %s %s" % (vol.name, vol.space_guarantee(), vol.parent.name, vol.get_create_size())
+            cmd = "vol create %s -s %s %s %s" % (vol.name, vol.space_guarantee, vol.parent.name, vol.get_create_size())
             cmdset.append(cmd)
 
             # volume options
             dict = vol.get_options()
-            log.debug("volume options are: %s", dict)
             for key, value in dict.items():
                 cmd = "vol options %s %s" % (key, value)
                 cmdset.append(cmd)
@@ -406,7 +405,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         """
         cmdset = []
         for vol in [ vol for vol in filer.get_volumes() if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
-            for qtree in vol.qtrees.values():
+            for qtree in vol.get_qtrees():
                 cmdset.append( "qtree create /vol/%s/%s" % (qtree.volume.name, qtree.name) )
                 cmdset.append( "qtree security /vol/%s/%s %s" % (qtree.volume.name, qtree.name, qtree.security) )
                 if qtree.oplocks == False:

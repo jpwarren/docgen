@@ -1,4 +1,7 @@
-<!-- The absolute minimum parsable DocGen XML file -->
+<!-- 
+     A bare bones configuration with a single site,
+     filer, vfiler and simple volume.
+-->
 
 <project name="test" code="01">
   <revision majornumber="1"
@@ -16,15 +19,27 @@
 
   <site name='sitea' type='primary' location='melbourne'>
 
+<!--
     <host name="testhost01"
           platform="Sun"
           operatingsystem="Solaris 10"
-          location="testlab">
-      <description>Test Host 01</description>
-
+          location="testlab"
+          description="Test Host 01">
     </host>
+-->
 
-    <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
+    <vlan type="project" number="3003">
+      <network number="10.240.4.64/27" gateway="10.240.4.254"/>
+    </vlan>
+
+    <filer name="testfiler01" type="filer">
+      <vfiler>
+        <ipaddress type="primary" ip="10.240.4.21"/>
+
+        <aggregate type="root" name="aggr01"/>
+
+      </vfiler>
+    </filer>
 
   </site>
 

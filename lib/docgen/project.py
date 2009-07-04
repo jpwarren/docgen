@@ -104,6 +104,7 @@ class Project(DynamicNamedXMLConfigurable):
                         # FIXME: This can probably be improved somehow
                         usable = float(defaults.get('vfiler', 'root_volume_usable'))
                         aggr = vfiler.get_root_aggregate()
+                        log.debug("got root aggr")
                         xmldata = """<volume type="root" name="%s" usable="%s" raw="%s" />
 """ % ( volname, usable, usable )
                         node = etree.fromstring(xmldata)
@@ -111,7 +112,7 @@ class Project(DynamicNamedXMLConfigurable):
                         vol.configure_from_node(node, defaults, aggr)
 
                         vol.snapreserve = int(defaults.get('vfiler', 'root_volume_snapreserve'))
-                        vol.space_guarantee('volume')
+                        vol.space_guarantee = 'volume'
 
                         if defaults.getboolean('vfiler', 'backup_root_volume'):
                             log.warn("Request to back up vfiler root volume")

@@ -122,7 +122,11 @@ class VFiler(DynamicNamedXMLConfigurable):
         if self.vlan_number is not None:
             self.vlan = [ vlan for vlan in self.site.get_vlans() if vlan.number == self.vlan_number ][0]
         else:
-            self.vlan = [ vlan for vlan in self.site.get_vlans() if vlan.type == 'project'][0]
+            try:
+                self.vlan = [ vlan for vlan in self.site.get_vlans() if vlan.type == 'project'][0]
+            except IndexError:
+                log.warn("No VLANs defined.")
+                self.vlan = None
             pass
         
 
@@ -208,7 +212,13 @@ class VFiler(DynamicNamedXMLConfigurable):
         """
         Get the root aggregate for the vfiler
         """
-        return [ x for x in self.get_aggregates() if x.type == 'root' ][0]
+        try:
+            aggrs = [ x for x in self.get_aggregates() ]
+            log.debug("aggr: %s", aggrs)
+            #aggrs = [ x for x in self.get_aggregates() if x.type == 'root' ]
+            return aggrs[0]
+        except IndexError:
+            raise IndexError("No root aggregates defined for vfiler: %s:%s" % (self.filer.name, self.name))
 
 def create_vfiler_from_node(node, defaults, site):
     vf = VFiler()

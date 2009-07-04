@@ -136,7 +136,6 @@ class Volume(DynamicNamedXMLConfigurable):
 
         # Set volume options as a dictionary
         options = {}
-        log.info("setting options: %s", self.children['option'])
         if len(self.children['option']) == 0:
             # FIXME: deal with user errors in the config file better
             for opt in defaults.get('volume', 'default_options').split(','):
@@ -181,7 +180,10 @@ class Volume(DynamicNamedXMLConfigurable):
         # FIXME: Get the current volume numbering thing from parent
         volnum = getattr(self, 'restartnumbering', None)
         if volnum is None:
-            self.volnum = self.parent.get_next_volnum()
+            # Don't grab a new number if this is the root volume
+            # for a vfiler. Only number data volumes.
+            if self.type != 'root':
+                self.volnum = self.parent.get_next_volnum()
         else:
             self.volnum = int(volnum)
             parent.set_volnum(self.volnum)
@@ -317,20 +319,6 @@ class Volume(DynamicNamedXMLConfigurable):
         """
         if len(self.snaps) > 0 or len(self.snapvaults) > 0 or len(self.snapmirrors) > 0:
             return True
-
-    def space_guarantee(self, value=None):
-        """
-        Set the volume space guarantee value, or fetch
-        the current setting if no value is passed in
-        """
-        if value is not None:
-            # check it's a valid value
-            value = value.lower()
-##             if value not in [ 'none', 'volume' ]:
-##                 raise ValueError("Unsupported space guarantee value of '%s' for volume '%s'" % (value, self))
-            self.vol_space_guarantee = value
-            pass
-        return self.vol_space_guarantee
 
     def get_next_lunid(self):
         """

@@ -1,4 +1,4 @@
-<project prefix="testproject1" code="01">
+<project name="testproject1" code="01">
   <site name="sitea" type="primary" location="testlab">
     <vlan number="15" type="testing"/>
     <vlan number="876" type="testing"/>

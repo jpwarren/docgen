@@ -13,7 +13,7 @@ file is well-formed and also a valid file.
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
-<project prefix="eigenmagic" code="1007">
+<project name="eigenmagic" code="1007">
 
   <!-- A longer, more descriptive name. This is used on the title page of
        documents, and in the page headers.
@@ -43,28 +43,25 @@ file is well-formed and also a valid file.
   <!-- Every time you modify the design, you should add a revision, to track
        who makes changes, a summary of what they were, and when they were made.
     -->
-  <revision>
-    <majornumber>1</majornumber>
-    <minornumber>0</minornumber>
-    <date>31 July 2007</date>
-    <authorinitials>PoD</authorinitials>
+  <revision majornumber="1"
+            minornumber="0"
+            date="31 July 2007"
+            authorinitials="JPW"
+            reviewer="Someone"
+            reviewdate="33 July 2008">
     <revremark>
-      Initial version by Peter O'Dowd.
+      Initial version
     </revremark>
-    <reviewer>Someone</reviewer>
-    <reviewdate>33 July 2008</reviewdate>
   </revision>
-
-  <revision>
-    <majornumber>2</majornumber>
-    <minornumber>0</minornumber>
-    <date>4 October 2007</date>
-    <authorinitials>JPW</authorinitials>
+  <revision majornumber="2"
+            minornumber="0"
+            date="1 August 2007"
+            authorinitials="JPW"
+            reviewer="Someone"
+            reviewdate="5 August 2008">
     <revremark>
-      Addition of extra server and storage for other things
+      Second revision
     </revremark>
-    <reviewer>Someone Else</reviewer>
-    <reviewdate>38 August 2008</reviewdate>
   </revision>
 
   <!-- Every project host that needs shared storage should be defined here. 
@@ -228,7 +225,7 @@ file is well-formed and also a valid file.
 	   - The 'rootaggr' attribute must be supplied. It defines which
 	   aggregate on the filer will be used for the vfiler root volume.
       -->
-      <vfiler rootaggr="aggr01">
+      <vfiler>
 
 	<!-- Each protocol supported by the vfiler should be specified here.
 	     Valid values are: NFS, CIFS, and iSCSI
@@ -263,6 +260,7 @@ file is well-formed and also a valid file.
 	<!-- volumes exist within aggregates, so for each aggregate you
 	     want to use, define an aggregate like this.
 	-->
+        <aggregate type="root" name="aggr01"/>
 
 	<aggregate name="aggr02">
 
@@ -527,8 +525,8 @@ file is well-formed and also a valid file.
       <!-- A vFiler with a rootaggr is required, so we know where to create
 	   the root volume. The name of the vFiler will match that of the primary filer.
       -->
-      <vfiler rootaggr="aggr09">
-
+      <vfiler>
+        <aggregate type="root" name="aggr09"/>
 	<!-- The NearStore has its own IP address in the project VLAN -->
 	<primaryip>
 	  <ipaddr>10.240.4.226</ipaddr>
@@ -607,7 +605,8 @@ The site type is 'secondary' for the DR site.
 	 relationships defined for them.
     -->
     <filer type="filer" name="siteb-fashda-01">
-      <vfiler rootaggr="aggr02">
+      <vfiler>
+        <aggregate type="root" name="aggr02"/>
 	<primaryip>
 	  <ipaddr>10.241.XXX.1</ipaddr>
 	  <netmask>255.255.255.224</netmask>
@@ -617,7 +616,8 @@ The site type is 'secondary' for the DR site.
     </filer>
 
     <filer type="nearstore" name="siteb-fasnst-01" partner="siteb-fasnsb-01">
-      <vfiler rootaggr="aggr09">
+      <vfiler>
+        <aggregate type="root" name="aggr09"/>
 	<primaryip>
 	  <ipaddr>10.241.XXX.XXX</ipaddr>
 	  <netmask>255.255.255.224</netmask>

@@ -1,6 +1,6 @@
 <!-- An XML document used for testing DR host exports -->
 
-<project prefix="MyPrefix" code="test">
+<project name="MyPrefix" code="test">
 
   <title>Test Project</title>
 
@@ -27,6 +27,8 @@
 
     <filer type='filer' name='primary-filer-01'>
       <vfiler rootaggr='aggr00'>
+        <aggregate type="root" name="aggr00"/>
+
 	<primaryip>
 	  <ipaddr>10.240.4.225</ipaddr>
 	  <netmask>255.255.255.224</netmask>
@@ -45,7 +47,9 @@
     </filer>
 
     <filer type="nearstore" name="primary-nearstore-01">
-      <vfiler rootaggr='aggr00'>
+      <vfiler>
+        <aggregate type="root" name="aggr00"/>
+
 	<primaryip>
 	  <ipaddr>10.240.4.226</ipaddr>
 	  <netmask>255.255.255.224</netmask>
@@ -75,7 +79,8 @@
     </host>
 
     <filer type='filer' name='secondary-filer-01'>
-      <vfiler rootaggr='aggr00'>
+      <vfiler>
+        <aggregate type="root" name="aggr00"/>
 	<primaryip>
 	  <ipaddr>10.240.4.231</ipaddr>
 	  <netmask>255.255.255.224</netmask>
@@ -85,7 +90,9 @@
     </filer>
 
     <filer type="nearstore" name="secondary-nearstore-01">
-      <vfiler rootaggr='aggr00'>
+      <vfiler>
+        <aggregate type="root" name="aggr00"/>
+
 	<primaryip>
 	  <ipaddr>10.240.4.232</ipaddr>
 	  <netmask>255.255.255.224</netmask>
