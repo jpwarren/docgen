@@ -108,12 +108,17 @@ file is well-formed and also a valid file.
 	 'gateway': the IP address for the VRF in the VLAN. This
 	 may not be used, but should always be assigned.
     -->
-    <vlan type="project" number="3003" network="10.240.4.0/26" gateway="10.240.4.254"/>
+    <vlan type="project" number="3003">
+      <network number="10.240.4.0/26" gateway="10.240.4.254"/>
+    </vlan>
 
-    <vlan type="services" number="3544" network="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
+    <vlan type="services" number="3544">
+      <network number="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
+    </vlan>
 
-    <vlan type="services" number="3189" network="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
-
+    <vlan type="services" number="3189">
+      <network number="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
+    </vlan>
 
     <host name="primhost01"
           platform="Sun"
@@ -237,25 +242,17 @@ file is well-formed and also a valid file.
 	<protocol name="cifs"/>
 
 	<!--
-	    Each filer must have a primaryip. This is the IP address used to
+	    Each filer must have a primary ipaddress. This is the IP address used to
 	    provide the storage to the hosts.
-	    You will also need to supply the netmask.
 	-->
+        <ipaddress type="primary" ip="10.240.4.225"/>
 
-	<primaryip>
-	  <ipaddr>10.240.4.225</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
-
-	<!-- Define vlanip tags if you need a services VLAN.
+	<!-- Define service ipaddress if you need a services VLAN.
 	     This IP address will be added to the vfiler on an interface
 	     in the services VLAN so you can access external services, such
 	     as ActiveDirectory for doing CIFS authentication.
 	-->
-	<vlanip vlan_number='3544'>
-	  <ipaddr>10.10.10.15</ipaddr>
-	</vlanip>
-
+	<ipaddress type="service" vlan_number="3544" ip="10.10.10.15"/>
 
 	<!-- volumes exist within aggregates, so for each aggregate you
 	     want to use, define an aggregate like this.

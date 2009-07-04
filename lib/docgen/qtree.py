@@ -68,6 +68,10 @@ class Qtree(DynamicNamedXMLConfigurable):
         #return '<Qtree: %s, %s, sec: %s, rw: %s, ro: %s>' % (self.full_path(), self.parent.protocol, self.security, [ str(x) for x in self.rwexports ], [ str(x) for x in self.roexports])
         return '<Qtree: %s, %s, sec: %s>' % (self.full_path(), self.parent.protocol, self.security)
 
+    def configure_from_node(self, node, defaults, parent):
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
+        self.volume = parent
+    
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
 

@@ -27,6 +27,7 @@ class IPAddress(DynamicNamedXMLConfigurable):
     optional_attribs = [
         'description',
         'netmask',
+        'vlan_number',
         ]
 
     known_types = [
@@ -46,8 +47,11 @@ class IPAddress(DynamicNamedXMLConfigurable):
         self.vlan = parent.get_vlan()
 
         # If this is a service IP, it must have a vlan number defined
-        if self.type == 'service' and self.vlan_number is None:
-            raise KeyError("Service IP address '%s' defined with no vlan_number attribute." % self.ip)
+        if self.type == 'service':
+            if self.vlan_number is None:
+                raise KeyError("Service IP address '%s' defined with no vlan_number attribute." % self.ip)
+            else:
+                self.vlan_number = int(self.vlan_number)
 
     def configure_mandatory_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_mandatory_attributes(self, node, defaults)

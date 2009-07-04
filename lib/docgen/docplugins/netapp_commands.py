@@ -140,7 +140,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         # Don't add volumes on secondary filers
         if not filer.type == 'secondary':
             commands.append("\n# vFiler Volume Addition\n")
-            commands.extend( self.vfiler_add_volume_commands(filer, ns) )
+            commands.extend( self.vfiler_add_volume_commands(filer, vfiler) )
 
         # Add interfaces
         commands.append("\n# Interface Configuration\n")
@@ -337,12 +337,16 @@ class NetAppCommandsGenerator(CommandGenerator):
 
     def vfiler_create_commands(self, filer, vfiler):
         cmdset = []
-        ipaddress = [ x for x in vfiler.get_ipaddresss() if x.type == 'primary' ][0]
-        cmdset.append("vfiler create %s -n -s ips-%s -i %s /vol/%s_root" % (vfiler.name,
-                                                                            vfiler.name,
-                                                                            ipaddress.ip,
-                                                                            vfiler.name,
-                                                                            ) )
+        try:
+            ipaddress = [ x for x in vfiler.get_ipaddresss() if x.type == 'primary' ][0]
+            cmdset.append("vfiler create %s -n -s ips-%s -i %s /vol/%s_root" % (vfiler.name,
+                                                                                vfiler.name,
+                                                                                ipaddress.ip,
+                                                                                vfiler.name,
+                                                                                ) )
+        except IndexError:
+            raise IndexError("No Primary IP Address found for vfiler: %s:%s" % (filer.name, vfiler.name))
+            
         for vlan,ipaddr in vfiler.services_ips:
             cmdset.append("vfiler add %s -i %s" % (vfiler.name, ipaddr,) )
         #log.debug( '\n'.join(cmdset) )
@@ -443,7 +447,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         
         return cmdset
 
-    def vfiler_add_volume_commands(self, filer, ns):
+    def vfiler_add_volume_commands(self, filer, vfiler):
         cmdset = []
         for vol in filer.get_volumes():
 
@@ -451,7 +455,7 @@ class NetAppCommandsGenerator(CommandGenerator):
             if vol.name.endswith("root"):
                 continue
             
-            cmdset.append("vfiler add %s /vol/%s" % (self.shortname, vol.name))
+            cmdset.append("vfiler add %s /vol/%s" % (vfiler.name, vol.name))
             pass
         
         #log.debug( '\n'.join(cmdset) )
@@ -467,11 +471,14 @@ class NetAppCommandsGenerator(CommandGenerator):
             #cmd = "ifconfig svif0-%s 0.0.0.0 netmask %s mtusize 9000 up" % ( vfiler.vlan.number, vfiler.netmask)
 
         else:
-            ipaddress = [ x for x in vfiler.get_ipaddresss() if x.type == 'primary' ][0]
-            cmd = "ifconfig svif0-%s %s netmask %s mtusize %s up" % (vfiler.vlan.number,
-                                                                     ipaddress,
-                                                                     vfiler.netmask,
-                                                                     mtu)
+            try:
+                ipaddress = [ x for x in vfiler.get_ipaddresss() if x.type == 'primary' ][0]
+                cmd = "ifconfig svif0-%s %s netmask %s mtusize %s up" % (vfiler.vlan.number,
+                                                                         ipaddress,
+                                                                         vfiler.netmask,
+                                                                         mtu)
+            except IndexError:
+                raise IndexError("No primary IP address defined for vfiler: %s:%s" % (filer.name, vfiler.name))
 
         # Add partner clause if this is a primary or secondary filer
         if filer.type in [ 'primary', 'secondary' ]:
@@ -492,13 +499,14 @@ class NetAppCommandsGenerator(CommandGenerator):
         # Services VLAN interfaces
         #
         for ipaddr in [ x for x in vfiler.get_ipaddresss() if x.type == 'service' ]:
+            vlan = [ x for x in filer.site.get_vlans() if x.number == ipaddr.vlan_number ][0]
             if filer.type == 'secondary':
                 cmd = "ifconfig svif0-%s mtusize 1500" % ( vlan.number )
                 pass
             else:
                 cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number,
                                                                            ipaddr,
-                                                                           vlan.networks[0].netmask)
+                                                                           vlan.get_networks()[0].netmask)
                 pass
 
             # Add partner clause if this is a primary or secondary filer
