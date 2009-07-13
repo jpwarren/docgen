@@ -516,12 +516,12 @@ ${abstract}
     def __init__(self, conf):
         self.conf = conf
 
-    def emit(self, outfile=None, versioned=False, ns={}):
+    def emit(self, defaults, outfile=None, versioned=False, ns={}):
         """
         Write out the book XML to a File, defaulting to STDOUT.
         """
-        ns['copyright_holder'] = self.conf.defaults.get('global', 'copyright_holder')
-        ns['iscsi_prefix'] = self.conf.defaults.get('global', 'iscsi_prefix')
+        ns['copyright_holder'] = defaults.get('global', 'copyright_holder')
+        ns['iscsi_prefix'] = defaults.get('global', 'iscsi_prefix')
 
         book = self.build_book(ns)
         if outfile is None:

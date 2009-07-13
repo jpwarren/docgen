@@ -9,10 +9,12 @@ from datetime import datetime
 from zope.interface import Interface
 from string import Template
 from lxml import etree
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 
 from docgen.util import load_doc_plugins
-from docgen.config import ProjectConfig, ConfigInvalid
+from docgen.project import Project
+
+#from docgen.config import ProjectConfig, ConfigInvalid
 from docgen.options import BaseOptions
 
 import logging
@@ -31,7 +33,7 @@ if __name__ == '__main__':
     ns = {}
 
     # Load configuration file
-    defaults = SafeConfigParser()
+    defaults = RawConfigParser()
     parsedfiles = defaults.read(optparser.options.configfile)
     if len(parsedfiles) == 0:
         raise ValueError("Cannot load configuration file: %s" % optparser.options.configfile)
@@ -41,13 +43,10 @@ if __name__ == '__main__':
 
     try:
         # load the configuration from a config file
-        proj = ProjectConfig(defaults)
-        proj.load_project_details(optparser.options.definitionfile)
+        proj = Project()
+        tree = etree.parse(optparser.options.definitionfile)
+        proj.configure_from_node(tree.getroot(), defaults, None)
 
-    except ConfigInvalid, e:
-        log.critical("Cannot load configuration: %s.", e)
-        sys.exit(1)
-        
     except:
         log.critical("Cannot load configuration. Unhandled error condition:")
         import traceback
@@ -59,4 +58,4 @@ if __name__ == '__main__':
     docgen = doc_plugins[optparser.options.doctype](proj)
     #raise NotImplementedError("DocType of '%s' is not handled yet." % optparser.options.doctype)
 
-    docgen.emit(optparser.options.outfile, optparser.options.versioned, ns=ns)
+    docgen.emit(defaults, optparser.options.outfile, optparser.options.versioned, ns=ns)

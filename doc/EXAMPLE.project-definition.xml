@@ -13,21 +13,7 @@ file is well-formed and also a valid file.
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
-<project>
-
-  <!-- A document prefix. This isn't really used at the moment. -->
-  <prefix>eigenmagic</prefix>
-
-  <!-- A project code, to uniquely define projects -->
-  <code>1007</code>
-
-  <!-- A short name for the project. This is used for the vfiler name. -->
-  <shortname>myproj</shortname>
-
-  <!-- A longer, more descriptive name. This is used on the title page of
-       documents, and in the page headers.
-  -->
-  <longname>My Project</longname>
+<project name="eigenmagic" code="001">
 
   <!-- The background tag contains verbatim DocBook XML markup that is inserted
        into the Background section of the design document. Use this to insert some
@@ -48,37 +34,30 @@ file is well-formed and also a valid file.
   </background>
 
   <!-- Design revision history -->
-  <revhistory>
-
-    <!-- Every time you modify the design, you should add a revision, to track
-	 who makes changes, a summary of what they were, and when they were made.
+  <!-- Every time you modify the design, you should add a revision, to track
+       who makes changes, a summary of what they were, and when they were made.
     -->
-    <revision>
-      <majornumber>1</majornumber>
-      <minornumber>0</minornumber>
-      <date>31 July 2007</date>
-      <authorinitials>PoD</authorinitials>
-      <revremark>
-	Initial version by Peter O'Dowd.
-      </revremark>
-      <reviewer>Someone</reviewer>
-      <reviewdate>33 July 2008</reviewdate>
-    </revision>
+  <revision majornumber="1"
+            minornumber="0"
+            date="31 July 2007"
+            authorinitials="JPW"
+            reviewer="Someone"
+            reviewdate="3 August 2008">
+    <revremark>
+      Initial version
+    </revremark>
+  </revision>
 
-    <revision>
-      <majornumber>2</majornumber>
-      <minornumber>0</minornumber>
-      <date>4 October 2007</date>
-      <authorinitials>JPW</authorinitials>
-      <revremark>
-	Addition of extra server and storage for other things
-      </revremark>
-      <reviewer>Someone Else</reviewer>
-      <reviewdate>38 August 2008</reviewdate>
-
-    </revision>
-
-  </revhistory>
+  <revision majornumber="2"
+            minornumber="0"
+            date="10 July 2009"
+            authorinitials="JPW"
+            reviewer="Someone else"
+            reviewdate="9 August 2009">
+    <revremark>
+      Updated to add some storage.
+    </revremark>
+  </revision>
 
   <!-- Every project host that needs shared storage should be defined here. 
        The 'name' attribute for the tag is a unique name for the host that
@@ -124,31 +103,23 @@ file is well-formed and also a valid file.
 	 'gateway': the IP address for the VRF in the VLAN. This
 	 may not be used, but should always be assigned.
     -->
-    <vlan type="project" number="3003" network="10.240.4.0/26" gateway="10.240.4.254"/>
+    <vlan type="project" number="3003">
+      <network number="10.240.4.0/26" gateway="10.240.4.254"/>
+    </vlan>
 
-    <vlan type="services" number="3544" network="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
+    <vlan type="services" number="3544">
+      <network number="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
+    </vlan>
 
-    <vlan type="services" number="3189" network="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
+    <vlan type="services" number="3189">
+      <network number="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
+    </vlan>
 
-
-    <host name="primhost01">
-
-      <!-- The platform name. One of 'Sun', or 'Intel' -->
-      <platform>Sun</platform>
-
-      <!-- The operating system. Starts with 'Solaris', 'Windows' or 'Linux' -->
-      <operatingsystem>Solaris 10</operatingsystem>
-
-      <!-- Descriptive text for where the server is located -->
-      <location>Primary Site</location>
-
-      <!-- A brief description of what the server is for, eg: Database server, application server, Web server, etc.-->
-      <description>Database server</description>
-
-      <!-- The IP address assigned to the host on the IP-SAN. This is usually
-	   assigned by the network team from a network range specifically for
-	   this project, tracked in the solution control spreadsheets.
-      -->
+    <host name="primhost01"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<switchname>sitea-swtedg-0103</switchname>
@@ -169,11 +140,11 @@ file is well-formed and also a valid file.
     </host>
 
     <!-- Continue to add hosts, one at a time, for every host in the project. -->
-    <host name="primhost02">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
-      <description>Database server</description>
+    <host name="primhost02"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<switchname>sitea-swtedg-0103</switchname>
@@ -188,11 +159,11 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="primhost03">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
-      <description>Database server</description>
+    <host name="primhost03"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<switchname>sitea-swtedg-0103</switchname>
@@ -205,11 +176,11 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="virtualhost-01" virtual="yes">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
-      <description>Virtual Host on primhost02</description>
+    <host name="virtualhost-01" virtual="yes"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<!--      <switchname>sitea-swtedg-0103</switchname>
@@ -222,11 +193,11 @@ file is well-formed and also a valid file.
 
     </host>
 
-    <host name="examplehost-01" virtual="yes">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>Primary Site</location>
-      <description>An example virtual host for sorting</description>
+    <host name="examplehost-01" virtual="yes"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Primary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<!--      <switchname>sitea-swtedg-0103</switchname>
@@ -236,7 +207,6 @@ file is well-formed and also a valid file.
       </interface>
 
     </host>
-
 
     <!-- Now we have the filer definitions. There will need to be 3:
 	 - The 'primary' filer, which is used for providing the storage.
@@ -253,7 +223,8 @@ file is well-formed and also a valid file.
 	   - The 'rootaggr' attribute must be supplied. It defines which
 	   aggregate on the filer will be used for the vfiler root volume.
       -->
-      <vfiler rootaggr="aggr01">
+      <vfiler>
+        <aggregate name="aggr01" type="root"/>
 
 	<!-- Each protocol supported by the vfiler should be specified here.
 	     Valid values are: NFS, CIFS, and iSCSI
@@ -585,11 +556,11 @@ The site type is 'secondary' for the DR site.
     <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
 
     <!-- Some hosts that are purportedly at DR -->
-    <host name="drtesthost01">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>DR Room O</location>
-      <description>Database server</description>
+    <host name="drtesthost01"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Secondary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<switchname>siteb-swtedg-0101</switchname>
@@ -614,11 +585,11 @@ The site type is 'secondary' for the DR site.
 
     </host>
 
-    <host name="drtesthost02">
-      <platform>Sun</platform>
-      <operatingsystem>Solaris 10</operatingsystem>
-      <location>DR Room O</location>
-      <description>Database server</description>
+    <host name="drtesthost02"
+          platform="Sun"
+          operatingsystem="Solaris 10"
+          location="Secondary Site"
+          description="Database server">
 
       <interface type='storage' mode='active'>
 	<switchname>siteb-swtedg-0101</switchname>

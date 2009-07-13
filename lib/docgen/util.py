@@ -24,6 +24,20 @@ def import_module(mod_name):
         pass
     return mod
 
+def import_class(mod_name):
+    """
+    Custom dynamic import function to import classes.
+    """
+    #log.debug("looking for class: %s", mod_name)
+    components = mod_name.split('.')
+    module_name = '.'.join(components[:-1])
+    #module_name = mod_name
+    mod = __import__(module_name)
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+        pass
+    return mod
+
 def load_doc_plugins(defaults):
     """
     Load modules that will generate output documents.
@@ -36,8 +50,8 @@ def load_doc_plugins(defaults):
     """
     plugins = {}
     items = defaults.items('document_plugins')
-    for name, module in items:
-        plugins[name] = import_module(module)
+    for name, modclass in items:
+        plugins[name] = import_class(modclass)
 
     return plugins
 
