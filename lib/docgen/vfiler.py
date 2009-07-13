@@ -5,12 +5,15 @@
 VFiler object definition
 
 """
-from base import DynamicNamedXMLConfigurable
+from ConfigParser import NoSectionError, NoOptionError
 
 from lxml import etree
+
+from base import DynamicNamedXMLConfigurable
 # FIXME: Doing it this way means we can't override this in
 # a user defined plugin. Need the lookup table instead.
 from volume import Volume
+from aggregate import Aggregate
 
 import debug
 import logging
@@ -134,6 +137,10 @@ class VFiler(DynamicNamedXMLConfigurable):
                 self.vlan = None
             pass
 
+        # Attempt to create a root aggregate if one hasn't
+        # been defined manually
+        self.create_root_aggregate(defaults)
+        
         # Create a root volume if one hasn't been manually defined
         self.create_root_volume(defaults)
 
@@ -231,8 +238,27 @@ class VFiler(DynamicNamedXMLConfigurable):
             #aggrs = [ x for x in self.get_aggregates() if x.type == 'root' ]
             return aggrs[0]
         except IndexError:
-            raise IndexError("No root aggregates defined for vfiler: %s:%s" % (self.filer.name, self.name))
+            raise ValueError("No root aggregates defined for vfiler: %s:%s" % (self.filer.name, self.name))
 
+    def create_root_aggregate(self, defaults):
+        """
+        If a root aggregate doesn't already exist, create one
+        """
+        try:
+            aggr = self.get_root_aggregate()
+            return
+        except ValueError, valerr:
+            try:
+                root_aggr_name = defaults.get('vfiler', 'default_root_aggregate')
+                xmldata = """<aggregate type="root" name="%s"/>""" % root_aggr_name
+                node = etree.fromstring(xmldata)
+                aggr = Aggregate()
+                aggr.configure_from_node(node, defaults, self)
+                self.add_child(aggr)
+                
+            except (NoSectionError, NoOptionError), e:
+                raise valerr
+        
     def create_root_volume(self, defaults):
         """
         Create a root volume for the vFiler if one hasn't
