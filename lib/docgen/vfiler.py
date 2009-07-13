@@ -122,7 +122,17 @@ class VFiler(DynamicNamedXMLConfigurable):
         self.site = filer.site
 
         DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, filer)
+        # Attempt to create a root aggregate if one hasn't
+        # been defined manually
+        self.create_root_aggregate(defaults)
+        
+        # Create a root volume if one hasn't been manually defined
+        self.create_root_volume(defaults)
 
+
+    def configure_optional_attributes(self, node, defaults):
+        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        
         # If a vlan number is defined, use that vlan, otherwise
         # use the first project vlan we find.
         # FIXME: Need to cope with non-VLAN projects
@@ -137,12 +147,11 @@ class VFiler(DynamicNamedXMLConfigurable):
                 self.vlan = None
             pass
 
-        # Attempt to create a root aggregate if one hasn't
-        # been defined manually
-        self.create_root_aggregate(defaults)
-        
-        # Create a root volume if one hasn't been manually defined
-        self.create_root_volume(defaults)
+        if self.dns_domain is None:
+            try:
+                self.dns_domain = defaults.get('vfiler', 'default_dns_domain')
+            except (NoSectionError, NoOptionError):
+                pass
 
     def name_dynamically(self, defaults):
         if getattr(self, 'name', None) is None:

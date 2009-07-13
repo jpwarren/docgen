@@ -51,7 +51,7 @@ class BackgroundTest(unittest.TestCase):
         bg = Background()
         bg.configure_from_node(node, self.defaults, self.project)
         astext = bg.get_docbook()
-        self.failUnlessEqual(astext, "<background>\n</background>")
+        self.failUnlessEqual(astext, "<background>\n</background>\n")
 
     def test_minimal_background(self):
         xmldata = """
@@ -63,4 +63,4 @@ class BackgroundTest(unittest.TestCase):
         bg = Background()
         bg.configure_from_node(node, self.defaults, self.project)
         astext = bg.get_docbook()
-        self.failUnlessEqual(astext, "<background>\n  <para>This is a dummy description for testing.</para>\n</background>")
+        self.failUnlessEqual(astext, "<background>\n  <para>This is a dummy description for testing.</para>\n</background>\n")

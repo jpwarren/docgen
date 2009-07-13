@@ -525,10 +525,7 @@ file is well-formed and also a valid file.
       <vfiler>
         <aggregate type="root" name="aggr09"/>
 	<!-- The NearStore has its own IP address in the project VLAN -->
-	<primaryip>
-	  <ipaddr>10.240.4.226</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.240.4.226"/>
       </vfiler>
     </filer>
 
@@ -546,7 +543,9 @@ The site type is 'secondary' for the DR site.
 	 to the primary site. Its IP network is likely to be different, also,
 	 so you will need to have a different gateway IP address.
     -->
-    <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
+    <vlan type="project" number="3113">
+      <network number="10.240.8.15/27" gateway="10.241.XXX.XXX"/>
+    </vlan>
 
     <!-- Some hosts that are purportedly at DR -->
     <host name="drtesthost01"
@@ -572,7 +571,6 @@ The site type is 'secondary' for the DR site.
 	<hostport>PCI 0</hostport>
 	<ipaddr>10.XXX.123.16</ipaddr>
       </interface>
-
 
       <iscsi_initiator>another.iscsi.initname</iscsi_initiator>
 
@@ -604,10 +602,7 @@ The site type is 'secondary' for the DR site.
     <filer type="filer" name="siteb-fashda-01">
       <vfiler>
         <aggregate type="root" name="aggr02"/>
-	<primaryip>
-	  <ipaddr>10.241.XXX.1</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.241.XXX.1"/>
       </vfiler>
 
     </filer>
@@ -615,10 +610,7 @@ The site type is 'secondary' for the DR site.
     <filer type="nearstore" name="siteb-fasnst-01" partner="siteb-fasnsb-01">
       <vfiler>
         <aggregate type="root" name="aggr09"/>
-	<primaryip>
-	  <ipaddr>10.241.XXX.XXX</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.241.XXX.XXX"/>
       </vfiler>
     </filer>
 

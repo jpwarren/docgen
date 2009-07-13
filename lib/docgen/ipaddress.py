@@ -45,7 +45,6 @@ class IPAddress(DynamicNamedXMLConfigurable):
 
         # The vlan I belong to is my parent's VLAN
         self.vlan = parent.get_vlan()
-
         # If this is a service IP, it must have a vlan number defined
         if self.type == 'service':
             if self.vlan_number is None:

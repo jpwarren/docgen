@@ -260,7 +260,7 @@ class NetAppCommandsGenerator(CommandGenerator):
                 log.debug("Added DNS commands for %s", filer.name)
 
                 commands.append("\n# DNS Configuration\n")
-                commands.extend( self.project.vfiler_cifs_dns_commands(vfiler) )
+                commands.extend( self.vfiler_cifs_dns_commands(vfiler) )
 
         #
         # Filer options
@@ -338,6 +338,8 @@ class NetAppCommandsGenerator(CommandGenerator):
     def vfiler_create_commands(self, filer, vfiler):
         cmdset = []
         try:
+            log.debug("IP addresses: %s", vfiler.get_ipaddresss())
+            
             ipaddress = [ x for x in vfiler.get_ipaddresss() if x.type == 'primary' ][0]
             cmdset.append("vfiler create %s -n -s ips-%s -i %s /vol/%s_root" % (vfiler.name,
                                                                                 vfiler.name,
@@ -842,9 +844,12 @@ class NetAppCommandsGenerator(CommandGenerator):
                 break
 
         # DNS enablement options for CIFS capable vfilers
-        if 'cifs' in [ x.name for x in vfiler.get_protocols() ]:            
-            options.append("dns.domainname %s" % vfiler.dns_domain_name)
-            options.append("dns enable on")
+        if 'cifs' in [ x.name for x in vfiler.get_protocols() ]:
+            if vfiler.dns_domain is None:
+                raise ValueError("CIFS protocol enabled, but DNS domain not set for vFiler %s:%s" % (vfiler.parent.name, vfiler.name))
+            else:
+                options.append("dns.domainname %s" % vfiler.dns_domain)
+                options.append("dns enable on")
             
         for opt in options:
             cmdset.append("vfiler run %s options %s" % (vfiler.name, opt) )
@@ -980,7 +985,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         Return the commands for configuring DNS for CIFS access
         """
         cmds = []
-        for nameserver in vfiler.nameservers:
+        for nameserver in vfiler.get_nameservers():
             cmds.append("wrfile -a /vol/%s_root/etc/resolv.conf nameserver %s" % (vfiler.name, nameserver))
 
         return cmds
