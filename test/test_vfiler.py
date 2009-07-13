@@ -53,6 +53,9 @@ class VFilerTest(unittest.TestCase):
         self.filer = self.site.get_filers()[0]
 
     def test_create_vfiler_bare(self):
+        """
+        A bare vfiler with full default options
+        """
         xmldata = """
 <vfiler />
 """
@@ -60,6 +63,8 @@ class VFilerTest(unittest.TestCase):
         vfiler = VFiler()
         vfiler.configure_from_node(node, self.defaults, self.filer)
         self.failUnlessEqual( vfiler.name, "vfdemo" )
+        rootaggr = vfiler.get_root_aggregate()
+        self.failUnlessEqual( rootaggr.name, "rootaggr" )
         
     def test_create_vfiler_minimal(self):
         xmldata = """
@@ -70,5 +75,5 @@ class VFilerTest(unittest.TestCase):
         vfiler.configure_from_node(node, self.defaults, self.filer)
 
         self.failUnlessEqual( vfiler.name, "vftest01" )
-
-
+        rootaggr = vfiler.get_root_aggregate()
+        self.failUnlessEqual( rootaggr.name, "rootaggr" )
