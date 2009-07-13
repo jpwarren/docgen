@@ -201,7 +201,7 @@ the host activation guides.
         ns['assumption_list'] = assumption_list
         ns['assumptions'] = self.assumptions.safe_substitute(ns)
 
-        background_text = ''.join([etree.tostring(x) for x in self.conf.tree.xpath("background/*")])
+        background_text = ''.join([x.get_docbook() for x in self.project.get_backgrounds()])
 
         ns['background_text'] = background_text
 
@@ -313,7 +313,7 @@ the host activation guides.
         rowlist = []
 
         # Sort the list of hosts by site, then ipaddress
-        hostlist = [ (host.location, host.get_storage_ips(), host) for host in self.conf.hosts.values() ]
+        hostlist = [ (host.location, host.get_storage_ips(), host) for host in self.project.get_hosts() ]
         hostlist.sort()
 
         for location, storage_ips, host in hostlist:
@@ -397,7 +397,7 @@ the host activation guides.
           </section>
  ''')
 
-        if len(self.conf.get_services_vlans()) > 0:
+        if len(self.project.get_services_vlans()) > 0:
             services_vlan = '''
               <listitem>
                 <para><emphasis role="bold">Project IP-SAN Services VLANs</emphasis> - Services
@@ -663,24 +663,22 @@ the host activation guides.
             </table>
         ''')
 
-        ns['project_gateway'] = self.conf.get_project_vlan('primary').networks[0].gateway
-
         # Add a section for each vFiler defined on a primary filer
         log.debug("Building vFiler section...")
-        sites = [ (site.type, site) for site in self.conf.sites.values() ]
+        sites = [ (site.type, site) for site in self.project.get_sites() ]
         sites.sort()
 
         vfiler_sections = []
         for sitetype, site in sites:
             vfiler_config_tables = []
-            log.debug("Filers found: %s", site.filers.values())
+            log.debug("Filers found: %s", site.get_filers())
 
             # sort by filer name
-            filerlist = [ (filer.name, filer) for filer in site.filers.values() ]
+            filerlist = [ (filer.name, filer) for filer in site.get_filers() ]
             filerlist.sort()
             for ignored, filer in filerlist:
                 #for filer in [ filer for filer in site.filers.values() if filer.type == 'primary' ]:
-                for vfiler in filer.vfilers.values():
+                for vfiler in filer.get_vfilers():
                     vfiler_attributes = []
                     log.debug("Adding a vFiler: %s", vfiler)
                     template_ns = {}
@@ -689,16 +687,16 @@ the host activation guides.
                     template_ns['vfiler_name'] = vfiler.name
                     
                     vfiler_attributes.append( ('vFiler Name', vfiler.name, '') )
-                    vfiler_attributes.append( ('Filer Name', vfiler.filer.name, '') )
-                    if vfiler.filer.secondary_is is not None:
-                        vfiler_attributes.append( ('Filer Partner', vfiler.filer.secondary_is.name, '') )
+                    vfiler_attributes.append( ('Filer Name', filer.name, '') )
+                    if filer.cluster_partner is not None:
+                        vfiler_attributes.append( ('Filer Partner', filer.cluster_partner.name, '') )
                         pass
 
                     # Add storage interfaces and IPs
                     vfiler_attributes.append( ('Primary Storage Interface', 'svif0-%s' % vfiler.vlan.number, '') )
-                    vfiler_attributes.append( ('Primary Storage IP', vfiler.ipaddress, '') )
-                    for ipaddr, netmask in vfiler.alias_ips:
-                        vfiler_attributes.append( ('Alias Storage IP', ipaddr, '') )
+                    vfiler_attributes.append( ('Primary Storage IP', vfiler.get_primary_ipaddr(), '') )
+                    for ipaddr in vfiler.get_alias_ipaddrs():
+                        vfiler_attributes.append( ('Alias Storage IP', ipaddr.ip, '') )
                         pass
 
                     # Add IP space information
@@ -755,7 +753,7 @@ the host activation guides.
         #ns['primary_site_vfiler_section'] = primary_section.safe_substitute(ns)
         #ns['primary_vfiler_interface_section'] = primary_interface_section.safe_substitute(ns)
 
-##         if self.conf.has_dr:
+##         if self.project.has_dr:
 ##             ns['dr_site_vfiler_section'] = dr_section.safe_substitute(ns)
 ##             ns['dr_vfiler_interface_section'] = dr_interface_section.safe_substitute(ns)
 ##         else:
@@ -764,7 +762,7 @@ the host activation guides.
 ##             pass
 
         # Services VLAN routes
-        if len(self.conf.get_services_vlans('primary')) > 0:
+        if len(self.project.get_services_vlans()) > 0:
 ##             ns['services_vlan_routes'] = self.build_services_vlan_routes()
 ##             ns['vfiler_routes_section'] = vfiler_routes.safe_substitute(ns)
             ns['vfiler_routes_section'] = ''
@@ -777,7 +775,7 @@ the host activation guides.
         # add services vlans
         services_rows = []
         log.debug("finding services vlans...")
-        for vlan in self.conf.get_services_vlans(type):
+        for vlan in self.project.get_services_vlans(type):
             log.debug("Adding a services VLAN: %s", vlan)
             services_rows.append("""
                   <row>
@@ -794,7 +792,7 @@ the host activation guides.
         Fetch the services vlan additions that we need.
         """
         retstr = "<screen># For Services VLAN access\n"
-        retstr += '\n'.join(self.conf.services_vlan_route_commands(self.conf.vfilers[self.conf.shortname]) )
+        retstr += '\n'.join(self.project.services_vlan_route_commands(self.project.vfilers[self.project.shortname]) )
         retstr += '</screen>'
 
         return retstr
@@ -804,7 +802,7 @@ the host activation guides.
         Build the <para/> entries for the storage protocols cell
         """
         paras = []
-        for proto in self.conf.allowed_protocols:
+        for proto in self.project.get_allowed_protocols():
             paras.append('<para>%s</para>' % proto)
 
         return '\n'.join(paras)
@@ -872,26 +870,27 @@ the host activation guides.
         # FIXME:
         # Create a separate table for each Filer, in case we have
         # projects that span multiple Filers/NearStores.
-
+        
         vol_alloc_tables = []
         
-        for site in ['primary', 'secondary']:
-            for role in ['primary', 'nearstore']:
+        for site in self.project.get_sites():
+            # Find all volumes on Filers first, then NearStores
+            for filer in site.get_filers():
                 tblns = {}
-                tblns['sitetype'] = site.capitalize()
-                if role == 'primary':
+                tblns['sitetype'] = site.type.capitalize()
+                if filer.type == 'filer':
                     tblns['filer_type'] = 'Filer'
-                elif role == 'nearstore':
+                elif filer.type == 'nearstore':
                     tblns['filer_type'] = 'NearStore'
                     pass
 
-                vol_list = self.conf.get_volumes(site, role)
+                vol_list = filer.get_volumes()
                 if len(vol_list) > 0:
                     # Take the list of volumes and build a list of body rows
                     tblns['volume_rows'] = self.build_vol_rows(vol_list)
 
                     # calculate primary volume totals
-                    total_usable, total_raw = self.conf.get_volume_totals(vol_list)
+                    total_usable, total_raw = self.get_volume_totals(vol_list)
 
                     tblns['volume_totals'] = """
                       <row>
@@ -920,8 +919,9 @@ the host activation guides.
         volume_rows = []
         for vol in vol_list:
             entries = ''
-            entries += "<entry><para>%s</para></entry>" % vol.filer.name
-            for attr in ['aggregate', 'name', 'type' ]:
+            entries += "<entry><para>%s</para></entry>" % vol.get_filer().name
+            entries += "<entry><para>%s</para></entry>" % vol.parent.name
+            for attr in [ 'name', 'type' ]:
                 entries += "<entry><para>%s</para></entry>" % getattr(vol, attr)
                 pass
 
@@ -932,6 +932,14 @@ the host activation guides.
             volume_rows.append("<row>%s</row>" % entries)
             pass
         return '\n'.join(volume_rows)
+
+    def get_volume_totals(self, vol_list):
+        """
+        Calculate the raw and usable totals for a list of volumes
+        """
+        usable_total = sum( [ vol.usable for vol in vol_list ])
+        raw_total = sum( [ vol.raw for vol in vol_list ])
+        return usable_total, raw_total
 
     def build_vol_totals(self, total_usable, total_raw):
         pass
@@ -973,36 +981,36 @@ the host activation guides.
 
         volume_configs = ''
 
-        for sitetype in ['primary', 'secondary']:
-            for filertype in ['primary', 'secondary', 'nearstore']:
-                # Find filers with this site and type
-                filers = [ filer for filer in self.conf.filers.values() if filer.site.type == sitetype and filer.type == filertype ]
-                for filer in filers:
-                    config_ns = {}
-                    config_ns['filer_name'] = filer.name
-                    config_rows = self.get_volume_options_rows(ns, sitetype, filertype)
-                    if len(config_rows) > 0:
-                        config_ns['config_rows'] = config_rows
-                        volume_configs += filer_volume_config.safe_substitute(config_ns)
-                        pass
+        for site in self.project.get_sites():
+            for filer in site.get_filers():
+                config_ns = {}
+                config_ns['filer_name'] = filer.name
+                config_rows = self.get_volume_options_rows(filer)
+                if len(config_rows) > 0:
+                    config_ns['config_rows'] = config_rows
+                    volume_configs += filer_volume_config.safe_substitute(config_ns)
                     pass
                 pass
             pass
             
         return volume_configs
 
-    def get_volume_options_rows(self, ns, site, filertype):
+    def get_volume_options_rows(self, filer):
         """
         Build the volume options rows for the previously defined volumes
         for a given site/filer.
         """
         rows = []
-        for volume in self.conf.get_volumes(site, filertype):
-            row_detail = "<entry><para>%s</para></entry>\n" % volume.filer.name
+        for volume in filer.get_volumes():
+            row_detail = "<entry><para>%s</para></entry>\n" % filer.name
             row_detail += "<entry><para>%s</para></entry>\n" % volume.name
-            row_detail += "<entry><para>%s</para></entry>\n" % volume.space_guarantee()
-            option_str = ''.join([ "<para>%s</para>" % x for x in volume.voloptions ])
-
+            row_detail += "<entry><para>%s</para></entry>\n" % volume.space_guarantee
+            option_str = ''
+            for key,value in volume.get_options().items():
+                option_str += "<para>%s=%s</para>" % (key, value)
+                #option_str = ''.join([ "<para>%s</para>" % x for x in volume.options ])
+                pass
+            
             # Add autosize options
             if volume.autosize:
                 option_str += "<para>autosize_max=%s</para>" % volume.autosize.max
@@ -1029,7 +1037,7 @@ the host activation guides.
         """
         Build the volume options entry based on the volume's options.
         """
-        options = self.conf.get_volume_options(volume_name)
+        options = self.project.get_volume_options(volume_name)
 
     def build_qtree_config_section(self, ns):
         """
@@ -1081,21 +1089,16 @@ the host activation guides.
 
 
         qtree_tables = []
-        for sitetype in ['primary', 'secondary']:
-            for filertype in ['primary', ]:
-                # Find filers with this site and type
-                filers = [ filer for filer in self.conf.filers.values() if filer.site.type == sitetype and filer.type == filertype ]
-
-                for filer in filers:
-                    log.debug("finding qtrees for filer: %s", filer.name)
-                    tblns = {}
-                    tblns['filer_name'] = filer.name
-                    filer_qtree_rows = self.get_filer_qtree_rows(filer)
-                    tblns['qtree_rows'] = filer_qtree_rows
-                    if len(filer_qtree_rows) > 0:
-                        log.debug("Adding qtree table for filer %s", filer.name)
-                        qtree_tables.append( qtrees_table_template.safe_substitute(tblns) )
-                        pass
+        for site in self.project.get_sites():
+            for filer in [ x for x in site.get_filers() if x.type == 'filer' ]:
+                log.debug("finding qtrees for filer: %s", filer.name)
+                tblns = {}
+                tblns['filer_name'] = filer.name
+                filer_qtree_rows = self.get_filer_qtree_rows(filer)
+                tblns['qtree_rows'] = filer_qtree_rows
+                if len(filer_qtree_rows) > 0:
+                    log.debug("Adding qtree table for filer %s", filer.name)
+                    qtree_tables.append( qtrees_table_template.safe_substitute(tblns) )
                     pass
                 pass
             pass
@@ -1112,9 +1115,9 @@ the host activation guides.
         """
         rows = []
         qtree_list = []
-        for vol in [ vol for vol in filer.volumes if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
-            log.debug("finding qtrees on volume: %s: %s", vol, vol.qtrees)
-            qtree_list.extend(vol.qtrees.values())
+        for vol in [ vol for vol in filer.get_volumes() if vol.type not in ['snapvaultdst', 'snapmirrordst'] ]:
+            log.debug("finding qtrees on volume: %s: %s", vol, vol.get_qtrees())
+            qtree_list.extend(vol.get_qtrees())
 
         for qtree in qtree_list:
             row = """
@@ -1218,9 +1221,15 @@ the host activation guides.
         rows = []
 
         # only create export definition for nfs volumes on primary filers
-        qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.filer.type in [ 'primary', ] ]
+        qtree_list = []
+        # select only volumes on filers of type 'filer'
+        volumes = [ x for x in self.project.get_volumes() if x.get_filer().type in ['filer'] and x.protocol == 'nfs' ]
+        for vol in volumes:
+            # only worry about NFS qtrees
+            qtree_list.extend(vol.get_qtrees())
+            pass
         
-        #qtree_list = [ x for x in self.conf.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
+        #qtree_list = [ x for x in self.project.get_site_qtrees(ns, site) if x.volume.proto == 'nfs' and x.volume.type not in [ 'snapvaultdst', 'snapmirrordst' ] ]
         for qtree in qtree_list:
             #log.debug("Adding NFS export definition for %s", qtree)
             # For each qtree, add a row for each host that needs to mount it
@@ -1230,7 +1239,7 @@ the host activation guides.
                 filerip = export.fromip
 
                 #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                mountopts = self.conf.get_host_qtree_mountoptions(export.tohost, qtree)
+                mountopts = self.project.get_host_qtree_mountoptions(export.tohost, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
 
                 # Optional IP address that should be used on the host to mount the storage
@@ -1254,7 +1263,7 @@ the host activation guides.
                 filerip = export.fromip
 
                 #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
-                mountopts = self.conf.get_host_qtree_mountoptions(export.tohost, qtree)
+                mountopts = self.project.get_host_qtree_mountoptions(export.tohost, qtree)
                 mountoptions = ''.join([ '<para>%s</para>' % x for x in mountopts ])
 
                 # Optional IP address that should be used on the host to mount the storage
@@ -1397,14 +1406,14 @@ the host activation guides.
             </table>
             """)
 
-        ns['iscsi_chap_username'] = self.conf.shortname
-        ns['iscsi_chap_password'] = self.conf.get_iscsi_chap_password(ns['iscsi_prefix'])
+        ns['iscsi_chap_username'] = self.project.shortname
+        ns['iscsi_chap_password'] = self.project.get_iscsi_chap_password(ns['iscsi_prefix'])
 
-        if len(self.conf.luns) > 0:
+        if len(self.project.luns) > 0:
             igroup_tables = []
             lun_tables = []
 
-            for filer in [ x for x in self.conf.filers.values() if x.type in ['primary', ] ]:
+            for filer in [ x for x in self.project.filers.values() if x.type in ['primary', ] ]:
                 log.debug("Finding igroups for filer %s...", filer.name)
                 tblns = {}
                 tblns['filer_name'] = filer.name
@@ -1436,7 +1445,7 @@ the host activation guides.
         """
         rows = []
 
-        igroup_list = self.conf.get_filer_iscsi_igroups(filer)
+        igroup_list = self.project.get_filer_iscsi_igroups(filer)
         for igroup in igroup_list:
             entries = "<entry><para>%s</para></entry>\n" % igroup.name
             entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % export.tohost.iscsi_initiator for export in igroup.exportlist ] )
@@ -1448,7 +1457,7 @@ the host activation guides.
 
     def get_iscsi_lun_rows(self, filer):
         rows = []
-        lunlist = self.conf.get_filer_luns(filer)
+        lunlist = self.project.get_filer_luns(filer)
         for lun in lunlist:
             log.debug("lun is: %s", lun)
             entries = "<entry><para>%s</para></entry>\n" % lun.full_path()
@@ -1474,7 +1483,7 @@ the host activation guides.
           
         </section>
         """)
-        if 'cifs' in self.conf.allowed_protocols:
+        if 'cifs' in self.project.allowed_protocols:
             log.debug("Configuring CIFS...")
             ns['cifs_ad_section'] = self.build_cifs_active_directory_section(ns)
             
@@ -1568,7 +1577,7 @@ the host activation guides.
 
         tables = []
 
-        for filer in [ x for x in self.conf.filers.values() if x.type in ['primary', 'nearstore',] ]:
+        for filer in [ x for x in self.project.filers.values() if x.type in ['primary', 'nearstore',] ]:
             log.debug("Adding AD config for filer: %s", filer.name)
             for vfiler in filer.vfilers.values():
                 tabns = {}
@@ -1635,9 +1644,9 @@ the host activation guides.
 
         tables = []
 
-        for filer in [ x for x in self.conf.filers.values() if x.type == 'primary' ]:
+        for filer in [ x for x in self.project.filers.values() if x.type == 'primary' ]:
             log.debug("Findings cifs qtrees on filer %s", filer.name)
-            cifs_qtrees = self.conf.get_cifs_qtrees(filer)
+            cifs_qtrees = self.project.get_cifs_qtrees(filer)
             if len(cifs_qtrees) > 0:
                 log.debug("Found CIFS exports on filer %s", filer)
 
@@ -1774,7 +1783,7 @@ the host activation guides.
         Build a list of snapvault rows based on the snapvault relationships
         defined in the configuration.
         """
-        snapvaults = self.conf.get_snapvaults(ns)
+        snapvaults = self.project.get_snapvaults(ns)
         rows = []
         for sv in snapvaults:
             entries = ''
@@ -1835,7 +1844,7 @@ the host activation guides.
         Build a list of snapmirror rows based on the snapmirror relationships
         defined in the configuration.
         """
-        snapmirrors = self.conf.get_snapmirrors(ns)
+        snapmirrors = self.project.get_snapmirrors(ns)
         rows = []
         for sm in snapmirrors:
             entries = ''
@@ -1874,30 +1883,30 @@ the host activation guides.
         activation_commands = ''
 
         # Build the commands for all primary filers
-        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'primary' ]:
+        for filer in [ x for x in self.project.filers.values() if x.site.type == 'primary' and x.type == 'primary' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.project.filers.values() if x.site.type == 'primary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'primary' and x.type == 'nearstore' ]:
+        for filer in [ x for x in self.project.filers.values() if x.site.type == 'primary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
         # Build the commands for all secondary filers
-        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'primary' ]:
+        for filer in [ x for x in self.project.filers.values() if x.site.type == 'secondary' and x.type == 'primary' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.project.filers.values() if x.site.type == 'secondary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.conf.filers.values() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
+        for filer in [ x for x in self.project.filers.values() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
             vfiler = filer.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
@@ -1919,7 +1928,7 @@ the host activation guides.
 
         # Volumes are not created on secondary filers
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.filer_vol_create_commands(filer) )
+            cmds = '\n'.join( self.project.filer_vol_create_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>Volume Creation</title>
             <screen>%s</screen>
@@ -1928,7 +1937,7 @@ the host activation guides.
         #
         # Create qtrees
         #
-        cmds = self.conf.filer_qtree_create_commands(filer)
+        cmds = self.project.filer_qtree_create_commands(filer)
         if len(cmds) > 0:
             cmd_ns['commands'] += """<section>
             <title>Qtree Creation</title>
@@ -1936,14 +1945,14 @@ the host activation guides.
             </section>""" % '\n'.join(cmds)
 
         # Create the vfiler VLAN
-        cmds = '\n'.join( self.conf.vlan_create_commands(filer, vfiler) )
+        cmds = '\n'.join( self.project.vlan_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>VLAN Creation</title>
         <screen>%s</screen>
         </section>""" % cmds
 
         # Create the vfiler IPspace
-        cmds = '\n'.join( self.conf.ipspace_create_commands(filer, vfiler) )
+        cmds = '\n'.join( self.project.ipspace_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>IP Space Creation</title>
         <screen>%s</screen>
@@ -1951,7 +1960,7 @@ the host activation guides.
 
         # Only create the vfiler on primary and nearstore filers
         if filer.type in [ 'primary', 'nearstore' ]:
-            cmds = '\n'.join( self.conf.vfiler_create_commands(filer, vfiler, ns) )
+            cmds = '\n'.join( self.project.vfiler_create_commands(filer, vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>vFiler Creation</title>
             <screen>%s</screen>
@@ -1959,7 +1968,7 @@ the host activation guides.
 
         # Don't add volumes on secondary filers
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.vfiler_add_volume_commands(filer, ns) )
+            cmds = '\n'.join( self.project.vfiler_add_volume_commands(filer, ns) )
             if len(cmds) > 0:
                 cmd_ns['commands'] += """<section>
                 <title>vFiler Volume Addition</title>
@@ -1967,7 +1976,7 @@ the host activation guides.
                 </section>""" % cmds
 
         # Add interfaces
-        cmds = '\n'.join( self.conf.vfiler_add_storage_interface_commands(filer, vfiler) )
+        cmds = '\n'.join( self.project.vfiler_add_storage_interface_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>Interface Configuration</title>
         <screen>%s</screen>
@@ -1975,7 +1984,7 @@ the host activation guides.
 
         # Configure secureadmin
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.vfiler_setup_secureadmin_ssh_commands(vfiler) )
+            cmds = '\n'.join( self.project.vfiler_setup_secureadmin_ssh_commands(vfiler) )
             cmd_ns['commands'] += """<section>
             <title>SecureAdmin Configuration</title>
             <para>Run the following commands to enable secureadmin within the vFiler:</para>
@@ -1983,14 +1992,14 @@ the host activation guides.
             </section>""" % cmds
 
         # Inter-project routing
-##         cmds = '\n'.join( self.conf.vfiler_add_inter_project_routing(vfiler) )
+##         cmds = '\n'.join( self.project.vfiler_add_inter_project_routing(vfiler) )
 ##         cmd_ns['commands'] += """<section>
 ##         <title>Inter-Project Routing</title>
 ##         <screen>%s</screen>
 ##         </section>""" % cmds
 
         if filer.type in [ 'primary', 'nearstore' ]:
-            cmds = '\n'.join( self.conf.vfiler_set_allowed_protocols_commands(vfiler, ns) )
+            cmds = '\n'.join( self.project.vfiler_set_allowed_protocols_commands(vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Allowed Protocols</title>
             <screen>%s</screen>
@@ -1998,7 +2007,7 @@ the host activation guides.
 
         # Careful! Quotas file is the verbatim file contents, not a list!
         if filer.type in ['primary', 'nearstore']:
-            cmds = '\n'.join( self.conf.vfiler_quotas_add_commands(filer, vfiler, ns) )
+            cmds = '\n'.join( self.project.vfiler_quotas_add_commands(filer, vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>Quota File Contents</title>
             <para>Run the following commands to create the quotas file <filename>/vol/%s_root/etc/quotas</filename>:
@@ -2007,7 +2016,7 @@ the host activation guides.
             </section>""" % ( ns['vfiler_name'], cmds )
 
             # Quota enablement
-            cmds = '\n'.join(self.conf.vfiler_quota_enable_commands(filer, vfiler))
+            cmds = '\n'.join(self.project.vfiler_quota_enable_commands(filer, vfiler))
             cmd_ns['commands'] += """<section>
             <title>Quota Enablement Commands</title>
             <para>Execute the following commands on the filer to enable quotas:
@@ -2016,14 +2025,14 @@ the host activation guides.
             </section>""" % cmds
 
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.filer_snapreserve_commands(filer, ns) )
+            cmds = '\n'.join( self.project.filer_snapreserve_commands(filer, ns) )
             cmd_ns['commands'] += """<section>
             <title>Snap Reserve Configuration</title>
             <screen>%s</screen>
             </section>""" % cmds
 
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.filer_snapshot_commands(filer, ns) )
+            cmds = '\n'.join( self.project.filer_snapshot_commands(filer, ns) )
             cmd_ns['commands'] += """<section>
             <title>Snapshot Configuration</title>
             <screen>%s</screen>
@@ -2031,25 +2040,25 @@ the host activation guides.
 
         # initialise the snapvaults to the nearstore
         if filer.type == 'nearstore':
-            cmds = '\n'.join( self.conf.filer_snapvault_init_commands(filer, ns) )
+            cmds = '\n'.join( self.project.filer_snapvault_init_commands(filer, ns) )
             cmd_ns['commands'] += """<section>
             <title>SnapVault Initialisation</title>
             <screen><?db-font-size 60%% ?>%s</screen>
             </section>""" % cmds
 
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.filer_snapvault_commands(filer, ns) )
+            cmds = '\n'.join( self.project.filer_snapvault_commands(filer, ns) )
             cmd_ns['commands'] += """<section>
             <title>SnapVault Configuration</title>
             <screen>%s</screen>
             </section>""" % cmds
 
         # initialise the snapmirrors to the DR site
-        if self.conf.has_dr:
+        if self.project.has_dr:
             if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
                 log.debug("initialising snapmirror on %s", filer.name)
 
-                cmds = '\n'.join( self.conf.filer_snapmirror_init_commands(filer) )
+                cmds = '\n'.join( self.project.filer_snapmirror_init_commands(filer) )
                 if len(cmds) > 0:
                     cmd_ns['commands'] += """<section>
                     <title>SnapMirror Initialisation</title>
@@ -2059,10 +2068,10 @@ the host activation guides.
                     log.debug("No SnapMirrors configured to filer '%s' at secondary site." % filer.name)
 
         # /etc/snapmirror additions
-        if self.conf.has_dr:
+        if self.project.has_dr:
             if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
 
-                cmds = self.conf.filer_etc_snapmirror_conf_commands(filer)
+                cmds = self.project.filer_etc_snapmirror_conf_commands(filer)
                 if len(cmds) > 0:
                     cmd_ns['commands'] += """<section>
                     <title>Filer <filename>/etc/snapmirror.conf</filename></title>
@@ -2072,7 +2081,7 @@ the host activation guides.
 
         # Add default route
         if filer.type in ['primary', 'nearstore']:
-            title, cmds = self.conf.default_route_command(filer, vfiler)
+            title, cmds = self.project.default_route_command(filer, vfiler)
             cmd_ns['commands'] += """<section>
             <title>%s</title>
             <screen>%s</screen>
@@ -2080,9 +2089,9 @@ the host activation guides.
 
         # Add services vlan routes if required
         if filer.type in ['primary', 'nearstore']:
-            services_vlans = self.conf.get_services_vlans(filer.site.type)
+            services_vlans = self.project.get_services_vlans(filer.site.type)
             if len(services_vlans) > 0:
-                cmds = self.conf.services_vlan_route_commands(vfiler)
+                cmds = self.project.services_vlan_route_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>Services VLAN routes</title>
                 <para>Use these commands to add routes into Services VLANs:</para>
@@ -2093,7 +2102,7 @@ the host activation guides.
 
         # /etc/hosts additions
         if not filer.type == 'secondary':
-            cmds = self.conf.vfiler_etc_hosts_commands(filer, vfiler)
+            cmds = self.project.vfiler_etc_hosts_commands(filer, vfiler)
             cmd_ns['commands'] += """<section>
             <title>vFiler <filename>/etc/hosts</filename></title>
             <para>Use these commands to create the vFiler's /etc/hosts file:</para>
@@ -2104,12 +2113,12 @@ the host activation guides.
         # The /etc/rc file needs certain pieces of configuration added to it
         # to make the configuration persistent.
         #
-        cmds = self.conf.filer_etc_rc_commands(filer, vfiler)
-##         cmds = self.conf.vlan_create_commands(filer, vfiler)
-##         cmds += self.conf.vfiler_add_storage_interface_commands(filer, vfiler)
-##         title, cmdlist = self.conf.default_route_command(filer, vfiler)
+        cmds = self.project.filer_etc_rc_commands(filer, vfiler)
+##         cmds = self.project.vlan_create_commands(filer, vfiler)
+##         cmds += self.project.vfiler_add_storage_interface_commands(filer, vfiler)
+##         title, cmdlist = self.project.default_route_command(filer, vfiler)
 ##         cmds += cmdlist
-##         cmds += self.conf.services_vlan_route_commands(vfiler)
+##         cmds += self.project.services_vlan_route_commands(vfiler)
 
         cmd_ns['commands'] += """<section>
         <title>Filer <filename>/etc/rc</filename> Additions</title>
@@ -2119,7 +2128,7 @@ the host activation guides.
 
         # NFS exports are only configured on primary filers
         if filer.type == 'primary':
-            cmdlist = self.conf.vfiler_nfs_exports_commands(filer, vfiler, ns)
+            cmdlist = self.project.vfiler_nfs_exports_commands(filer, vfiler, ns)
 
             # Only add the section if NFS commands exist
             if len(cmdlist) == 0:
@@ -2141,9 +2150,9 @@ the host activation guides.
                 </section>""" % cmds
 
         # CIFS exports are only configured on primary filers
-        if 'cifs' in self.conf.allowed_protocols:
+        if 'cifs' in self.project.allowed_protocols:
             if filer.type in ['primary', 'nearstore']:
-                cmds = self.conf.vfiler_cifs_dns_commands(vfiler)
+                cmds = self.project.vfiler_cifs_dns_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>CIFS DNS Configuration</title>
                 <para>Use these commands to configure the vFiler for DNS:</para>
@@ -2162,7 +2171,7 @@ the host activation guides.
 
             # Set up CIFS shares
             if filer.type in [ 'primary', ]:
-                cmds = self.conf.vfiler_cifs_shares_commands(vfiler)
+                cmds = self.project.vfiler_cifs_shares_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>CIFS Share Configuration</title>
                 <para>Set up CIFS for the vFiler. This is an interactive process.</para>
@@ -2170,18 +2179,18 @@ the host activation guides.
                 </section>""" % '\n'.join(cmds)
 
         # iSCSI exports are only configured on primary filers
-        if 'iscsi' in self.conf.allowed_protocols:
+        if 'iscsi' in self.project.allowed_protocols:
             if filer.type in [ 'primary', ]:
 
                 # iSCSI CHAP configuration
-                title, cmds = self.conf.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])
+                title, cmds = self.project.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])
                 cmd_ns['commands'] += """<section>
                 <title>%s</title>
                 <screen>%s</screen>
                 </section>""" % (title, '\n'.join(cmds) )
 
                 # iSCSI iGroup configuration
-                title, cmds = self.conf.vfiler_igroup_enable_commands(filer, vfiler)
+                title, cmds = self.project.vfiler_igroup_enable_commands(filer, vfiler)
                 if len(cmds) > 0:
                     cmd_ns['commands'] += """<section>
                     <title>%s</title>
@@ -2189,7 +2198,7 @@ the host activation guides.
                     </section>""" % (title, '\n'.join(cmds) )
 
                 # iSCSI LUN configuration
-                title, cmds = self.conf.vfiler_lun_enable_commands(filer, vfiler)
+                title, cmds = self.project.vfiler_lun_enable_commands(filer, vfiler)
                 if len(cmds) > 0:
                     cmd_ns['commands'] += """<section>
                     <title>%s</title>
@@ -2200,7 +2209,7 @@ the host activation guides.
         # Some options require previous pieces of configuration to exist before they work.
         # eg: dns.enable on requires /etc/resolv.conf to exist.
         if not filer.type == 'secondary':
-            cmds = '\n'.join( self.conf.vfiler_set_options_commands(vfiler, ns) )
+            cmds = '\n'.join( self.project.vfiler_set_options_commands(vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>vFiler Options</title>
             <screen>%s</screen>

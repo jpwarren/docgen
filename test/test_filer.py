@@ -59,7 +59,12 @@ class FilerTest(unittest.TestCase):
 """
         node = etree.fromstring(xmldata)
         filer = Filer()
-        self.failUnlessRaises(KeyError, filer.configure_from_node, node, self.defaults, self.site)
+        filer.configure_from_node(node, self.defaults, self.site)
+        
+        self.failUnlessEqual( filer.name, "testfiler1" )
+        self.failUnlessEqual( filer.type, "filer" )
+
+        #self.failUnlessRaises(KeyError, filer.configure_from_node, node, self.defaults, self.site)
 
     def test_create_filer_minimal(self):
         xmldata = """

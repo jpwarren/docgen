@@ -7,6 +7,11 @@ VFiler object definition
 """
 from base import DynamicNamedXMLConfigurable
 
+from lxml import etree
+# FIXME: Doing it this way means we can't override this in
+# a user defined plugin. Need the lookup table instead.
+from volume import Volume
+
 import debug
 import logging
 log = logging.getLogger('docgen')
@@ -128,7 +133,9 @@ class VFiler(DynamicNamedXMLConfigurable):
                 log.warn("No VLANs defined.")
                 self.vlan = None
             pass
-        
+
+        # Create a root volume if one hasn't been manually defined
+        self.create_root_volume(defaults)
 
     def name_dynamically(self, defaults):
         if getattr(self, 'name', None) is None:
@@ -153,6 +160,12 @@ class VFiler(DynamicNamedXMLConfigurable):
 
     def get_vlan(self):
         return self.vlan
+
+    def get_primary_ipaddr(self):
+        return [x for x in self.get_ipaddresss() if x.type == 'primary'][0]
+
+    def get_alias_ipaddrs(self):
+        return [x for x in self.get_ipaddresss() if x.type == 'alias']
     
     def netbios_name(self):
         """
@@ -220,6 +233,55 @@ class VFiler(DynamicNamedXMLConfigurable):
         except IndexError:
             raise IndexError("No root aggregates defined for vfiler: %s:%s" % (self.filer.name, self.name))
 
+    def create_root_volume(self, defaults):
+        """
+        Create a root volume for the vFiler if one hasn't
+        been manually defined
+        """
+        log.debug("No manually defined root volume. Creating one...")
+        ns = self.populate_namespace()
+        try:
+            volname = defaults.get('vfiler', 'root_volume_name') % ns
+        except (NoSectionError, NoOptionError):
+            volname = '%s_root' % self.name
+            pass
+
+        # FIXME: This can probably be improved somehow
+        usable = float(defaults.get('vfiler', 'root_volume_usable'))
+        aggr = self.get_root_aggregate()
+        log.debug("got root aggr")
+        xmldata = """<volume type="root" name="%s" usable="%s" raw="%s" />
+        """ % ( volname, usable, usable )
+        node = etree.fromstring(xmldata)
+        vol = Volume()
+        vol.configure_from_node(node, defaults, aggr)
+
+        vol.snapreserve = int(defaults.get('vfiler', 'root_volume_snapreserve'))
+        vol.space_guarantee = 'volume'
+
+        if defaults.getboolean('vfiler', 'backup_root_volume'):
+            log.warn("Request to back up vfiler root volume")
+
+        log.debug("Root volume: %s", vol)
+        # Add the volume as a child of the root aggregate
+        aggr.add_child(vol)
+        pass
+
+    def get_allowed_protocols(self):
+        """
+        Get all the protocols defined for me, and
+        turn them into pretty printed strings.
+        """
+        protos = []
+        for proto in self.get_protocols():
+            if proto == 'iscsi':
+                protos.append('iSCSI')
+            else:
+                proto = proto.name.upper()
+            protos.append(proto)
+            pass
+        return protos
+        
 def create_vfiler_from_node(node, defaults, site):
     vf = VFiler()
     vf.configure_from_node(node, defaults, site)

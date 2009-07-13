@@ -24,16 +24,16 @@ class Filer(DynamicNamedXMLConfigurable):
                    'aggregate',
                    ]
 
-    mandatory_attribs = [ 'name',
-                          'type',
-                          ]
+    mandatory_attribs = [
+        'name',
+        ]
 
     optional_attribs = [
+        'type',
+        'partner',
         ]
 
     def __init__(self):
-        self.name = None
-        self.type = None
         self.last_volnum = 0
 
         # If I have a cluster partner, who is it?
@@ -47,12 +47,21 @@ class Filer(DynamicNamedXMLConfigurable):
         
     def configure_from_node(self, node, defaults, site):
         self.site = site
-        
         DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, site)
 
-        if self.type not in self.FILER_TYPES:
-            raise ValueError("Filer type '%s' not a known Filer type" % self.type)
+    def configure_optional_attributes(self, node, defaults):
+        """
+        Do some extra parameter checking after configuring attributes
+        """
+        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        # Default filer type to 'filer'
+        if self.type is None:
+            self.type = defaults.get('filer', 'default_type')
 
+        # vfiler type must be one of the known types
+        if self.type not in self.FILER_TYPES:
+            raise ValueError("Filer '%s' type '%s' not valid" % ( self.name, self.type) )
+            
     def __str__(self):
         return '<Filer: %s (site:%s/type:%s)>' % (self.name, self.site, self.type)
 
@@ -97,7 +106,17 @@ class Filer(DynamicNamedXMLConfigurable):
             volumes.extend(vfiler.get_volumes())
             pass
         return volumes
-        
+
+    def get_allowed_protocols(self):
+        """
+        Get all the protocols defined anywhere in the project
+        """
+        protos = []
+        for vfiler in self.get_vfilers():
+            protos.extend( vfiler.get_allowed_protocols() )
+            pass
+        return protos
+    
 def create_filer_from_node(node, defaults, site):
     filer = Filer()
     filer.configure_from_node(node, defaults, site)

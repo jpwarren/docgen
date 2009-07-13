@@ -93,44 +93,33 @@ class Site(DynamicNamedXMLConfigurable):
             pass
         return volumes
 
-def create_site_from_node(node, defaults, parent):
+    def link_filer_clusters(self):
+        """
+        Once we've loaded all our children, link filer clusters
+        together, if they've been marked as being clustered.
+        """
+        for filer in self.get_filers():
+            if filer.partner is not None:
+                # Find the partner by name
+                try:
+                    filer.cluster_partner = [ x for x in self.get_filers() if x.name == filer.partner ][0]
+                except IndexError:
+                    raise ValueError("Filer '%s' partner '%s' not defined!" % (filer.name, filer.partner) )
+                pass
+            pass
+        pass
     
-#     # Site name is a new attribute, so allow a kind of backwards compatibility for now
-#     try:
-#         site_name = node.attrib['name']
-#     except KeyError:
-#         # FIXME: You can only guess the site name if it's
-#         # involved somehow in your filer naming convention.
-#         raise KeyError("Site name not set.")
-
-#     # Get the site type from the defaults if it isn't set
-#     try:
-#         site_type = node.attrib['type']
-
-#     except KeyError:
-#         site_type = defaults.get(site_name, 'type')
-
-#     # Get the site location from the defaults if it isn't set                
-#     try:
-#         site_location = node.attrib['location']
-#     except KeyError:
-#         site_location = defaults.get('site_%s' % site_name, 'location')
-#         pass
-
-#     # Add default site servers for CIFS
-#     # This should be added the DTD to allow manual override
-#     try:
-#         nameservers = defaults.get('site_%s' % site_name, 'nameservers').split()
-#     except ConfigParser.NoSectionError:
-#         nameservers = []
-#     try:
-#         winsservers = defaults.get('site_%s' % site_name, 'nameservers').split()
-#     except ConfigParser.NoSectionError:
-#         winsservers = []
-
+    def get_allowed_protocols(self):
+        """
+        Get all the protocols defined anywhere in the project
+        """
+        protos = []
+        for filer in self.get_filers():
+            protos.extend( filer.get_allowed_protocols() )
+            pass
+        return protos
+    
+def create_site_from_node(node, defaults, parent):
     site = Site()
-    #site = Site(site_name, site_type, site_location, nameservers, winsservers)
-
-    # configure child elements
     site.configure_from_node(node, defaults, parent)
     return site

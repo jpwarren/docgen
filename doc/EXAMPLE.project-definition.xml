@@ -13,7 +13,7 @@ file is well-formed and also a valid file.
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
 <!-- All projects contain one, and only one, 'project' tag -->
-<project name="eigenmagic" code="001">
+<project name="eigenmagic" code="001" title="">
 
   <!-- The background tag contains verbatim DocBook XML markup that is inserted
        into the Background section of the design document. Use this to insert some
@@ -214,7 +214,7 @@ file is well-formed and also a valid file.
 	 - The 'nearstore' filer, which is used for backups.
 	 The 'name' parameter is the unique name of the filer device.
     -->
-    <filer type="primary" name="sitea-fashda-01">
+    <filer type="filer" name="sitea-fashda-01">
 
       <!-- A vfiler must be defined for the primary.
 	   - If no 'name' attribute is specified, it defaults to the same
@@ -232,29 +232,22 @@ file is well-formed and also a valid file.
 	     This will automatically add any protocols you may have missed, so
 	     this tag is optional.
 	-->
-	<protocol>NFS</protocol>
-	<protocol>CIFS</protocol>
-
+<!--
+	<protocol name="nfs" />
+	<protocol name="cifs" />
+-->
 	<!--
-	    Each filer must have a primaryip. This is the IP address used to
+	    Each filer must have a primary ipaddress. This is the IP address used to
 	    provide the storage to the hosts.
-	    You will also need to supply the netmask.
 	-->
+        <ipaddress type="primary" ip="10.240.4.225"/>
 
-	<primaryip>
-	  <ipaddr>10.240.4.225</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
-
-	<!-- Define vlanip tags if you need a services VLAN.
+	<!-- Define service ipaddress if you need a services VLAN.
 	     This IP address will be added to the vfiler on an interface
 	     in the services VLAN so you can access external services, such
 	     as ActiveDirectory for doing CIFS authentication.
 	-->
-	<vlanip vlan='3544'>
-	  <ipaddr>10.10.10.15</ipaddr>
-	</vlanip>
-
+	<ipaddress type="service" vlan_number="3544" ip="10.10.10.15"/>
 
 	<!-- volumes exist within aggregates, so for each aggregate you
 	     want to use, define an aggregate like this.
@@ -513,12 +506,6 @@ file is well-formed and also a valid file.
 
     </filer>
 
-    <!-- The secondary filer is the cluster partner of the primary.
-	 Nothing else needs to be defined other than the filer, as
-	 the system assumes everything will match the primary filer.
-    -->
-    <filer type="secondary" name="sitea-fashdb-01"/>
-
     <!-- The nearstore filer is used for the backups from the primary filer.
 	 Very little needs to be defined for the nearstore, as most of the
 	 definitions are contained in the primary volumes and their references
@@ -529,13 +516,11 @@ file is well-formed and also a valid file.
       <!-- A vFiler with a rootaggr is required, so we know where to create
 	   the root volume. The name of the vFiler will match that of the primary filer.
       -->
-      <vfiler rootaggr="aggr09">
+      <vfiler>
+        <aggregate name="aggr09" type="root"/>
 
 	<!-- The NearStore has its own IP address in the project VLAN -->
-	<primaryip>
-	  <ipaddr>10.240.4.226</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.240.4.226" netmask="255.255.255.224"/>
       </vfiler>
     </filer>
 
@@ -607,24 +592,18 @@ The site type is 'secondary' for the DR site.
 	 as a result of the primary volume definitions and the snapvault/snapmirror
 	 relationships defined for them.
     -->
-    <filer type="primary" name="siteb-fashda-01">
-      <vfiler rootaggr="aggr02">
-	<primaryip>
-	  <ipaddr>10.241.XXX.1</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+    <filer type="filer" name="siteb-fashda-01" partner="siteb-fashdb-01">
+      <vfiler>
+        <aggregate name="aggr02" type="root"/>
+        <ipaddress type="primary" ip="10.240.XXX.1" netmask="255.255.255.224"/>
       </vfiler>
 
     </filer>
 
-    <filer type="secondary" name="siteb-fashdb-01"/>
-
     <filer type="nearstore" name="siteb-fasnst-01">
-      <vfiler rootaggr="aggr09">
-	<primaryip>
-	  <ipaddr>10.241.XXX.XXX</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+      <vfiler>
+        <aggregate name="aggr09" type="root"/>
+        <ipaddress type="primary" ip="10.241.XXX.XXX" netmask="255.255.255.224"/>
       </vfiler>
     </filer>
 

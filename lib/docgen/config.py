@@ -1523,11 +1523,6 @@ class ProjectConfig:
 
         return vols, volnum
 
-    def get_volume_totals(self, vol_list):
-        usable_total = sum( [ vol.usable for vol in vol_list ])
-        raw_total = sum( [ vol.raw for vol in vol_list ])
-        return usable_total, raw_total
-
     def get_nearstore_volumes(self, ns, sitetype='primary'):
         """
         Fetch all the nearstore volumes at site 'site'

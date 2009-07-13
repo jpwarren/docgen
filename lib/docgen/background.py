@@ -32,5 +32,6 @@ class Background(XMLConfigurable, DynamicNaming):
 
 def create_background_from_node(node, defaults, parent):
     background = Background()
-    return background.configure_from_node(node, defaults, parent)
+    background.configure_from_node(node, defaults, parent)
+    return background
         

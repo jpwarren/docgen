@@ -286,7 +286,7 @@ class Volume(DynamicNamedXMLConfigurable):
         return ns
 
     def get_filer(self):
-        return self.parent.filer
+        return self.parent.get_filer()
     
     def get_create_size(self):
         """

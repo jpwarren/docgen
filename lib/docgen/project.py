@@ -39,6 +39,16 @@ class Project(DynamicNamedXMLConfigurable):
         ns['project_code'] = self.code
         return ns
 
+    def get_hosts(self):
+        """
+        Find all the project hosts
+        """
+        objs = []
+        for site in self.get_sites():
+            objs.extend(site.get_hosts())
+            pass
+        return objs
+    
     def get_volumes(self):
         """
         Find all the project volumes
@@ -72,52 +82,27 @@ class Project(DynamicNamedXMLConfigurable):
         vlan = [ vlan for vlan in site.get_vlans() if vlan.type == 'project' ][0]
         return vlan
 
-    def get_services_vlans(self, site):
+    def get_services_vlans(self, site=None):
         """
         Return a list of all vlans of type 'services'
         """
-        return [ vlan for vlan in site.get_vlans() if vlan.type == 'service' ]
+        if site is None:
+            # In order to understand recursion, you must first understand recursion
+            vlans = []
+            for site in self.get_sites():
+                vlans.extend( self.get_services_vlans(site) )
+                pass
+            return vlans
+        else:
+            return [ vlan for vlan in site.get_vlans() if vlan.type == 'service' ]
 
-    def configure_from_node(self, node, defaults, parent):
-        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
-
-        self.create_vfiler_root_volumes(defaults)
-
-    def create_vfiler_root_volumes(self, defaults):
+    def get_allowed_protocols(self):
         """
-        All vFilers must have a root volume of some kind
+        Get all the protocols defined anywhere in the project
         """
+        protos = []
         for site in self.get_sites():
-            for filer in site.get_filers():
-                for vfiler in filer.get_vfilers():
-                    # Do some post configuration processing
-                    # If a root volume isn't manually defined, create one ourselves
-                    if [ x for x in vfiler.get_volumes() if x.type == 'root' ] == []:
-                        log.debug("No manually defined root volume. Creating one...")
-                        ns = vfiler.populate_namespace()
-                        try:
-                            volname = defaults.get('vfiler', 'root_volume_name') % ns
-                        except (NoSectionError, NoOptionError):
-                            volname = '%s_root' % vfiler.name
-                            pass
-
-                        # FIXME: This can probably be improved somehow
-                        usable = float(defaults.get('vfiler', 'root_volume_usable'))
-                        aggr = vfiler.get_root_aggregate()
-                        log.debug("got root aggr")
-                        xmldata = """<volume type="root" name="%s" usable="%s" raw="%s" />
-""" % ( volname, usable, usable )
-                        node = etree.fromstring(xmldata)
-                        vol = Volume()
-                        vol.configure_from_node(node, defaults, aggr)
-
-                        vol.snapreserve = int(defaults.get('vfiler', 'root_volume_snapreserve'))
-                        vol.space_guarantee = 'volume'
-
-                        if defaults.getboolean('vfiler', 'backup_root_volume'):
-                            log.warn("Request to back up vfiler root volume")
-
-                        log.debug("Root volume: %s", vol)
-                        # Add the volume as a child of the root aggregate
-
-                        aggr.add_child(vol)
+            protos.extend( site.get_allowed_protocols() )
+            pass
+        return protos
+            

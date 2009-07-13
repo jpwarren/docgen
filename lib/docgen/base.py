@@ -123,7 +123,7 @@ class XMLConfigurable:
 
             try:
                 setattr(self, attrib, node.attrib[attrib])
-            except KeyError:
+            except KeyError, e:
                 raise KeyError("'%s' node mandatory attribute '%s' not set" % (self.xmltag, attrib))
 
     def configure_optional_attributes(self, node, defaults):
@@ -235,7 +235,7 @@ class DocBookGenerator(FileOutputMixin):
 
 <!-- The name of the project that will appear on the front page -->
 <!ENTITY project.name "$project_name">
-<!ENTITY pmo.number "$pmo_number">
+<!ENTITY project.code "$project_code">
 
 <!-- The vfiler name for the project -->
 <!ENTITY vfiler.name "$vfiler_name">
@@ -513,8 +513,8 @@ ${abstract}
   </preface>
 ''')
     
-    def __init__(self, conf):
-        self.conf = conf
+    def __init__(self, project):
+        self.project = project
 
     def emit(self, defaults, outfile=None, versioned=False, ns={}):
         """
@@ -523,7 +523,7 @@ ${abstract}
         ns['copyright_holder'] = defaults.get('global', 'copyright_holder')
         ns['iscsi_prefix'] = defaults.get('global', 'iscsi_prefix')
 
-        book = self.build_book(ns)
+        book = self.build_book(defaults, ns)
         if outfile is None:
             sys.stdout.write(book)
             pass
@@ -536,7 +536,7 @@ ${abstract}
             outf.close()
             pass
 
-    def build_book(self, ns={}):
+    def build_book(self, defaults, ns={}):
         """
         Build up a book from its component elements.
         """
@@ -544,58 +544,35 @@ ${abstract}
             ns['title'] = 'DocGen Automated Document'
             
         ns['docgen_revision'] = __version__
-        ns['project_name'] = self.conf.longname
-        ns['pmo_number'] = self.conf.code
-        ns['vfiler_name'] = self.conf.shortname
-        ns['primary_project_vlan'] = self.conf.primary_project_vlan
+        ns['project_name'] = getattr(self.project, 'title', '')
+        ns['project_code'] = getattr(self.project, 'code', '')
+        ns['vfiler_name'] = getattr(self.project, 'name', '')
 
-        ns['primary_filer_name'] = self.conf.get_filers('primary', 'primary')[0].name
-        ns['secondary_filer_name'] = self.conf.get_filers('primary', 'secondary')[0].name
-        ns['nearstore_filer_name'] = self.conf.get_filers('primary', 'nearstore')[0].name
-        ns['primary_storage_ip'] = self.conf.get_filers('primary', 'primary')[0].vfilers.values()[0].ipaddress
-        ns['nearstore_storage_ip'] = self.conf.get_filers('primary', 'nearstore')[0].vfilers.values()[0].ipaddress
-
-        if self.conf.has_dr:
-            try:
-                ns['secondary_project_vlan'] = self.conf.secondary_project_vlan
-
-                ns['dr_primary_filer_name'] = self.conf.get_filers('secondary', 'primary')[0].name
-                ns['dr_secondary_filer_name'] = self.conf.get_filers('secondary', 'secondary')[0].name
-                ns['dr_nearstore_filer_name'] = self.conf.get_filers('secondary', 'nearstore')[0].name
-
-                ns['dr_primary_storage_ip'] = self.conf.get_filers('secondary', 'primary')[0].vfilers.values()[0].ipaddress
-                ns['dr_nearstore_storage_ip'] = self.conf.get_filers('secondary', 'nearstore')[0].vfilers.values()[0].ipaddress
-
-            except IndexError, e:
-                log.error("DR filer details not supplied.")
-                raise
-
-        
         ns['book_content'] = self.build_book_content(ns)
         return self.bookstr.safe_substitute( ns )
 
-    def build_bookinfo(self, ns={}):
+    def build_bookinfo(self, defaults, ns={}):
         """
         Build the bookinfo section at the beginning of the book.
         """
-        ns['copyright'] = self.build_copyright(ns)
-        ns['legalnotice'] = self.build_legalnotice(ns)
+        ns['copyright'] = self.build_copyright(defaults, ns)
+        ns['legalnotice'] = self.build_legalnotice(defaults, ns)
         ns['releaseinfo'] = self.build_releaseinfo(ns)
         ns['revhistory'] = self.build_revhistory(ns)
         ns['abstract'] = self.build_abstract(ns)
 
-        ns['doc_owner_firstname'] = self.conf.defaults.get('document_control', 'owner_firstname')
-        ns['doc_owner_surname'] = self.conf.defaults.get('document_control', 'owner_surname')
-        ns['doc_owner_email'] = self.conf.defaults.get('document_control', 'owner_email')
-        ns['doc_department'] = self.conf.defaults.get('document_control', 'department')
+        ns['doc_owner_firstname'] = defaults.get('document_control', 'owner_firstname')
+        ns['doc_owner_surname'] = defaults.get('document_control', 'owner_surname')
+        ns['doc_owner_email'] = defaults.get('document_control', 'owner_email')
+        ns['doc_department'] = defaults.get('document_control', 'department')
         
         bookinfo = self.bookinfo.safe_substitute(ns)
         return bookinfo
 
-    def build_legalnotice(self, ns={}):
+    def build_legalnotice(self, defaults, ns={}):
         return self.legalnotice.safe_substitute(ns)
 
-    def build_copyright(self, ns={}):
+    def build_copyright(self, defaults, ns={}):
         ns['copyright_year'] = datetime.now().strftime('%Y')
         return self.copyright.safe_substitute(ns)
 
@@ -608,8 +585,8 @@ ${abstract}
 
         revisionlist = []
         revstring = ''
-        for rev in self.conf.revlist:
-            revstring = "<revnumber>%s.%s</revnumber>\n" % (rev.majornum, rev.minornum)
+        for rev in self.project.get_revisions():
+            revstring = "<revnumber>%s.%s</revnumber>\n" % (rev.majornumber, rev.minornumber)
             revstring += "<date>%s</date>\n" % rev.date
             revstring += "<authorinitials>%s</authorinitials>\n" % rev.authorinitials
             revstring += "<revremark>%s</revremark>\n" % rev.revremark
@@ -650,9 +627,9 @@ ${abstract}
         Build the document control pages.
         """
         revision_list = []
-        for rev in self.conf.revlist:
+        for rev in self.project.get_revisions():
             revision_content = ''
-            revision_content += '<entry><para>v%s.%s</para></entry>\n' % (rev.majornum, rev.minornum)
+            revision_content += '<entry><para>v%s.%s</para></entry>\n' % (rev.majornumber, rev.minornumber)
             revision_content += '<entry><para>%s</para></entry>\n' % rev.revremark
             revision_content += '<entry><para>%s</para></entry>\n' % rev.authorinitials
             revision_content += '<entry><para>%s</para></entry>\n' % rev.date
