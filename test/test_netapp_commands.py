@@ -108,7 +108,7 @@ class NetAppComponentTest(NetAppTestBase):
 
         commands = self.docgenerator.filer_vol_create_commands(self.filer)
         self.failUnlessEqual(commands,
-                             ['vol create vftest_root -s volume aggr01 25m',
+                             ['vol create vftest_root -s volume aggr01 20m',
                               'vol options convert_ucode on',
                               'vol options nvfail on',
                               'vol options create_ucode on']

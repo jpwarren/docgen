@@ -1,10 +1,12 @@
 <!-- An XML document used for testing DR host exports -->
 
-<project name="MyPrefix" code="test">
-
-  <title>Test Project</title>
+<project name="MyPrefix" code="test" title="Test Project">
 
   <site name='primary' type='primary' location='primary'>
+
+    <vlan type="project" number="3003">
+      <network number="10.240.4.0/26" gateway="10.240.4.254"/>
+    </vlan>
 
     <host name="testhost01"
           platform="Sun"
@@ -23,22 +25,16 @@
 
     </host>
 
-    <vlan type="project" number="3003" network="10.240.4.64/27" gateway="10.240.4.254"/>
-
-    <filer type='filer' name='primary-filer-01'>
-      <vfiler rootaggr='aggr00'>
+    <filer type="filer" name="primary-filer-01">
+      <vfiler>
         <aggregate type="root" name="aggr00"/>
 
-	<primaryip>
-	  <ipaddr>10.240.4.225</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.240.4.225"/>
 
-	<aggregate name='aggr01'>
-	  <volume name='testvol01'>
-	    <usablestorage>10</usablestorage>
-	    <export to='testhost01'/>
-	    <snapmirrorsetref name="default_sm"/>
+	<aggregate name="aggr01">
+	  <volume name="testvol01" usablestorage="10">
+	    <export to="testhost01"/>
+	    <setref type="snapmirror" name="default_sm"/>
 	  </volume>
 
 	</aggregate>
@@ -50,10 +46,8 @@
       <vfiler>
         <aggregate type="root" name="aggr00"/>
 
-	<primaryip>
-	  <ipaddr>10.240.4.226</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.240.4.226"/>
+
       </vfiler>
     </filer>
 
@@ -61,7 +55,9 @@
 
   <site name="dr" type='secondary' location='secondary'>
 
-    <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
+    <vlan type="project" number="3113">
+      <network number="10.240.8.15/27" gateway="10.241.XXX.XXX"/>
+    </vlan>
 
     <host name="dr_testhost01"
           platform="Sun"
@@ -81,11 +77,7 @@
     <filer type='filer' name='secondary-filer-01'>
       <vfiler>
         <aggregate type="root" name="aggr00"/>
-	<primaryip>
-	  <ipaddr>10.240.4.231</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
-
+        <ipaddress type="primary" ip="10.240.4.231"/>
       </vfiler>
     </filer>
 
@@ -93,10 +85,8 @@
       <vfiler>
         <aggregate type="root" name="aggr00"/>
 
-	<primaryip>
-	  <ipaddr>10.240.4.232</ipaddr>
-	  <netmask>255.255.255.224</netmask>
-	</primaryip>
+        <ipaddress type="primary" ip="10.240.4.232"/>
+
       </vfiler>
     </filer>
 
