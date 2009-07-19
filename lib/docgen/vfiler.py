@@ -14,6 +14,7 @@ from base import DynamicNamedXMLConfigurable
 # a user defined plugin. Need the lookup table instead.
 from volume import Volume
 from aggregate import Aggregate
+from export import Export
 
 import debug
 import logging
@@ -316,6 +317,32 @@ class VFiler(DynamicNamedXMLConfigurable):
             protos.append(proto)
             pass
         return protos
+
+    def get_exports(self):
+        """
+        Find all the export objects for this vFiler's volumes/qtrees
+        """
+        all_exports = []
+        for vol in self.get_volumes():
+            log.debug("Finding qtrees: %s", vol.get_qtrees())
+            for qtree in vol.get_qtrees():
+                log.debug("Finding exports")
+                exports = qtree.get_exports()
+                if len(exports) == 0:
+                    all_exports.extend( self.get_default_exports() )
+                else:
+                    all_exports.extend( exports )
+                    pass
+                pass
+            pass
+        return all_exports
+
+    def get_site(self):
+        return self.parent.get_site()
+                    
+    def get_default_exports(self):
+        exports = [ Export(type='rw', tohost=host, fromip=self.get_primary_ipaddr().ip) for host in self.get_site().get_hosts() ]
+        return exports
         
 def create_vfiler_from_node(node, defaults, site):
     vf = VFiler()

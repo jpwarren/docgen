@@ -4,24 +4,54 @@
 Host related design objects.
 Hosts are things like client servers that make use of storage.
 """
-from zope.interface import implements
-
-from docgen.interfaces import IDynamicNaming, IXMLConfigurable
-from docgen.base import XMLConfigurable, DynamicNaming
+from docgen.base import DynamicNamedXMLConfigurable
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Host(XMLConfigurable):
+class Host(DynamicNamedXMLConfigurable):
     """
     A host definition
     """
-    implements(IDynamicNaming)
-
     xmltag = 'host'
+
+    child_tags = [
+        'netinterface',
+        'drhost',
+        ]
+
+    mandatory_attribs = [
+        'name',
+        'operatingsystem',
+        ]
     
-    def __init__(self, name, platform, os, site, location=None, description='',
+    optional_attribs = [
+        'platform',
+        'description',
+        'location',
+        'is_virtual',
+        'iscsi_initiator',
+        ]
+
+    def configure_optional_attributes(self, node, defaults):
+        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+
+        # If the location for the host is set, use that, else
+        # default to the same location as the containing site
+        if self.location is None:
+            location = self.parent.location
+
+        # Is the host virtual or physical?
+        if self.is_virtual is None:
+            self.is_virtual = False
+        elif self.is_virtual.lower() == 'yes':
+            self.is_virtual = True
+            log.debug("Host '%s' is virtual.", hostname)
+        else:
+            self.is_virtual = False
+    
+    def _depr__init__(self, name, platform, os, site, location=None, description='',
                  drhostnames=[],
                  iscsi_initiator=None,
                  is_virtual=False,
@@ -53,7 +83,7 @@ class Host(XMLConfigurable):
         log.debug("Created host: %s", self)
 
     def __str__(self):
-        return "<Host: %s (%s, %s)>" % (self.name, self.os, self.location)
+        return "<Host: %s>" % (self.name, )
 
     def get_interfaces(self):
         return host.children['netinterface']
@@ -98,55 +128,7 @@ def create_host_from_node(node, defaults, site):
     """
     Create a Host object from a node definition
     """
-    # find some mandatory attributes
-    try:
-        hostname = node.attrib['name']
-    except KeyError:
-        raise KeyError("Host node has no 'name' attribute")
-
-    host_attribs = {}
-    for attribname in ['platform', 'operatingsystem']:
-        try:
-            host_attribs[attribname] = node.attrib[attribname]
-        except KeyError, e:
-            raise KeyError("Cannot find attribute '%s' for host '%s'" % (attribname, hostname))
-        pass
-
-    # If the location for the host is set, use that, else
-    # default to the same location as the containing site
-    try:
-        location = node.attrib['location']
-    except KeyError, e:
-        location = site.location
-        
-    try:
-        is_virtual = node.attrib['virtual']
-        if is_virtual.lower() == 'yes':
-            is_virtual=True
-            log.debug("Host '%s' is virtual.", hostname)
-        else:
-            is_virtual=False
-    except KeyError:
-        is_virtual=False
-
-    try:
-        description = node.find('description').text
-    except AttributeError:
-        description = ''
-
-    try:
-        iscsi_initiator = node.find('iscsi_initiator').text
-    except AttributeError:
-        iscsi_initiator = None
-
-    drhostnodes = node.findall('drhost')
-    drhosts = [ host.attrib['name'] for host in drhostnodes ]
-
-    host = Host(hostname, host_attribs['platform'],
-                host_attribs['operatingsystem'],
-                site, location, description, hostnode=node)
-    
+    host = Host()
     # Load host interfaces, etc.
     host.configure_from_node(node, defaults, site)
-
     return host

@@ -3,10 +3,12 @@
 """
 NetApp Volumes
 """
+from ConfigParser import NoSectionError, NoOptionError
+from lxml import etree
+
 from docgen.base import DynamicNamedXMLConfigurable
 from docgen import util
-
-from ConfigParser import NoSectionError, NoOptionError
+from docgen.qtree import Qtree
 
 import logging
 import debug
@@ -37,6 +39,7 @@ class Volume(DynamicNamedXMLConfigurable):
         'suffix',
         'type',
         'usable',
+        'raw',
         'snapreserve',
         'iscsi_snapspace',
         'snapstorage',
@@ -152,13 +155,9 @@ class Volume(DynamicNamedXMLConfigurable):
 
         self.volnode = node
 
-#         if self.name.endswith("root"):
-#             self.filer.volumes.insert(0, self)
-#         else:
-#             self.filer.volumes.append(self)
-#             pass
-
-#        self.filer.site.volumes.append(self)
+        # If volume export is not allowed, check that qtrees exist in the
+        # volume. If not, create a single default data qtree.
+        self.check_volume_export_allowed(defaults)
 
         self.autosize = None
         self.autodelete = None
@@ -201,15 +200,15 @@ class Volume(DynamicNamedXMLConfigurable):
         # If neither of these are set, it will be set to the default
         try:
             self.protocol = node.attrib['protocol'].lower()
-            log.debug("Proto defined for volume: %s", proto)
+            log.debug("Proto defined for volume: %s", self.protocol)
 
         except KeyError:
             try:
-                protocol = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
-                #log.debug("Found proto in vfiler ancestor: %s", proto)
+                self.protocol = node.xpath("ancestor::*/vfiler/protocol/text()")[0].lower()
+                #log.debug("Found proto in vfiler ancestor: %s", self.protocol)
             except IndexError:
-                protocol = defaults.get('protocol', 'default_storage_protocol')
-                #log.debug("Proto set to default: %s", proto)
+                self.protocol = defaults.get('protocol', 'default_storage_protocol')
+                log.debug("Proto set to default: %s", self.protocol)
             
         # Set snapreserve and iSCSI snapspace
         if getattr(self, 'snapreserve', None) is None:
@@ -246,7 +245,9 @@ class Volume(DynamicNamedXMLConfigurable):
                 self.raw = self.usable / ( (100 - float(self.snapreserve) )/100 )
             except ZeroDivisionError, e:
                 log.critical("snapreserve of 100% is not a valid value. You probably mean 50%.")
-                raise ConfigInvalid(e)
+                raise ZeroDivisionError(e)
+        else:
+            self.raw = float(self.raw)
             
         # Default volume space guarantee setting is 'volume',
         # but for NearStores we want the space guarantee to be 'none',
@@ -340,6 +341,31 @@ class Volume(DynamicNamedXMLConfigurable):
 
     def get_iscsi_usable(self):
         return self.iscsi_usable
+
+    def check_volume_export_allowed(self, defaults):
+        """
+        Check to see if the volume itself is allowed to be exported.
+        If not, check that qtrees exist in the volume. If they don't,
+        then we create a default data qtree that can be exported.
+        """
+        try:
+            vol_export_allowed = defaults.getboolean('volume', 'allow_volume_export')
+        except (NoOptionError, NoSectionError), e:
+            # assume no
+            vol_export_allowed = False
+            pass
+
+        if not vol_export_allowed and not self.type == 'root':
+            log.debug("volume export not allowed. checking for qtrees...")
+            if len(self.get_qtrees()) == 0:
+                log.debug("No qtrees.")
+                # Create a qtree and add it to myself.
+                xmldata = """<qtree/>"""
+                node = etree.fromstring(xmldata)
+                qtree = Qtree()
+                qtree.configure_from_node(node, defaults, self)
+                self.add_child(qtree)
+                log.debug("Added a default qtree for export: %s, %s", qtree, self.get_qtrees())
 
 class VolumeAutoSize:
     """

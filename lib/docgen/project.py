@@ -105,4 +105,4 @@ class Project(DynamicNamedXMLConfigurable):
             protos.extend( site.get_allowed_protocols() )
             pass
         return protos
-            
+

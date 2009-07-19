@@ -3,9 +3,9 @@
 """
 NetApp Qtree object
 """
-from docgen.base import DynamicNamedXMLConfigurable
-
 from ConfigParser import NoSectionError, NoOptionError
+
+from docgen.base import DynamicNamedXMLConfigurable
 
 import logging
 import debug
@@ -17,6 +17,7 @@ class Qtree(DynamicNamedXMLConfigurable):
 
     child_tags = [
         'lun',
+        'export',
         'exportalias',
         ]
 

@@ -28,15 +28,6 @@ class NetAppCommandsGenerator(CommandGenerator):
     A generator for creating the commandlines required to activate a project
     on NetApp equipment.
     """
-    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler, prefix):
-        """
-        Return the commands required to enable the vfiler configuration
-        """
-        title = "iSCSI CHAP Configuration for %s" % filer.name
-        cmds = []
-        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p %s" % (vfiler.name, vfiler.name, self.get_iscsi_chap_password(prefix) ) )
-        return title, cmds
-
     def emit(self, outfile=None, versioned=False, ns={}):
 
         ns['iscsi_prefix'] = self.defaults.get('global', 'iscsi_prefix')
@@ -161,36 +152,35 @@ class NetAppCommandsGenerator(CommandGenerator):
 
         if filer.is_active_node:
             commands.append("\n# Allowed Protocols\n")
-            commands.extend( self.vfiler_set_allowed_protocols_commands(vfiler, ns) )
+            commands.extend( self.vfiler_set_allowed_protocols_commands(vfiler) )
 
         # Careful! Quotas file is the verbatim file contents, not a list!
         if filer.is_active_node:
             commands.append("\n# Quota File Contents\n")
-            commands.extend( self.vfiler_quotas_add_commands(filer, vfiler, ns) )
+            commands.extend(self.vfiler_quotas_add_commands(filer, vfiler) )
 
             commands.append("\n# Quota Enablement Commands\n")
-            commands.extend(self.vfiler_quota_enable_commands(filer, vfiler))
+            commands.extend(self.vfiler_quotas_enable_commands(filer, vfiler))
 
-        # FIXME: What exactly is this for?
+        # Set the snapreserves for all the volumes
         if filer.is_active_node and filer.type == 'filer':
             commands.append("\n# Snap Reserve Configuration\n")
-            commands.extend( self.filer_snapreserve_commands(filer, ns) )
+            commands.extend( self.filer_snapreserve_commands(filer) )
 
-        # FIXME: What exactly is this for?
+        # Set up the local snapshot schedules
         if filer.is_active_node and filer.type == 'filer':
             commands.append("\n# Snapshot Configuration\n")
-            commands.extend( self.filer_snapshot_commands(filer, ns) )
+            commands.extend( self.filer_snapshot_commands(filer) )
 
         # initialise the snapvaults to the nearstore
         if filer.is_active_node and filer.type == 'nearstore':
             commands.append("\n# SnapVault Initialisation\n")
-            commands.extend( self.filer_snapvault_init_commands(filer, ns) )
+            commands.extend( self.filer_snapvault_init_commands(filer) )
 
-        # FIXME: What exactly is this?
-        # Followed by the primary configuration?
+        # Set up the primary side of the snapvault configuration
         if filer.is_active_node and filer.type == 'filer':
             commands.append("\n# SnapVault Configuration\n")
-            commands.extend( self.filer_snapvault_commands(filer, ns) )
+            commands.extend( self.filer_snapvault_commands(filer) )
 
         # initialise the snapmirrors to the DR site
         # FIXME: Detect multiple site configuration somehow
@@ -239,7 +229,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         # NFS exports are only configured on primary filers.
         # NearStores are only exported temporarily for restore purposes.
         if filer.type == 'primary':
-            cmdlist = self.project.vfiler_nfs_exports_commands(filer, vfiler, ns)
+            cmdlist = self.project.vfiler_nfs_exports_commands(filer, vfiler)
 
             # Only add the section if NFS commands exist
             if len(cmdlist) == 0:
@@ -434,7 +424,7 @@ class NetAppCommandsGenerator(CommandGenerator):
 
         return cmdset
 
-    def ipspace_create_commands(self, filer, ns):
+    def ipspace_create_commands(self, filer):
         """
         Determine how to create the ipspace for the filer.
         """
@@ -476,8 +466,8 @@ class NetAppCommandsGenerator(CommandGenerator):
             try:
                 ipaddress = [ x for x in vfiler.get_ipaddresss() if x.type == 'primary' ][0]
                 cmd = "ifconfig svif0-%s %s netmask %s mtusize %s up" % (vfiler.vlan.number,
-                                                                         ipaddress,
-                                                                         vfiler.netmask,
+                                                                         ipaddress.ip,
+                                                                         ipaddress.netmask,
                                                                          mtu)
             except IndexError:
                 raise IndexError("No primary IP address defined for vfiler: %s:%s" % (filer.name, vfiler.name))
@@ -529,7 +519,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         cmdset.append('vfiler run %s secureadmin setup -q ssh 768 512 768' % vfiler.name)
         return cmdset
 
-    def filer_snapreserve_commands(self, filer, ns):
+    def filer_snapreserve_commands(self, filer):
         cmdset = []
 
         for vol in filer.get_volumes():
@@ -540,7 +530,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         #log.debug('\n'.join(cmdset))
         return cmdset
 
-    def filer_snapshot_commands(self, filer, ns):
+    def filer_snapshot_commands(self, filer):
         """
         Filer snapshot configuration commands for the project
         """
@@ -564,7 +554,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         #log.debug('\n'.join(cmdset))
         return cmdset
 
-    def filer_snapvault_commands(self, filer, ns):
+    def filer_snapvault_commands(self, filer):
         cmdset = []
         for vol in filer.get_volumes():
             if len(vol.snapvaults) > 0:
@@ -604,7 +594,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         #log.debug('\n'.join(cmdset))
         return cmdset
 
-    def filer_snapvault_init_commands(self, filer, ns):
+    def filer_snapvault_init_commands(self, filer):
         """
         Commands used to initialise the snapvaults.
         We need to make sure we only attempt to initilise each
@@ -811,7 +801,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         
         return cmdset
             
-    def vfiler_set_allowed_protocols_commands(self, vfiler, ns):
+    def vfiler_set_allowed_protocols_commands(self, vfiler):
         cmdset = []
 
         # first, disallow everything
@@ -858,7 +848,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         #log.debug( '\n'.join(cmdset) )
         return cmdset
 
-    def vfiler_quotas_file_contents(self, filer, vfiler, ns):
+    def vfiler_quotas_file_contents(self, filer, vfiler):
         """
         Generate the /etc/quotas file contents for the vfiler
         """
@@ -876,12 +866,12 @@ class NetAppCommandsGenerator(CommandGenerator):
         #log.debug(quota_file)
         return quota_file
 
-    def vfiler_quotas_add_commands(self, filer, vfiler, ns):
+    def vfiler_quotas_add_commands(self, filer, vfiler):
         """
         Return a list of commands that can be used to activate the quotas
         """
         cmdset = []
-        file_contents = self.vfiler_quotas_file_contents(filer, vfiler, ns)
+        file_contents = self.vfiler_quotas_file_contents(filer, vfiler)
         for line in file_contents.split('\n'):
             if len(line) == 0:
                 continue
@@ -892,7 +882,7 @@ class NetAppCommandsGenerator(CommandGenerator):
 
         return cmdset
         
-    def vfiler_quota_enable_commands(self, filer, vfiler):
+    def vfiler_quotas_enable_commands(self, filer, vfiler):
         cmdset = []
         for vol in [x for x in filer.get_volumes() if x.type not in ['snapmirrordst']]:
             if not vol.name.endswith('root'):
@@ -901,7 +891,7 @@ class NetAppCommandsGenerator(CommandGenerator):
             pass
         return cmdset
     
-    def vfiler_nfs_exports_commands(self, filer, vfiler, ns):
+    def vfiler_nfs_exports_commands(self, filer, vfiler):
         """
         Provide a list of nfs export commands.
         We need to change into the vfiler context to run these commands.
@@ -909,9 +899,9 @@ class NetAppCommandsGenerator(CommandGenerator):
         cmdset = []
         #cmdset.append("vfiler context %s" % vfiler.name)
         log.debug("Finding NFS exports for filer: %s", filer.name)
-        for vol in [ x for x in filer.get_volumes() if x.proto == 'nfs' ]:
+        for vol in [ x for x in filer.get_volumes() if x.protocol == 'nfs' ]:
             log.debug("Found volume: %s", vol)
-            for qtree in vol.qtrees.values():
+            for qtree in vol.get_qtrees():
                 log.debug("exporting qtree: %s", qtree)
 
                 # Find read/write exports
@@ -1011,6 +1001,15 @@ class NetAppCommandsGenerator(CommandGenerator):
 ##                     cmds.append("vfiler run %s cifs access %s CORP\%s rx" % (vfiler.name, qtree.cifs_share_name(), host.name ) )
 
         return cmds
+
+    def vfiler_iscsi_chap_enable_commands(self, filer, vfiler, prefix):
+        """
+        Return the commands required to enable the vfiler configuration
+        """
+        title = "iSCSI CHAP Configuration for %s" % filer.name
+        cmds = []
+        cmds.append("vfiler run %s iscsi security default -s CHAP -n %s -p %s" % (vfiler.name, vfiler.name, self.get_iscsi_chap_password(prefix) ) )
+        return title, cmds
 
     def vfiler_igroup_enable_commands(self, filer, vfiler):
         """

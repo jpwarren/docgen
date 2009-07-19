@@ -38,6 +38,11 @@
 
         <aggregate type="root" name="aggr01"/>
 
+        <aggregate name="aggr02">
+          <volume>
+          </volume>
+        </aggregate>
+
       </vfiler>
     </filer>
 

@@ -90,6 +90,9 @@ class Filer(DynamicNamedXMLConfigurable):
     def get_filer(self):
         return self
 
+    def get_site(self):
+        return self.parent
+    
     def get_next_volnum(self):
         self.last_volnum += 1
         return self.last_volnum
