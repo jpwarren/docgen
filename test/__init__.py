@@ -1,0 +1,3 @@
+#
+# DocGen test suite package
+#

@@ -74,7 +74,9 @@ class HostTest(unittest.TestCase):
         xmlfile = os.path.join(XML_FILE_LOCATION, 'host_named_os.xml')
         tree = etree.parse(xmlfile)
         node = tree.getroot()
-        self.failUnlessRaises(KeyError, host.create_host_from_node, node, self.defaults, self.sitea)
+        hostobj = host.create_host_from_node(node, self.defaults, self.sitea)
+        self.failUnlessEqual(hostobj.name, 'fred')
+        self.failUnlessEqual(hostobj.operatingsystem, 'Linux')
 
     def test_named_host_os_platform(self):
         """
@@ -85,5 +87,5 @@ class HostTest(unittest.TestCase):
         node = tree.getroot()
         hostobj = host.create_host_from_node(node, self.defaults, self.sitea)
         self.failUnlessEqual(hostobj.name, 'fred')
-        self.failUnlessEqual(hostobj.os, 'Linux')
-        self.failUnlessEqual(hostobj.name, 'fred')
+        self.failUnlessEqual(hostobj.operatingsystem, 'Linux')
+        self.failUnlessEqual(hostobj.platform, 'intel')

@@ -230,7 +230,7 @@ class VFiler(DynamicNamedXMLConfigurable):
 
     def get_volumes(self):
         """
-        Find all the project volumes
+        Find all the volumes on this vFiler
         """
         volumes = []
         for aggr in self.get_aggregates():
@@ -238,6 +238,16 @@ class VFiler(DynamicNamedXMLConfigurable):
             pass
         return volumes
 
+    def get_qtrees(self):
+        """
+        Find all the qtrees on this vFiler        
+        """
+        qtrees = []
+        for vol in self.get_volumes():
+            qtrees.extend( vol.get_qtrees() )
+            pass
+        return qtrees
+    
     def get_root_aggregate(self):
         """
         Get the root aggregate for the vfiler
@@ -328,19 +338,39 @@ class VFiler(DynamicNamedXMLConfigurable):
             for qtree in vol.get_qtrees():
                 log.debug("Finding exports")
                 exports = qtree.get_exports()
-                if len(exports) == 0:
-                    all_exports.extend( self.get_default_exports() )
-                else:
-                    all_exports.extend( exports )
-                    pass
+                all_exports.extend( exports )
                 pass
             pass
         return all_exports
 
+    def setup_exports(self):
+        """
+        Set up all the exports for my volumes and qtrees
+        """
+        for vol in self.get_volumes():
+            # FIXME:
+            # Do we add default exports for volumes if they don't have any?
+            # Do we even allow volume based exports?
+            
+            for qtree in vol.get_qtrees():
+                exports = qtree.get_exports()
+
+                # If a qtree doesn't have any exports, add the
+                # default set of qtree exports.
+                if len(exports) == 0:
+                    for export in self.get_default_qtree_exports():
+                        qtree.add_child(export)
+                        pass
+                    log.debug("Added default set of qtree exports to %s", qtree)
+                    pass
+                pass
+            pass
+        pass
+
     def get_site(self):
         return self.parent.get_site()
                     
-    def get_default_exports(self):
+    def get_default_qtree_exports(self):
         exports = [ Export(type='rw', tohost=host, fromip=self.get_primary_ipaddr().ip) for host in self.get_site().get_hosts() ]
         return exports
         

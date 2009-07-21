@@ -80,13 +80,14 @@ class ExportTest(unittest.TestCase):
         self.aggr1.add_child(vol)
         self.failUnlessEqual(vol.name, "filer1_vftest01_fs_01")
 
+        self.project.setup_exports()
+        
         # check the exports are set up correctly
-        exports = self.vfiler1.get_exports()
-        log.debug("exports: %s", [ str(x) for x in exports ])
-        self.failUnlessEqual( len(exports), 1 )
-
-        # check the IP address the export is from is correct
-        self.failUnlessEqual( exports[0].fromip, '10.20.30.1' )
+        for qtree in self.vfiler1.get_qtrees():
+            exports = qtree.get_exports()
+            log.debug("exports: %s", [ str(x) for x in exports ])
+            self.failUnlessEqual( len(exports), 3 )
+            self.failUnlessEqual( exports[0].fromip, '10.20.30.1' )
 
     def test_default_exports_2(self):
         """
@@ -103,9 +104,14 @@ class ExportTest(unittest.TestCase):
 
         self.failUnlessEqual(vol.name, "filer1_vftest01_fs_02")
 
+        self.project.setup_exports()
+
         # check the exports are set up correctly
-        exports = self.vfiler1.get_exports()
-        self.failUnlessEqual( len(exports), 2 )
+        for qtree in self.vfiler1.get_qtrees():
+            exports = qtree.get_exports()
+            log.debug("exports: %s", [ str(x) for x in exports ])
+            self.failUnlessEqual( len(exports), 3 )
+            self.failUnlessEqual( exports[0].fromip, '10.20.30.1' )
 
     def test_qtree_default(self):
         """
@@ -121,6 +127,12 @@ class ExportTest(unittest.TestCase):
         self.aggr1.add_child(vol)
         self.failUnlessEqual(vol.name, "filer1_vftest01_fs_01")
 
+        self.project.setup_exports()
+
         # check the exports are set up correctly
-        exports = self.vfiler1.get_exports()
-        self.failUnlessEqual( len(exports), 1 )
+        for qtree in self.vfiler1.get_qtrees():
+            exports = qtree.get_exports()
+            log.debug("exports: %s", [ str(x) for x in exports ])
+            self.failUnlessEqual( len(exports), 3 )
+            self.failUnlessEqual( exports[0].fromip, '10.20.30.1' )
+        

@@ -106,3 +106,20 @@ class Project(DynamicNamedXMLConfigurable):
             pass
         return protos
 
+    def configure_from_node(self, node, defaults, parent):
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
+
+        #
+        # Once the project is configured, set up some other bits and pieces
+        #
+        self.setup_exports()
+
+    def setup_exports(self):
+        """
+        Set up all the exports for my sites using either manually
+        configured exports, or appropriate defaults.
+        """
+        for site in self.get_sites():
+            site.setup_exports()
+            pass
+        

@@ -119,6 +119,17 @@ class Filer(DynamicNamedXMLConfigurable):
             protos.extend( vfiler.get_allowed_protocols() )
             pass
         return protos
+
+    def setup_exports(self):
+        """
+        Set up the exports from myself and my vfilers
+        """
+        # Do my exports setup
+
+        # Do vFiler exports setup
+        for vfiler in self.get_vfilers():
+            vfiler.setup_exports()
+            pass
     
 def create_filer_from_node(node, defaults, site):
     filer = Filer()

@@ -18,7 +18,7 @@ class Host(DynamicNamedXMLConfigurable):
 
     child_tags = [
         'netinterface',
-        'drhost',
+        #'drhost',
         ]
 
     mandatory_attribs = [
@@ -34,6 +34,14 @@ class Host(DynamicNamedXMLConfigurable):
         'iscsi_initiator',
         ]
 
+    def configure_from_node(self, node, defaults, parent):
+        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
+
+        # Add drhost bits, if available.
+        # This is done here, rather than as a separate object,
+        # to avoid a separate class that may not really be necessary
+        self.children['drhost'] = node.findall('drhost')
+    
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
 
@@ -89,7 +97,7 @@ class Host(DynamicNamedXMLConfigurable):
         return host.children['netinterface']
 
     def get_site(self):
-        return self.site
+        return self.parent
     
     def get_storage_ips(self):
         """

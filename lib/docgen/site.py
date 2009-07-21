@@ -118,7 +118,16 @@ class Site(DynamicNamedXMLConfigurable):
             protos.extend( filer.get_allowed_protocols() )
             pass
         return protos
-    
+
+    def setup_exports(self):
+        """
+        For all the filers at this site, set up the exports
+        for all the volumes and qtrees on them.
+        """
+        for filer in self.get_filers():
+            filer.setup_exports()
+            pass
+        
 def create_site_from_node(node, defaults, parent):
     site = Site()
     site.configure_from_node(node, defaults, parent)

@@ -121,7 +121,7 @@ class NetAppCommandsGenerator(CommandGenerator):
 
         # Create the vfiler IPspace
         commands.append("\n# IP Space Creation\n")
-        commands.extend( self.ipspace_create_commands(filer, ns) )
+        commands.extend( self.ipspace_create_commands(filer) )
 
         # Only create the vfiler on active cluster nodes
         if filer.is_active_node:
