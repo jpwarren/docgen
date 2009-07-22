@@ -41,7 +41,16 @@ class Host(DynamicNamedXMLConfigurable):
         # This is done here, rather than as a separate object,
         # to avoid a separate class that may not really be necessary
         self.children['drhost'] = node.findall('drhost')
-    
+
+    def _configure_mandatory_attributes(self, node, defaults):
+#         if getattr(self, 'name', None) is None:
+#             raise KeyError("Host does not have 'name' set")
+
+#         if getattr(self, 'operatingsystem', None) is None:
+#             raise KeyError("Host '%s' does not have 'operatingsystem' set" % self.name)
+        DynamicNamedXMLConfigurable.configure_mandatory_attributes(self, node, defaults)
+
+        
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
 
@@ -101,13 +110,16 @@ class Host(DynamicNamedXMLConfigurable):
     
     def get_storage_ips(self):
         """
-        Find the IP address of the active storage interface(s).
+        Find the IP address(es) of the active storage interface(s).
         """
         #log.debug("Interfaces on %s: %s", self.name, self.interfaces)
         # Find the first 'storage' type interface that is 'active'
-        ifacelist = [ x for x in self.interfaces if x.type == 'storage' and x.mode == 'active' ]
+        ifacelist = [ x for x in self.get_netinterfaces() if x.type == 'storage' and x.mode == 'active' ]
 
-        iplist = [ int.ipaddress for int in ifacelist ]
+        iplist = []
+        for iface in ifacelist:
+            iplist.extend( iface.get_ipaddresss() )
+            pass
         return iplist
 
 ##         try:

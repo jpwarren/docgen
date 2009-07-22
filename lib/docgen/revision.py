@@ -23,12 +23,13 @@ class Revision(DynamicNamedXMLConfigurable):
         'majornumber',
         'minornumber',
         'date',
-        'authorinitials',
+        'author',
         ]
 
     optional_attribs = [
         'reviewer',
         'reviewdate',
+        'revremark',
         ]
 
     def configure_from_node(self, node, defaults, parent):

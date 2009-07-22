@@ -46,7 +46,7 @@ file is well-formed and also a valid file.
   <revision majornumber="1"
             minornumber="0"
             date="31 July 2007"
-            authorinitials="JPW"
+            author="JPW"
             reviewer="Someone"
             reviewdate="33 July 2008">
     <revremark>
@@ -56,7 +56,7 @@ file is well-formed and also a valid file.
   <revision majornumber="2"
             minornumber="0"
             date="1 August 2007"
-            authorinitials="JPW"
+            author="JPW"
             reviewer="Someone"
             reviewdate="5 August 2008">
     <revremark>
@@ -291,16 +291,13 @@ file is well-formed and also a valid file.
 	  <!-- An Oracle quorum volume. Every project with databases
 	       will need one of these. It isn't backed up or mirrored.
 	  -->
-	  <volume type="oracm" snapreserve="0">
-	    <usablestorage>1</usablestorage>
-	  </volume>
+	  <volume type="oracm" snapreserve="0" usable="1"/>
 
 	  <!--
 	      The 'oraconfig' volume is defined second. There is only
 	      one of these per Oracle RAC project. It should be backed up.
 	  -->
-	  <volume type="oraconfig">
-	    <usablestorage>5</usablestorage>
+	  <volume type="oraconfig" usable="5">
 	    <setref type="snapvault" name="default_primary"/>
 	  </volume>
 

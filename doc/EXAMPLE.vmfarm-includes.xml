@@ -8,11 +8,11 @@
   <network number="10.240.32.0/24" gateway="10.240.32.254"/>
 </vlan>
 
-<host name="vmhost01">
-  <platform>VMware</platform>
-  <operatingsystem>VMware ESX</operatingsystem>
-  <location>VMfarm</location>
-  <description>Virtiual Machine Farm</description>
+<host name="vmhost01"
+      platform="VMware"
+      operatingsystem="VMware ESX"
+      location="VMfarm"
+      description="Virtual Machine Farm">
 
   <interface type='storage' mode='trunk' mtu='1500'>
     <vlan_number>3031</vlan_number>
@@ -31,11 +31,11 @@
   </interface>
 </host>
 
-<host name="vmhost02">
-  <platform>VMware</platform>
-  <operatingsystem>VMware ESX</operatingsystem>
-  <location>VMfarm</location>
-  <description>Virtual Machine Farm</description>
+<host name="vmhost02"
+      platform="VMware"
+      operatingsystem="VMware ESX"
+      location="VMfarm"
+      description="Virtual Machine Farm">
 
   <interface type='storage' mode='trunk' mtu='1500'>
     <vlan_number>3031</vlan_number>

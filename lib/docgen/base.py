@@ -588,7 +588,7 @@ ${abstract}
         for rev in self.project.get_revisions():
             revstring = "<revnumber>%s.%s</revnumber>\n" % (rev.majornumber, rev.minornumber)
             revstring += "<date>%s</date>\n" % rev.date
-            revstring += "<authorinitials>%s</authorinitials>\n" % rev.authorinitials
+            revstring += "<authorinitials>%s</authorinitials>\n" % rev.author
             revstring += "<revremark>%s</revremark>\n" % rev.revremark
             revisionlist.append("<revision>%s</revision>" % revstring)
             pass
@@ -631,7 +631,7 @@ ${abstract}
             revision_content = ''
             revision_content += '<entry><para>v%s.%s</para></entry>\n' % (rev.majornumber, rev.minornumber)
             revision_content += '<entry><para>%s</para></entry>\n' % rev.revremark
-            revision_content += '<entry><para>%s</para></entry>\n' % rev.authorinitials
+            revision_content += '<entry><para>%s</para></entry>\n' % rev.author
             revision_content += '<entry><para>%s</para></entry>\n' % rev.date
             revision_content += '<entry><para>%s</para></entry>\n' % rev.reviewer
             revision_content += '<entry><para>%s</para></entry>\n' % rev.reviewdate

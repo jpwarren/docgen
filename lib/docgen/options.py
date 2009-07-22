@@ -5,8 +5,8 @@
 import optparse
 import sys
 import logging
-import debug
 
+import debug
 log = logging.getLogger('docgen')
 
 class BaseOptions(optparse.OptionParser):

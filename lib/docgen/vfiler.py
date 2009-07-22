@@ -318,14 +318,17 @@ class VFiler(DynamicNamedXMLConfigurable):
         Get all the protocols defined for me, and
         turn them into pretty printed strings.
         """
-        protos = []
-        for proto in self.get_protocols():
-            if proto == 'iscsi':
-                protos.append('iSCSI')
-            else:
-                proto = proto.name.upper()
-            protos.append(proto)
+        protos = self.get_protocols()
+        # If protocols aren't defined manually, then just
+        # allow all the protocols defined for volumes/qtrees
+        if len(protos) == 0:
+            for vol in self.get_volumes():
+                if vol.protocol not in protos:
+                    protos.append( vol.protocol )
+                    pass
+                pass
             pass
+            
         return protos
 
     def get_exports(self):

@@ -424,6 +424,5 @@ class NetAppComponentTest(NetAppTestBase):
         commands = self.docgenerator.vfiler_nfs_exports_commands(self.filer, self.vfiler)
         self.failUnlessEqual(commands,
                               [
-                'wrfile -a /vol/vol0/etc/rc "##"',
-
+'vfiler run vftest exportfs -p root= /vol/testfiler01_vftest_fs_01/testfiler01_vftest_fs_01_qtree',
                 ])

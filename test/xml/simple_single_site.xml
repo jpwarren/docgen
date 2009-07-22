@@ -7,13 +7,9 @@
   <revision majornumber="1"
             minornumber="0"
             date="31 July 2009"
-            authorinitials="JPW"
+            author="JPW"
             reviewer="Someone"
-            reviewdate="33 July 2009">
-    <revremark>
-      Initial version by Justin Warren
-    </revremark>
-  </revision>
+            reviewdate="33 July 2009"/>
 
   <title>Test Project</title>
 

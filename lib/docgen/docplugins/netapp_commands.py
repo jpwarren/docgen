@@ -244,7 +244,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         # DNS commands
         #
         # Only enabled if CIFS is a protocol in the vfiler
-        if 'cifs' in [ x.name for x in vfiler.get_protocols() ]:
+        if 'cifs' in vfiler.get_allowed_protocols():
             # Set up DNS
             if filer.is_active_node:
                 log.debug("Added DNS commands for %s", filer.name)
@@ -262,7 +262,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         #
         # CIFS configuration
         #
-        if 'cifs' in [ x.name for x in vfiler.get_protocols() ]:
+        if 'cifs' in vfiler.get_allowed_protocols():
             # Set up CIFS in the vFiler
             if filer.is_active_node:
                 commands.append("\n# Set up CIFS")
@@ -282,7 +282,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         #
         # iSCSI commands
         #
-        if 'iscsi' in [ x.name for x in vfiler.get_protocols() ]:
+        if 'iscsi' in vfiler.get_allowed_protocols():
             if filer.type in [ 'filer', ]:
 
                 # iSCSI CHAP configuration
@@ -808,8 +808,8 @@ class NetAppCommandsGenerator(CommandGenerator):
         cmdset.append("vfiler disallow %s proto=rsh proto=http proto=ftp proto=iscsi proto=nfs proto=cifs" % vfiler.name)
 
         # then, allow the ones we want
-        for proto in vfiler.get_protocols():
-            cmdset.append("vfiler allow %s proto=%s" % (vfiler.name, proto.name) )
+        for proto in vfiler.get_allowed_protocols():
+            cmdset.append("vfiler allow %s proto=%s" % (vfiler.name, proto) )
 
         #log.debug( '\n'.join(cmdset) )
         return cmdset
@@ -834,7 +834,7 @@ class NetAppCommandsGenerator(CommandGenerator):
                 break
 
         # DNS enablement options for CIFS capable vfilers
-        if 'cifs' in [ x.name for x in vfiler.get_protocols() ]:
+        if 'cifs' in vfiler.get_allowed_protocols():
             if vfiler.dns_domain is None:
                 raise ValueError("CIFS protocol enabled, but DNS domain not set for vFiler %s:%s" % (vfiler.parent.name, vfiler.name))
             else:
@@ -906,7 +906,7 @@ class NetAppCommandsGenerator(CommandGenerator):
 
                 # Find read/write exports
                 rw_export_to = []
-                for export in qtree.rwexports:
+                for export in qtree.get_rw_exports():
                     if export.toip is not None:
                         rw_export_to.append( export.toip )
                     else:
@@ -916,7 +916,7 @@ class NetAppCommandsGenerator(CommandGenerator):
 
                 # Find read-only exports
                 ro_export_to = []
-                for export in qtree.roexports:
+                for export in qtree.get_ro_exports():
                     if export.toip is not None:
                         ro_export_to.append( export.toip )
                     else:
@@ -938,9 +938,10 @@ class NetAppCommandsGenerator(CommandGenerator):
                 # allow root mount of both rw and ro hosts
                 root_exports = rw_export_to + ro_export_to
 
-                if len(qtree.aliases) > 0:
+                aliases = qtree.get_exportaliass()
+                if len(aliases) > 0:
                     log.debug("Aliases exist. Using 'actual' export option.")
-                    for alias in qtree.aliases:
+                    for alias in aliases:
                         export_line = "vfiler run %s exportfs -p actual=/vol/%s/%s,%s%sroot=%s %s" % (
                             vfiler.name,
                             vol.name,

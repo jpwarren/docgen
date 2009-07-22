@@ -329,7 +329,7 @@ the host activation guides.
             </row>
             ''' % ( host.name,
                     host.platform,
-                    host.os,
+                    host.operatingsystem,
                     host.location,
                     iplist,
                     )
@@ -1235,7 +1235,7 @@ the host activation guides.
             # For each qtree, add a row for each host that needs to mount it
 
             # Read/Write mounts
-            for export in qtree.rwexports:
+            for export in qtree.get_rw_exports():
                 filerip = export.fromip
 
                 #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
@@ -1259,7 +1259,7 @@ the host activation guides.
                 pass
 
             # Read Only mounts
-            for export in qtree.roexports:
+            for export in qtree.get_ro_exports():
                 filerip = export.fromip
 
                 #filerip = qtree.volume.volnode.xpath("ancestor::vfiler/primaryip/ipaddr")[0].text
@@ -1406,14 +1406,14 @@ the host activation guides.
             </table>
             """)
 
-        ns['iscsi_chap_username'] = self.project.shortname
+        ns['iscsi_chap_username'] = self.project.name
         ns['iscsi_chap_password'] = self.project.get_iscsi_chap_password(ns['iscsi_prefix'])
 
-        if len(self.project.luns) > 0:
+        if len(self.project.get_luns()) > 0:
             igroup_tables = []
             lun_tables = []
 
-            for filer in [ x for x in self.project.filers.values() if x.type in ['primary', ] ]:
+            for filer in [ x for x in self.project.get_filers() if x.type in ['filer', ] ]:
                 log.debug("Finding igroups for filer %s...", filer.name)
                 tblns = {}
                 tblns['filer_name'] = filer.name
@@ -1445,7 +1445,8 @@ the host activation guides.
         """
         rows = []
 
-        igroup_list = self.project.get_filer_iscsi_igroups(filer)
+        igroup_list = filer.get_igroups()
+
         for igroup in igroup_list:
             entries = "<entry><para>%s</para></entry>\n" % igroup.name
             entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % export.tohost.iscsi_initiator for export in igroup.exportlist ] )

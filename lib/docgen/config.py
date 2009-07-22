@@ -699,73 +699,6 @@ class ProjectConfig:
         qtree = Qtree(vol, qtree_name, qtree_security, qtree_comment, rwexports, roexports, qtreenode=qtree_node, oplocks=oplocks, aliases=aliases)
         return qtree
     
-    def get_host_qtree_mountoptions(self, host, qtree):
-        """
-        Find the mountoptions for a host for a specific qtree.
-        This allows the system to automatically determine the
-        mount options that a given host should use when mounting
-        a qtree.
-        It returns the additional mount options that are special
-        for this qtree. It assumes that standard mount options, such
-        as 'hard', will not be included in this list.
-        """
-        mountoptions = []
-        osname = host.os
-
-        # always add read/write or read-only mount options, because
-        # they're really important.
-        if host in [ export.tohost for export in qtree.rwexports ]:
-            #log.debug("Read/Write host")
-            mountoptions.append('rw')
-
-        if host in [ export.tohost for export in qtree.roexports ]:
-            #log.debug("Read-only host")
-            mountoptions.append('ro')
-            pass
-        
-        # See if there are any manually defined mount options for
-        # the qtree, or volume the qtree lives in. Most specific wins.
-        # If you specify mountoptions manually, you have to specify *all*
-        # of them, or you'd risk the computer guessing what you meant,
-        # and they usually get that wrong.. and then you have to wrestle with
-        # the damn thing to get it to do what you mean.
-        if qtree.qtreenode is not None:
-            mountoptions.extend( self.get_extra_mountoptions(qtree.qtreenode, host) )
-        elif qtree.volume.volnode is not None:
-            mountoptions.extend( self.get_extra_mountoptions(qtree.volume.volnode, host) )
-
-        # If you don't manually define mount options, use some sensible defaults
-        else:
-            
-            if qtree.volume.type in [ 'oracm', 'oradata', 'oraindx', 'oraundo', 'oraarch', 'oraredo' ]:
-
-                if osname.lower().startswith('solaris'):
-                    #log.debug("Solaris mount option required")
-                    mountoptions.extend( [ 'forcedirectio', 'noac', 'nointr' ] )
-
-                elif osname.lower().startswith('linux'):
-
-                    #log.debug("Linux mount option required")
-                    mountoptions.extend( [ 'actimeo=0', ] )
-                    pass
-
-                else:
-                    log.error("Unknown operating system '%s', cannot set mountoptions.", osname)
-                    pass
-                pass
-
-            # Non Oracle volume options for Solaris
-            elif osname.lower().startswith('solaris'):
-                mountoptions.extend([ 'intr', ])
-
-            elif osname.lower().startswith('linux'):
-                mountoptions.extend([ 'intr', ])
-                pass
-            pass
-        
-        #log.debug("mountoptions are: %s", mountoptions)
-        return mountoptions
-
     def create_qtrees_for_volume(self, vol):
         """
         Create a qtree automatically for a given volume.
@@ -1666,19 +1599,6 @@ class ProjectConfig:
             pass
         return aliases
 
-    def get_extra_mountoptions(self, node, host):
-        """
-        Find any mountoptions defined at a node for a specific host
-        """
-        nodes = node.xpath("ancestor-or-self::*/export[@to = '%s']/mountoption" % host.name)
-        if len(nodes) > 0:
-            log.debug("Found %d manually defined mountoptions: %s", len(nodes), nodes)
-            pass
-        
-        mountoptions = [ x.text for x in nodes ]
-#        log.debug("returning mountoptions: %s", mountoptions)
-        return mountoptions
-
     def get_cifs_qtrees(self, filer):
         """
         Find the CIFS exports for the project.
@@ -2009,22 +1929,6 @@ class ProjectConfig:
     # the various aspects of the configuration
     #
     
-
-
-    def get_iscsi_chap_password(self, prefix='docgen'):
-        """
-        Create the iSCSI CHAP password to use.
-        """
-        chap_password = '%s%s123' % (prefix, self.shortname)
-        # The password has to be longer than 12 characters. If it isn't pad it with zeros
-        if len(chap_password) < 12:
-            chap_password  = chap_password + ( '0' * (12 - len(chap_password)) )
-
-        # The password also has to be no longer than 16 characters. If it's shorter,
-        # that's fine, this will still work.
-        chap_password = chap_password[:16]
-            
-        return chap_password
 
 
     

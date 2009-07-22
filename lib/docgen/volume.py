@@ -25,9 +25,9 @@ class Volume(DynamicNamedXMLConfigurable):
         'lun',
         'setref',
         'option',
-        'protocol',
-        'autosize',
-        'autodelete',
+        #'protocol',
+#        'autosize',
+#        'autodelete',
         ]
 
     mandatory_attribs = [
@@ -43,9 +43,10 @@ class Volume(DynamicNamedXMLConfigurable):
         'snapreserve',
         'iscsi_snapspace',
         'snapstorage',
-        'autosize',
-        'autodelete',
+#        'autosize',
+#        'autodelete',
         'protocol',
+        'oplocks',
         ]
 
     # FIXME: May not need the parent_type_names feature
@@ -84,7 +85,8 @@ class Volume(DynamicNamedXMLConfigurable):
 
         # Check if iscsi is an enabled protocol. If so, use 'iscsi_snapspace' instead
         # of snapreserve
-        if 'iscsi' in [ x.name for x in self.get_protocols() ]:
+        #if 'iscsi' in [ x.name for x in self.get_protocols() ]:
+        if 'iscsi' == self.protocol:
             self.snapreserve = 0
             if getattr(self, 'iscsi_snapspace', None):
                 self.iscsi_snapspace = defaults.getint('volume', 'default_iscsi_snapspace')
@@ -366,6 +368,21 @@ class Volume(DynamicNamedXMLConfigurable):
                 qtree.configure_from_node(node, defaults, self)
                 self.add_child(qtree)
                 log.debug("Added a default qtree for export: %s, %s", qtree, self.get_qtrees())
+
+    def get_luns(self):
+        """
+        Fetch all the LUNs defined in the volume and any
+        of its qtrees.
+        """
+        # get a copy of my list of luns
+        luns = self.children['lun'][:]
+
+        # add all the luns in my qtrees as well
+        for qtree in self.get_qtrees():
+            luns.extend( qtree.get_luns() )
+            pass
+
+        return luns
 
 class VolumeAutoSize:
     """

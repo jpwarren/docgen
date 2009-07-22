@@ -72,7 +72,10 @@ class Qtree(DynamicNamedXMLConfigurable):
     def configure_from_node(self, node, defaults, parent):
         DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
         self.volume = parent
-    
+        self.qtreenode = node
+
+        self.children['exportalias'] = [ x.text for x in node.findall('exportalias') ]
+            
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
 
@@ -124,6 +127,12 @@ class Qtree(DynamicNamedXMLConfigurable):
     
     def add_to_lun_total(self, amount):
         return self.parent.add_to_lun_total(amount)
+
+    def get_rw_exports(self):
+        return [ x for x in self.get_exports() if x.type == 'rw' ]
+
+    def get_ro_exports(self):
+        return [ x for x in self.get_exports() if x.type == 'ro' ]
     
 def create_qtree_from_node(node, defaults, volume):
     """
