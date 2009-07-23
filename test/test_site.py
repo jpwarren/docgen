@@ -12,10 +12,10 @@ from twisted.trial import unittest, runner, reporter
 from twisted.internet import reactor
 from twisted.python.util import sibpath
 
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
+from docgen.project import Project
 
 from docgen import debug
 import logging
@@ -34,9 +34,22 @@ class Site(unittest.TestCase):
         optparser = BaseOptions()
         optparser.parseOptions(['dummyfile.xml', '--debug=%s' % logging._levelNames[log.level].lower()])
 
-        self.defaults = SafeConfigParser()
+        self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
-        self.proj = ProjectConfig(self.defaults)
+        xmldata = """
+<project name="testproj" code="01">
+  <site name="sitea" type="primary" location="testlab">
+    <filer name="filer1" type="filer">
+      <vfiler name="vftest01">
+        <aggregate name="aggr01"/>
+      </vfiler>
+    </filer>
+  </site>
+</project>
+"""
+        node = etree.fromstring(xmldata)
+        self.project = Project()
+        self.project.configure_from_node(node, self.defaults, None)
 
     def test_empty_site(self):
         """

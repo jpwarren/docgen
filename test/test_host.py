@@ -15,7 +15,6 @@ from twisted.python.util import sibpath
 from ConfigParser import RawConfigParser
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
 
 from docgen.site import Site
 from docgen import host
@@ -43,7 +42,6 @@ class HostTest(unittest.TestCase):
         if len(configfiles) == 0:
             raise ValueError("Cannot load configuration file: %s" % optparser.options.configfile)
 
-        self.proj = ProjectConfig(self.defaults)
         self.sitea = Site()
         self.sitea.name = 'sitea'
         self.sitea.type = 'primary'

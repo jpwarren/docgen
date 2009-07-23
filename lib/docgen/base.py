@@ -11,7 +11,7 @@ from datetime import datetime
 from ConfigParser import NoOptionError
 from zope.interface import implements
 
-from docgen.interfaces import IXMLConfigurable
+from docgen.interfaces import IXMLConfigurable, IDocumentGenerator
 from docgen.util import import_module
 
 import logging
@@ -221,7 +221,8 @@ class DocBookGenerator(FileOutputMixin):
     It takes as input a minidom Document that is the project configuration,
     loaded from an XML definition file.
     """
-
+    implements(IDocumentGenerator)
+    
     bookstr = Template('''<?xml version="1.0" ?>
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
 "http://docbook.org/xml/4.3/docbookx.dtd"
@@ -513,17 +514,18 @@ ${abstract}
   </preface>
 ''')
     
-    def __init__(self, project):
+    def __init__(self, project, defaults):
         self.project = project
+        self.defaults = defaults
 
-    def emit(self, defaults, outfile=None, versioned=False, ns={}):
+    def emit(self, outfile=None, versioned=False, ns={}):
         """
         Write out the book XML to a File, defaulting to STDOUT.
         """
-        ns['copyright_holder'] = defaults.get('global', 'copyright_holder')
-        ns['iscsi_prefix'] = defaults.get('global', 'iscsi_prefix')
+        ns['copyright_holder'] = self.defaults.get('global', 'copyright_holder')
+        ns['iscsi_prefix'] = self.defaults.get('global', 'iscsi_prefix')
 
-        book = self.build_book(defaults, ns)
+        book = self.build_book(ns)
         if outfile is None:
             sys.stdout.write(book)
             pass
@@ -536,7 +538,7 @@ ${abstract}
             outf.close()
             pass
 
-    def build_book(self, defaults, ns={}):
+    def build_book(self, ns={}):
         """
         Build up a book from its component elements.
         """
@@ -551,28 +553,28 @@ ${abstract}
         ns['book_content'] = self.build_book_content(ns)
         return self.bookstr.safe_substitute( ns )
 
-    def build_bookinfo(self, defaults, ns={}):
+    def build_bookinfo(self, ns={}):
         """
         Build the bookinfo section at the beginning of the book.
         """
-        ns['copyright'] = self.build_copyright(defaults, ns)
-        ns['legalnotice'] = self.build_legalnotice(defaults, ns)
+        ns['copyright'] = self.build_copyright(ns)
+        ns['legalnotice'] = self.build_legalnotice(ns)
         ns['releaseinfo'] = self.build_releaseinfo(ns)
         ns['revhistory'] = self.build_revhistory(ns)
         ns['abstract'] = self.build_abstract(ns)
 
-        ns['doc_owner_firstname'] = defaults.get('document_control', 'owner_firstname')
-        ns['doc_owner_surname'] = defaults.get('document_control', 'owner_surname')
-        ns['doc_owner_email'] = defaults.get('document_control', 'owner_email')
-        ns['doc_department'] = defaults.get('document_control', 'department')
+        ns['doc_owner_firstname'] = self.defaults.get('document_control', 'owner_firstname')
+        ns['doc_owner_surname'] = self.defaults.get('document_control', 'owner_surname')
+        ns['doc_owner_email'] = self.defaults.get('document_control', 'owner_email')
+        ns['doc_department'] = self.defaults.get('document_control', 'department')
         
         bookinfo = self.bookinfo.safe_substitute(ns)
         return bookinfo
 
-    def build_legalnotice(self, defaults, ns={}):
+    def build_legalnotice(self, ns={}):
         return self.legalnotice.safe_substitute(ns)
 
-    def build_copyright(self, defaults, ns={}):
+    def build_copyright(self, ns={}):
         ns['copyright_year'] = datetime.now().strftime('%Y')
         return self.copyright.safe_substitute(ns)
 

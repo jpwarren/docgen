@@ -11,9 +11,7 @@ from zope.interface import Interface
 from string import Template
 from lxml import etree
 
-from docgen import options
 from docgen.base import DocBookGenerator
-from docgen.config import ProjectConfig
 
 import logging
 from docgen import debug
@@ -1484,7 +1482,7 @@ the host activation guides.
           
         </section>
         """)
-        if 'cifs' in self.project.allowed_protocols:
+        if 'cifs' in self.project.get_allowed_protocols():
             log.debug("Configuring CIFS...")
             ns['cifs_ad_section'] = self.build_cifs_active_directory_section(ns)
             
@@ -1784,7 +1782,7 @@ the host activation guides.
         Build a list of snapvault rows based on the snapvault relationships
         defined in the configuration.
         """
-        snapvaults = self.project.get_snapvaults(ns)
+        snapvaults = self.project.get_snapvaults()
         rows = []
         for sv in snapvaults:
             entries = ''
@@ -1845,7 +1843,7 @@ the host activation guides.
         Build a list of snapmirror rows based on the snapmirror relationships
         defined in the configuration.
         """
-        snapmirrors = self.project.get_snapmirrors(ns)
+        snapmirrors = self.project.get_snapmirrors()
         rows = []
         for sm in snapmirrors:
             entries = ''

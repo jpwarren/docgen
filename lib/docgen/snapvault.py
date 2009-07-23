@@ -1,27 +1,11 @@
 ## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
 
 """
-SnapVault related design objects
+SnapVault object
 """
-from docgen.base import XMLConfigurable, DynamicNaming
-
 import debug
 import logging
 log = logging.getLogger('docgen')
-
-class SnapVaultRelationship(XMLConfigurable, DynamicNaming):
-    """
-    A definition of a snapvault relationship
-    """
-    xmltag = 'snapvault'
-
-    mandatory_attribs = [
-        'basename',
-        ]
-    
-    def configure_from_node(self, node, defaults, parent):
-        self.configure_mandatory_attributes(node, defaults)
-        self.configure_optional_attributes(node, defaults)
         
 class SnapVault:
     """
@@ -53,9 +37,4 @@ class SnapVault:
                                                       self.src_schedule,
                                                       self.dst_schedule,
                                                       )
-    
-def create_snapvault_from_node(node, defaults, parent):
 
-    sv = SnapVaultRelationship()
-    sv.configure_from_node(node, defaults, parent)
-    return sv

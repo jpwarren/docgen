@@ -12,7 +12,6 @@ from ConfigParser import RawConfigParser
 from StringIO import StringIO
 
 from docgen.util import load_doc_plugins
-from docgen.config import ProjectConfig
 from docgen.docplugins.ipsan_storage import IPSANStorageDesignGenerator
 from docgen.docplugins.commands import IPSANCommandsGenerator
 

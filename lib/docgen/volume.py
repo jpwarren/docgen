@@ -56,7 +56,7 @@ class Volume(DynamicNamedXMLConfigurable):
     def __init__(self):
         self.current_lunid = 0
         self.lun_total = 0
-    
+
     def __str__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.parent.get_filer().name, self.name, self.type, self.parent.name, self.usable, self.raw)
 
@@ -308,7 +308,7 @@ class Volume(DynamicNamedXMLConfigurable):
         """
         The name path to the filer/volume, eg: exip-nas-02:/vol/myproj_vol03
         """
-        return '%s:%s' % ( self.filer.name, self.shortpath() )
+        return '%s:%s' % ( self.parent.get_filer().name, self.shortpath() )
     
     def _ippath(self):
         """
@@ -384,6 +384,12 @@ class Volume(DynamicNamedXMLConfigurable):
 
         return luns
 
+    def get_snapmirror_setrefs(self):
+        return [ x for x in self.get_setrefs() if x.type == 'snapmirror' ]
+
+    def get_snapvault_setrefs(self):
+        return [ x for x in self.get_setrefs() if x.type == 'snapvault' ]
+    
 class VolumeAutoSize:
     """
     VolumeAutoSize is a setting used for Volumes to define how
@@ -428,6 +434,7 @@ class VolumeAutoSize:
         cmdset.append("vol autosize %s off" % (self.volume.name))
         return cmdset
 
+    
 class VolumeAutoDelete:
     """
     VolumeAutoDelete defines how a volume can be set up to have

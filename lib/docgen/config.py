@@ -66,7 +66,7 @@ class ConfigInvalid(Exception):
     """
     pass
         
-class ProjectConfig:
+class _depr_ProjectConfig:
 
     def __init__(self, defaults):
         """

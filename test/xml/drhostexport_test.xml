@@ -34,6 +34,7 @@
 	<aggregate name="aggr01">
 	  <volume name="testvol01" usablestorage="10">
 	    <export to="testhost01"/>
+	    <setref type="snapvault" name="default_primary"/>
 	    <setref type="snapmirror" name="default_sm"/>
 	  </volume>
 
@@ -92,7 +93,7 @@
 
   </site>
 
-  <snapvaultset id="default_primary" targetfiler="primary-nearstore-01" targetaggregate="aggr01">
+  <snapvaultset name="default_primary" targetfiler="primary-nearstore-01" targetaggregate="aggr01">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -102,24 +103,21 @@
     </snapvault>
   </snapvaultset>
 
-  <snapvaultset id="default_secondary" targetfiler="secondary-nearstore-01" targetaggregate="aggr01">
-    <snapvault basename="sv_daily">
-      <snapschedule>1@1</snapschedule>
-      <snapvaultschedule>8@2</snapvaultschedule>
-    </snapvault>
-    <snapvault basename="sv_weekly">
-      <snapvaultschedule>13@sun@3</snapvaultschedule>
-    </snapvault>
+  <snapvaultset name="default_secondary" targetfiler="secondary-nearstore-01" targetaggregate="aggr01">
+    <snapvaultdef basename="sv_daily"
+                  snapschedule="1@1"
+                  snapvaultschedule="8@2"/>
+    <snapvaultdef basename="sv_weekly"
+                  snapvaultschedule="13@sun@3"/>
   </snapvaultset>
 
 
-  <snapmirrorset id="default_sm" targetfiler="secondary-filer-01" targetaggregate="aggr01">
-    <snapmirror>
-      <minute>0</minute>
-      <hour>6</hour>
-      <dayofmonth>*</dayofmonth>
-      <dayofweek>*</dayofweek>
-    </snapmirror>
+  <snapmirrorset name="default_sm" targetfiler="secondary-filer-01" targetaggregate="aggr01">
+    <snapmirrorschedule
+       minute="0"
+       hour="6"
+       dayofmonth="*"
+       dayofweek="*"/>
   </snapmirrorset>
 
 </project>

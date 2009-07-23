@@ -15,8 +15,6 @@ from twisted.python.util import sibpath
 from ConfigParser import RawConfigParser
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
-
 from docgen.site import Site
 from docgen.filer import Filer
 from docgen.vfiler import VFiler

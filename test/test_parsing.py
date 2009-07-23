@@ -5,6 +5,7 @@
 Test parsing of XML files
 """
 import os.path
+from lxml import etree
 
 from twisted.trial import unittest, runner, reporter
 from twisted.internet import reactor
@@ -14,7 +15,7 @@ from ConfigParser import RawConfigParser
 from StringIO import StringIO
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
+from docgen.project import Project
 
 from docgen import debug
 import logging
@@ -42,8 +43,9 @@ class ParserTest(unittest.TestCase):
         """
         xmlfile = "minimal_parsable_config.xml"
         filepath = os.path.join(XML_FILE_LOCATION, xmlfile)
-        proj = ProjectConfig(self.defaults)
-        proj.load_project_details(filepath)
+        tree = etree.parse(filepath)
+        project = Project()
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         
     def test_parse_drhostexports(self):
         """
@@ -51,8 +53,9 @@ class ParserTest(unittest.TestCase):
         """
         xmlfile = "drhostexport_test.xml"
         filepath = os.path.join(XML_FILE_LOCATION, xmlfile)
-        proj = ProjectConfig(self.defaults)
-        proj.load_project_details(filepath)
+        tree = etree.parse(filepath)
+        project = Project()
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         
     def test_parse_clustered_nearstore(self):
         """
@@ -60,6 +63,7 @@ class ParserTest(unittest.TestCase):
         """
         xmlfile = "clustered_nearstore.xml"
         filepath = os.path.join(XML_FILE_LOCATION, xmlfile)
-        proj = ProjectConfig(self.defaults)
-        proj.load_project_details(filepath)
+        tree = etree.parse(filepath)
+        project = Project()
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         

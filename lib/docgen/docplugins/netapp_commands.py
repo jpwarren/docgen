@@ -3,7 +3,7 @@
 # Dump activation commands out as as plain text
 #
 
-import zope.interface
+from zope.interface import implements
 import sys
 
 import logging
@@ -17,7 +17,7 @@ class CommandGenerator(FileOutputMixin):
     """
     An abstract base class that implements some commonly used functions.
     """
-    zope.interface.implements(IDocumentGenerator)
+    implements(IDocumentGenerator)
 
     def __init__(self, project, defaults):
         self.project = project
@@ -28,6 +28,7 @@ class NetAppCommandsGenerator(CommandGenerator):
     A generator for creating the commandlines required to activate a project
     on NetApp equipment.
     """
+
     def emit(self, outfile=None, versioned=False, ns={}):
 
         ns['iscsi_prefix'] = self.defaults.get('global', 'iscsi_prefix')

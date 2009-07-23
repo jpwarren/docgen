@@ -15,7 +15,6 @@ from twisted.python.util import sibpath
 from lxml import etree
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
 from docgen.project import Project
 
 from docgen import debug
@@ -37,19 +36,18 @@ class ProjectTest(unittest.TestCase):
 
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
-        self.proj = ProjectConfig(self.defaults)
 
     def test_create_project_bare(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_bare.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         
     def test_create_project_1_site(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         # see if the convenience functions are set correctly
         self.failUnlessEqual( len(project.get_sites()), 1)
         
@@ -57,14 +55,14 @@ class ProjectTest(unittest.TestCase):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_multiple_sites.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         self.failUnlessEqual( len(project.get_sites()), 3)
         
     def test_create_project_1_site_vlans(self):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_vlans.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         self.failUnlessEqual( len(project.get_sites()), 1)
 
         site = project.get_sites()[0]
@@ -75,7 +73,7 @@ class ProjectTest(unittest.TestCase):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_multiple_vlans.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         self.failUnlessEqual( len(project.get_sites()), 1)
 
         site = project.get_sites()[0]
@@ -86,7 +84,7 @@ class ProjectTest(unittest.TestCase):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_1_host.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         self.failUnlessEqual( len(project.get_sites()), 1)
         site = project.get_sites()[0]
         hosts = project.get_sites()[0].get_hosts()
@@ -96,7 +94,7 @@ class ProjectTest(unittest.TestCase):
         xmlfile = os.path.join(XML_FILE_LOCATION, "project_1_site_3_hosts.xml")
         tree = etree.parse(xmlfile)
         project = Project()
-        project.configure_from_node(tree.getroot(), self.defaults, self.proj)
+        project.configure_from_node(tree.getroot(), self.defaults, None)
         self.failUnlessEqual( len(project.get_sites()), 1)
         site = project.get_sites()[0]
         hosts = project.get_sites()[0].get_hosts()

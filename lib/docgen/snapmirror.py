@@ -3,30 +3,17 @@
 """
 SnapMirror related object definitions
 """
-from docgen.base import XMLConfigurable, DynamicNaming
-from docgen.snapvaultset import SnapVaultSet
-
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class SnapMirrorRelationship(XMLConfigurable, DynamicNaming):
-    """
-    A definition of a snapmirror relationship
-    """
-    xmltag = 'snapmirror'
-
-    mandatory_attribs = [
-        ]
-    
-    def configure_from_node(self, node, defaults, parent):
-        self.configure_mandatory_attributes(node, defaults)
-        self.configure_optional_attributes(node, defaults)
-
 class SnapMirror:
     """
-    An actual snapmirror object used by the system.
+    An abstract representation of a SnapMirror relationship.
+    Volume snapmirror only.
     """
+    type = 'volume'
+    
     def __init__(self, sourcevol, targetvol, minute='*', hour='*', dayofmonth='*', dayofweek='*', arguments='-'):
 
         self.sourcevol = sourcevol
@@ -57,12 +44,5 @@ class SnapMirror:
         """
         Returns the arguments for the snapmirror in the format expected for
         /etc/snapmirror.conf.
-        Currently this only supports the default of '-'.
         """
         return self.arguments
-
-def create_snapmirror_from_node(node, defaults, parent):
-
-    sm = SnapMirrorRelationship()
-    sm.configure_from_node(node, defaults, parent)
-    return sm

@@ -664,7 +664,7 @@ The site type is 'secondary' for the DR site.
        eg: To back up a primary volume every day to a secondary, and to take a weekly
        snapshot locally on the secondary, you would configure a snapvault set like this:
 
-<snapvaultset id="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+<snapvaultset name="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
 <snapvault basename="sv_daily">
 <snapschedule>1@3</snapschedule>
 <snapvaultschedule>14@4</snapvaultschedule>
@@ -677,7 +677,7 @@ The site type is 'secondary' for the DR site.
   -->
 
   <!-- primary site -->
-  <snapvaultset id="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset name="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -692,7 +692,7 @@ The site type is 'secondary' for the DR site.
        backup snapvaults of the priamry filer at the secondary site. Note how the
        targetfiler is the NearStore at the same site as the DR primary.
   -->
-  <snapvaultset id="default_secondary" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset name="default_secondary" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -711,7 +711,7 @@ The site type is 'secondary' for the DR site.
        In general, the <snapschedule/> for the data snapvaults should be an hour
        before the one used for the archivelogs.
   -->
-  <snapvaultset id="MYDB01-data" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset name="MYDB01-data" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -722,7 +722,7 @@ The site type is 'secondary' for the DR site.
   </snapvaultset>
 
   <!-- This is the corresponding archivelog snapvaultset for the data snapvaultset above -->
-  <snapvaultset id="MYDB01-arch" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset name="MYDB01-arch" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -736,7 +736,7 @@ The site type is 'secondary' for the DR site.
        to define how much storage should be created on the target volume
        instead of the default (2.5, usually).
   -->
-  <snapvaultset id="custom-multiplier" multiplier='6'
+  <snapvaultset name="custom-multiplier" multiplier='6'
 		targetfiler="sitea-fasnst-01" targetaggregate="aggr09">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
@@ -747,7 +747,7 @@ The site type is 'secondary' for the DR site.
     </snapvault>
   </snapvaultset>
 
-  <snapvaultset id="custom-storage" targetusable='2244'
+  <snapvaultset name="custom-storage" targetusable='2244'
 		targetfiler="sitea-fasnst-01" targetaggregate="aggr09">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
@@ -781,7 +781,7 @@ The site type is 'secondary' for the DR site.
   -->
 
   <!-- snapmirrors -->
-  <snapmirrorset id="default_sm" targetfiler="siteb-fashda-01" targetaggregate="aggr02">
+  <snapmirrorset name="default_sm" targetfiler="siteb-fashda-01" targetaggregate="aggr02">
     <snapmirror>
       <minute>0</minute>
       <hour>6</hour>
@@ -795,7 +795,7 @@ The site type is 'secondary' for the DR site.
        It is the way they are referenced by a volume that alters the way they
        are set up.
   -->
-  <snapmirrorset id="default_svm" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
+  <snapmirrorset name="default_svm" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
     <snapmirror>
       <minute>0</minute>
       <hour>6</hour>

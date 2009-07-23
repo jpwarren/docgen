@@ -25,6 +25,19 @@ class SetRef(DynamicNamedXMLConfigurable):
         'type',
         'name',
         ]
+
+    setref_types = [
+        'snapshot',
+        'snapvault',
+        'snapmirror',
+        'snapmirrorvault',
+        'snapvaultmirror',
+        ]
+
+    def configure_mandatory_attributes(self, node, defaults):
+        DynamicNamedXMLConfigurable.configure_mandatory_attributes(self, node, defaults)
+        if self.type not in self.setref_types:
+            raise ValueError("%s type '%s' not a valid type" % (self.xmltag, self.type) )
         
 def create_setref_from_node(node, defaults, parent):
 

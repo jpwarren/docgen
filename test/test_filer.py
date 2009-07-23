@@ -15,7 +15,7 @@ from twisted.python.util import sibpath
 from lxml import etree
 
 from docgen.options import BaseOptions
-from docgen.config import ProjectConfig
+from docgen.project import Project
 from docgen.site import Site
 from docgen.filer import Filer
 
@@ -38,7 +38,6 @@ class FilerTest(unittest.TestCase):
 
         self.defaults = RawConfigParser()
         configfiles = self.defaults.read(TESTCONF)
-        self.proj = ProjectConfig(self.defaults)
 
         self.site = Site()
         self.site.name = "testsite"

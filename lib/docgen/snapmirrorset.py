@@ -17,9 +17,17 @@ class SnapMirrorSet(SnapVaultSet):
     but it contains snapmirror definitions instead.
     """
     xmltag = 'snapmirrorset'
-    
-    child_tags = [ 'snapmirror', ]
 
+    defaults_section = 'snapmirror'
+    
+    child_tags = [
+        'snapmirrorschedule',
+        ]
+
+    def configure_optional_attributes(self, node, defaults):
+        SnapVaultSet.configure_optional_attributes(self, node, defaults)
+        
+    
 def create_snapmirrorset_from_node(node, defaults, parent):
     """
     Create a snapvault set from a node definition.

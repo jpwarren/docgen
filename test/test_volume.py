@@ -41,7 +41,8 @@ class VolumeTest(unittest.TestCase):
 <project name="testproj" code="01">
   <site name="sitea" type="primary" location="testlab">
     <filer name="filer1" type="filer">
-      <vfiler name="vftest01" rootaggr="aggr0">
+      <vfiler name="vftest01">
+        <aggregate type="root" name="aggr0"/>
         <aggregate name="aggr01"/>
       </vfiler>
     </filer>

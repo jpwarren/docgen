@@ -12,6 +12,8 @@ class IXMLConfigurable(Interface):
     to define objects for loading and documentation generation.
     """
     xmltag = Attribute("tag used to define the element")
+    defaults_section = Attribute("Section my defaults are defined in")
+    
     # A list of child tags that I have. Can be overridden by
     # a configuration file.
     child_tags = Attribute("List of possible child element tags")
