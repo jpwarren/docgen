@@ -70,12 +70,6 @@ class QtreeTest(unittest.TestCase):
         qtreeobj = qtree.create_qtree_from_node(node, self.defaults, self.volume)
         log.debug("qtree: %s", qtreeobj)
 
-    def test_autocreate_qtree_plain(self):
-        """
-        Test a qtree that is autocreated for a plain data volume
-        """
-        raise unittest.SkipTest("Move this test to the volume tests")
-
     def test_autocreate_qtree_oradata(self):
         """
         Test a qtree that is autocreated for an oradata volume

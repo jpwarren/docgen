@@ -40,8 +40,14 @@ class Host(DynamicNamedXMLConfigurable):
         # Add drhost bits, if available.
         # This is done here, rather than as a separate object,
         # to avoid a separate class that may not really be necessary
-        self.children['drhost'] = node.findall('drhost')
+        self.children['drhostname'] = [x.attrib['name'] for x in node.findall('drhost')]
 
+    def get_drhostnames(self):
+        return self.children['drhostname']
+
+    def get_drhosts(self):
+        return self.children['drhost']
+    
     def _configure_mandatory_attributes(self, node, defaults):
 #         if getattr(self, 'name', None) is None:
 #             raise KeyError("Host does not have 'name' set")

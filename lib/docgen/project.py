@@ -58,6 +58,16 @@ class Project(DynamicNamedXMLConfigurable):
             objs.extend(site.get_hosts())
             pass
         return objs
+
+    def get_host_byname(self, hostname):
+        """
+        Find a host using its name
+        """
+        try:
+            host = [ x for x in self.get_hosts() if x.name == hostname ][0]
+            return host
+        except IndexError:
+            raise KeyError("Host '%s' is not specified in definition" % hostname)
     
     def get_volumes(self):
         """
@@ -129,6 +139,8 @@ class Project(DynamicNamedXMLConfigurable):
         #
         # Once the project is configured, set up some other bits and pieces
         #
+        self.setup_drhosts(defaults)
+        
         self.setup_exports(defaults)
 
         self.setup_igroups(defaults)
@@ -137,6 +149,18 @@ class Project(DynamicNamedXMLConfigurable):
 
         self.setup_snapvaults(defaults)
 
+    def setup_drhosts(self, defaults):
+        """
+        Link hosts with their drhosts, if any are defined.
+        drhosts are used for failover in the event of a DR.
+        """
+        for host in self.get_hosts():
+            host.children['drhost'] = []
+            for hostname in host.get_drhostnames():
+                host.children['drhost'].append( self.get_host_byname(hostname) )
+                pass
+            pass
+        
     def setup_exports(self, defaults):
         """
         Set up all the exports for my sites using either manually

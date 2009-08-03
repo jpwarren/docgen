@@ -8,16 +8,15 @@
 import sys
 import os.path
 import zope.interface
-import logging
-import debug
-
-from lxml import etree
 
 from string import Template
+from lxml import etree
 
+from docgen.interfaces import IDocumentGenerator
+
+import logging
+from docgen import debug
 log = logging.getLogger('docgen')
-
-from docgen import IDocumentGenerator
 
 class ModiPyGenerator:
     """
@@ -29,9 +28,10 @@ class ModiPyGenerator:
         self.conf = conf
         self.template_path = template_path
 
-class IPSANStorageModiPyGenerator(ModiPyGenerator):
+class NetAppModiPyGenerator(ModiPyGenerator):
     """
-    A generator for creating ModiPy templates to implement an IPSAN storage design.
+    A generator for creating ModiPy templates to implement a
+    NetApp storage design.
     """
 
     # Define some important Templates

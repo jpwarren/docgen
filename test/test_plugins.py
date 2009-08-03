@@ -28,12 +28,12 @@ copyright_holder: Justin Warren
 [document_plugins]
 # DocumentGenerator modules to load, and the name that will be
 # used to reference them.
-ipsan-storage-design: docgen.ipsan_storage.IPSANStorageDesignGenerator
-ipsan-network-design: docgen.ipsan_network.IPSANNetworkDesignGenerator
-ipsan-storage-modipy: docgen.modipy.IPSANStorageModiPyGenerator
-ipsan-storage-commands: docgen.commands.IPSANCommandsGenerator
-vol-sizes: docgen.commands.IPSANVolumeSizeCommandsGenerator
-ipsan-activation-advice: docgen.activation_advice.IPSANActivationAdvice
+ipsan-storage-design: docgen.docplugins.ipsan_storage.IPSANStorageDesignGenerator
+#ipsan-network-design: docgen.docplugins.ipsan_network.IPSANNetworkDesignGenerator
+ipsan-storage-modipy: docgen.docplugins.modipy.NetAppModiPyGenerator
+ipsan-storage-commands: docgen.docplugins.netapp_commands.NetAppCommandsGenerator
+vol-sizes: docgen.docplugins.netapp_commands.VolumeSizeCommandsGenerator
+#ipsan-activation-advice: docgen.activation_advice.IPSANActivationAdvice
 """
 
 class PluginsTest(unittest.TestCase):
@@ -42,11 +42,11 @@ class PluginsTest(unittest.TestCase):
     """
 
     def test_load_plugins(self):
-        raise unittest.SkipTest("Plugins temporarily disabled during refactor")
+        #raise unittest.SkipTest("Plugins temporarily disabled during refactor")
         defaults = RawConfigParser()
         defaults.readfp(StringIO(config_file_data))
         plugins = load_doc_plugins(defaults)
 
-        self.failUnlessEqual(len(plugins), 6)
+        self.failUnlessEqual(len(plugins), 4)
         self.failUnless( 'vol-sizes' in plugins )
         self.failUnless( 'ipsan-storage-design' in plugins )
