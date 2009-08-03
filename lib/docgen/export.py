@@ -1,4 +1,4 @@
-## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
+## $Id$
 
 """
 Storage export object
@@ -73,5 +73,5 @@ def create_export_from_node(node, defaults, parent):
     Create an Export from an XML definition
     """
     obj = Export()
-    obj.configure_from_node(node, defaults, volume)
+    obj.configure_from_node(node, defaults, parent)
     return obj

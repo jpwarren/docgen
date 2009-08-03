@@ -12,6 +12,7 @@ from string import Template
 from lxml import etree
 
 from docgen.base import DocBookGenerator
+from netapp_commands import NetAppCommandsGenerator
 
 import logging
 from docgen import debug
@@ -174,6 +175,10 @@ the host activation guides.
     </section>
     ''')
 
+    def __init__(self, project, defaults):
+        DocBookGenerator.__init__(self, project, defaults)
+        self.command_gen = NetAppCommandsGenerator(project, defaults)
+    
     def build_chapters(self, ns={}):
         book_content = ''
         book_content += self.build_introduction(ns)
@@ -743,8 +748,8 @@ the host activation guides.
                     pass
                 pass
         
-            template_ns['vfiler_configuration_tables'] = '\n'.join(vfiler_config_tables)
-            vfiler_sections.append( vfiler_section_template.safe_substitute(template_ns) )
+            ns['vfiler_configuration_tables'] = '\n'.join(vfiler_config_tables)
+            vfiler_sections.append( vfiler_section_template.safe_substitute(ns) )
             pass
 
         ns['vfiler_section'] = '\n'.join( vfiler_sections )
@@ -790,7 +795,7 @@ the host activation guides.
         Fetch the services vlan additions that we need.
         """
         retstr = "<screen># For Services VLAN access\n"
-        retstr += '\n'.join(self.project.services_vlan_route_commands(self.project.vfilers[self.project.shortname]) )
+        retstr += '\n'.join(self.command_gen.services_vlan_route_commands() )
         retstr += '</screen>'
 
         return retstr
@@ -1447,7 +1452,7 @@ the host activation guides.
 
         for igroup in igroup_list:
             entries = "<entry><para>%s</para></entry>\n" % igroup.name
-            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % export.tohost.iscsi_initiator for export in igroup.exportlist ] )
+            entries += "<entry><para>%s</para></entry>\n" % ''.join( [ "<para>%s</para>" % export.tohost.iscsi_initiator for export in igroup.get_exports() ] )
             entries += "<entry><para>iSCSI</para></entry>\n"
             entries += "<entry><para>%s</para></entry>\n" % igroup.type            
 
@@ -1456,7 +1461,7 @@ the host activation guides.
 
     def get_iscsi_lun_rows(self, filer):
         rows = []
-        lunlist = self.project.get_filer_luns(filer)
+        lunlist = filer.get_luns()
         for lun in lunlist:
             log.debug("lun is: %s", lun)
             entries = "<entry><para>%s</para></entry>\n" % lun.full_path()
@@ -1882,31 +1887,33 @@ the host activation guides.
         activation_commands = ''
 
         # Build the commands for all primary filers
-        for filer in [ x for x in self.project.filers.values() if x.site.type == 'primary' and x.type == 'primary' ]:
-            vfiler = filer.vfilers.values()[0]
+        for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'primary' ]:
+            # FIXME: Only supports one vFiler per Filer.
+            vfiler = filer.get_vfilers()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.filers.values() if x.site.type == 'primary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
+            # FIXME: This is broken and won't work.
             vfiler = filer.secondary_for.vfilers.values()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.filers.values() if x.site.type == 'primary' and x.type == 'nearstore' ]:
-            vfiler = filer.vfilers.values()[0]
+        for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'nearstore' ]:
+            vfiler = filer.get_vfilers()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
         # Build the commands for all secondary filers
-        for filer in [ x for x in self.project.filers.values() if x.site.type == 'secondary' and x.type == 'primary' ]:
-            vfiler = filer.vfilers.values()[0]
+        for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'primary' ]:
+            vfiler = filer.get_vfilers()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.filers.values() if x.site.type == 'secondary' and x.type == 'secondary' ]:
+        for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'secondary' ]:
             # My vfiler is the vfiler from the primary
-            vfiler = filer.secondary_for.vfilers.values()[0]
+            vfiler = filer.secondary_for.get_vfilers()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.filers.values() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
-            vfiler = filer.vfilers.values()[0]
+        for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
+            vfiler = filer.get_vfilers()[0]
             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
         return activation_commands
@@ -1926,8 +1933,8 @@ the host activation guides.
         """ % filer.name)
 
         # Volumes are not created on secondary filers
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.filer_vol_create_commands(filer) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.filer_vol_create_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>Volume Creation</title>
             <screen>%s</screen>
@@ -1936,7 +1943,7 @@ the host activation guides.
         #
         # Create qtrees
         #
-        cmds = self.project.filer_qtree_create_commands(filer)
+        cmds = self.command_gen.filer_qtree_create_commands(filer)
         if len(cmds) > 0:
             cmd_ns['commands'] += """<section>
             <title>Qtree Creation</title>
@@ -1944,30 +1951,30 @@ the host activation guides.
             </section>""" % '\n'.join(cmds)
 
         # Create the vfiler VLAN
-        cmds = '\n'.join( self.project.vlan_create_commands(filer, vfiler) )
+        cmds = '\n'.join( self.command_gen.vlan_create_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>VLAN Creation</title>
         <screen>%s</screen>
         </section>""" % cmds
 
         # Create the vfiler IPspace
-        cmds = '\n'.join( self.project.ipspace_create_commands(filer, vfiler) )
+        cmds = '\n'.join( self.command_gen.ipspace_create_commands(filer) )
         cmd_ns['commands'] += """<section>
         <title>IP Space Creation</title>
         <screen>%s</screen>
         </section>""" % cmds
 
         # Only create the vfiler on primary and nearstore filers
-        if filer.type in [ 'primary', 'nearstore' ]:
-            cmds = '\n'.join( self.project.vfiler_create_commands(filer, vfiler, ns) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.vfiler_create_commands(filer, vfiler) )
             cmd_ns['commands'] += """<section>
             <title>vFiler Creation</title>
             <screen>%s</screen>
             </section>""" % cmds
 
         # Don't add volumes on secondary filers
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.vfiler_add_volume_commands(filer, ns) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.vfiler_add_volume_commands(filer, ns) )
             if len(cmds) > 0:
                 cmd_ns['commands'] += """<section>
                 <title>vFiler Volume Addition</title>
@@ -1975,15 +1982,15 @@ the host activation guides.
                 </section>""" % cmds
 
         # Add interfaces
-        cmds = '\n'.join( self.project.vfiler_add_storage_interface_commands(filer, vfiler) )
+        cmds = '\n'.join( self.command_gen.vfiler_add_storage_interface_commands(filer, vfiler) )
         cmd_ns['commands'] += """<section>
         <title>Interface Configuration</title>
         <screen>%s</screen>
         </section>""" % cmds
 
         # Configure secureadmin
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.vfiler_setup_secureadmin_ssh_commands(vfiler) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.vfiler_setup_secureadmin_ssh_commands(vfiler) )
             cmd_ns['commands'] += """<section>
             <title>SecureAdmin Configuration</title>
             <para>Run the following commands to enable secureadmin within the vFiler:</para>
@@ -1991,22 +1998,22 @@ the host activation guides.
             </section>""" % cmds
 
         # Inter-project routing
-##         cmds = '\n'.join( self.project.vfiler_add_inter_project_routing(vfiler) )
+##         cmds = '\n'.join( self.command_gen.vfiler_add_inter_project_routing(vfiler) )
 ##         cmd_ns['commands'] += """<section>
 ##         <title>Inter-Project Routing</title>
 ##         <screen>%s</screen>
 ##         </section>""" % cmds
 
-        if filer.type in [ 'primary', 'nearstore' ]:
-            cmds = '\n'.join( self.project.vfiler_set_allowed_protocols_commands(vfiler, ns) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.vfiler_set_allowed_protocols_commands(vfiler) )
             cmd_ns['commands'] += """<section>
             <title>Allowed Protocols</title>
             <screen>%s</screen>
             </section>""" % cmds
 
         # Careful! Quotas file is the verbatim file contents, not a list!
-        if filer.type in ['primary', 'nearstore']:
-            cmds = '\n'.join( self.project.vfiler_quotas_add_commands(filer, vfiler, ns) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.vfiler_quotas_add_commands(filer, vfiler) )
             cmd_ns['commands'] += """<section>
             <title>Quota File Contents</title>
             <para>Run the following commands to create the quotas file <filename>/vol/%s_root/etc/quotas</filename>:
@@ -2015,7 +2022,7 @@ the host activation guides.
             </section>""" % ( ns['vfiler_name'], cmds )
 
             # Quota enablement
-            cmds = '\n'.join(self.project.vfiler_quota_enable_commands(filer, vfiler))
+            cmds = '\n'.join(self.command_gen.vfiler_quotas_enable_commands(filer, vfiler))
             cmd_ns['commands'] += """<section>
             <title>Quota Enablement Commands</title>
             <para>Execute the following commands on the filer to enable quotas:
@@ -2023,74 +2030,71 @@ the host activation guides.
             <screen>%s</screen>
             </section>""" % cmds
 
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.filer_snapreserve_commands(filer, ns) )
+        if filer.is_active_node and filer.type == 'filer':
+            cmds = '\n'.join( self.command_gen.filer_snapreserve_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>Snap Reserve Configuration</title>
             <screen>%s</screen>
             </section>""" % cmds
 
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.filer_snapshot_commands(filer, ns) )
+        if filer.is_active_node and filer.type == 'filer':
+            cmds = '\n'.join( self.command_gen.filer_snapshot_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>Snapshot Configuration</title>
             <screen>%s</screen>
             </section>""" % cmds
 
         # initialise the snapvaults to the nearstore
-        if filer.type == 'nearstore':
-            cmds = '\n'.join( self.project.filer_snapvault_init_commands(filer, ns) )
+        if filer.is_active_node and filer.type == 'nearstore':
+            cmds = '\n'.join( self.command_gen.filer_snapvault_init_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>SnapVault Initialisation</title>
             <screen><?db-font-size 60%% ?>%s</screen>
             </section>""" % cmds
 
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.filer_snapvault_commands(filer, ns) )
+        if filer.is_active_node and filer.type == 'filer':
+            cmds = '\n'.join( self.command_gen.filer_snapvault_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>SnapVault Configuration</title>
             <screen>%s</screen>
             </section>""" % cmds
 
         # initialise the snapmirrors to the DR site
-        if self.project.has_dr:
-            if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
-                log.debug("initialising snapmirror on %s", filer.name)
+        if filer.is_active_node:
+            log.debug("initialising snapmirror on %s", filer.name)
 
-                cmds = '\n'.join( self.project.filer_snapmirror_init_commands(filer) )
-                if len(cmds) > 0:
-                    cmd_ns['commands'] += """<section>
-                    <title>SnapMirror Initialisation</title>
-                    <screen><?db-font-size 60%% ?>%s</screen>
-                    </section>""" % cmds
-                else:
-                    log.debug("No SnapMirrors configured to filer '%s' at secondary site." % filer.name)
+            cmds = '\n'.join( self.command_gen.filer_snapmirror_init_commands(filer) )
+            if len(cmds) > 0:
+                cmd_ns['commands'] += """<section>
+                <title>SnapMirror Initialisation</title>
+                <screen><?db-font-size 60%% ?>%s</screen>
+                </section>""" % cmds
+            else:
+                log.debug("No SnapMirrors configured to filer '%s' at secondary site." % filer.name)
 
         # /etc/snapmirror additions
-        if self.project.has_dr:
-            if filer.site.type == 'secondary' and filer.type in ['primary', 'nearstore']:
-
-                cmds = self.project.filer_etc_snapmirror_conf_commands(filer)
-                if len(cmds) > 0:
-                    cmd_ns['commands'] += """<section>
-                    <title>Filer <filename>/etc/snapmirror.conf</filename></title>
-                    <para>Use these commands to append to the Filer's /etc/snapmirror.conf file:</para>
-                    <screen><?db-font-size 60%% ?>%s</screen>
-                    </section>""" % '\n'.join(cmds)
+        if filer.is_active_node:
+            cmds = self.command_gen.filer_etc_snapmirror_conf_commands(filer)
+            if len(cmds) > 0:
+                cmd_ns['commands'] += """<section>
+                <title>Filer <filename>/etc/snapmirror.conf</filename></title>
+                <para>Use these commands to append to the Filer's /etc/snapmirror.conf file:</para>
+                <screen><?db-font-size 60%% ?>%s</screen>
+                </section>""" % '\n'.join(cmds)
 
         # Add default route
-        if filer.type in ['primary', 'nearstore']:
-            title, cmds = self.project.default_route_command(filer, vfiler)
+        if filer.is_active_node:                
+            title, cmds = self.command_gen.default_route_command(filer, vfiler)
             cmd_ns['commands'] += """<section>
             <title>%s</title>
             <screen>%s</screen>
             </section>""" % (title, '\n'.join( cmds ) )
 
         # Add services vlan routes if required
-        if filer.type in ['primary', 'nearstore']:
-            services_vlans = self.project.get_services_vlans(filer.site.type)
+        if filer.is_active_node:                
+            services_vlans = self.project.get_services_vlans(filer.site)
             if len(services_vlans) > 0:
-                cmds = self.project.services_vlan_route_commands(vfiler)
+                cmds = self.command_gen.services_vlan_route_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>Services VLAN routes</title>
                 <para>Use these commands to add routes into Services VLANs:</para>
@@ -2100,8 +2104,8 @@ the host activation guides.
             pass
 
         # /etc/hosts additions
-        if not filer.type == 'secondary':
-            cmds = self.project.vfiler_etc_hosts_commands(filer, vfiler)
+        if filer.is_active_node and filer.type == 'filer':
+            cmds = self.command_gen.vfiler_etc_hosts_commands(filer, vfiler)
             cmd_ns['commands'] += """<section>
             <title>vFiler <filename>/etc/hosts</filename></title>
             <para>Use these commands to create the vFiler's /etc/hosts file:</para>
@@ -2112,12 +2116,12 @@ the host activation guides.
         # The /etc/rc file needs certain pieces of configuration added to it
         # to make the configuration persistent.
         #
-        cmds = self.project.filer_etc_rc_commands(filer, vfiler)
-##         cmds = self.project.vlan_create_commands(filer, vfiler)
-##         cmds += self.project.vfiler_add_storage_interface_commands(filer, vfiler)
-##         title, cmdlist = self.project.default_route_command(filer, vfiler)
+        cmds = self.command_gen.filer_etc_rc_commands(filer, vfiler)
+##         cmds = self.command_gen.vlan_create_commands(filer, vfiler)
+##         cmds += self.command_gen.vfiler_add_storage_interface_commands(filer, vfiler)
+##         title, cmdlist = self.command_gen.default_route_command(filer, vfiler)
 ##         cmds += cmdlist
-##         cmds += self.project.services_vlan_route_commands(vfiler)
+##         cmds += self.command_gen.services_vlan_route_commands(vfiler)
 
         cmd_ns['commands'] += """<section>
         <title>Filer <filename>/etc/rc</filename> Additions</title>
@@ -2126,8 +2130,9 @@ the host activation guides.
         </section>""" % '\n'.join( cmds )
 
         # NFS exports are only configured on primary filers
-        if filer.type == 'primary':
-            cmdlist = self.project.vfiler_nfs_exports_commands(filer, vfiler, ns)
+        # FIXME: defaults configurable
+        if filer.is_active_node and filer.type == 'filer':
+            cmdlist = self.command_gen.vfiler_nfs_exports_commands(filer, vfiler, ns)
 
             # Only add the section if NFS commands exist
             if len(cmdlist) == 0:
@@ -2149,9 +2154,9 @@ the host activation guides.
                 </section>""" % cmds
 
         # CIFS exports are only configured on primary filers
-        if 'cifs' in self.project.allowed_protocols:
-            if filer.type in ['primary', 'nearstore']:
-                cmds = self.project.vfiler_cifs_dns_commands(vfiler)
+        if 'cifs' in vfiler.get_allowed_protocols():
+            if filer.is_active_node:
+                cmds = self.command_gen.vfiler_cifs_dns_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>CIFS DNS Configuration</title>
                 <para>Use these commands to configure the vFiler for DNS:</para>
@@ -2160,7 +2165,7 @@ the host activation guides.
                 pass
             
             # Set up CIFS in the vFiler
-            if filer.type in [ 'primary', 'nearstore']:
+            if filer.is_active_node:
                 cmds = ['vfiler run %s cifs setup' % vfiler.name]
                 cmd_ns['commands'] += """<section>
                 <title>Set Up CIFS</title>
@@ -2169,8 +2174,8 @@ the host activation guides.
                 </section>""" % '\n'.join(cmds)
 
             # Set up CIFS shares
-            if filer.type in [ 'primary', ]:
-                cmds = self.project.vfiler_cifs_shares_commands(vfiler)
+            if filer.is_active_node and filer.type == 'filer':
+                cmds = self.command_gen.vfiler_cifs_shares_commands(vfiler)
                 cmd_ns['commands'] += """<section>
                 <title>CIFS Share Configuration</title>
                 <para>Set up CIFS for the vFiler. This is an interactive process.</para>
@@ -2178,18 +2183,18 @@ the host activation guides.
                 </section>""" % '\n'.join(cmds)
 
         # iSCSI exports are only configured on primary filers
-        if 'iscsi' in self.project.allowed_protocols:
-            if filer.type in [ 'primary', ]:
+        if 'iscsi' in vfiler.get_allowed_protocols():
+            if filer.is_active_node and filer.type == 'filer':
 
                 # iSCSI CHAP configuration
-                title, cmds = self.project.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])
+                title, cmds = self.command_gen.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])
                 cmd_ns['commands'] += """<section>
                 <title>%s</title>
                 <screen>%s</screen>
                 </section>""" % (title, '\n'.join(cmds) )
 
                 # iSCSI iGroup configuration
-                title, cmds = self.project.vfiler_igroup_enable_commands(filer, vfiler)
+                title, cmds = self.command_gen.vfiler_igroup_enable_commands(filer, vfiler)
                 if len(cmds) > 0:
                     cmd_ns['commands'] += """<section>
                     <title>%s</title>
@@ -2197,18 +2202,20 @@ the host activation guides.
                     </section>""" % (title, '\n'.join(cmds) )
 
                 # iSCSI LUN configuration
-                title, cmds = self.project.vfiler_lun_enable_commands(filer, vfiler)
+                title, cmds = self.command_gen.vfiler_lun_enable_commands(filer, vfiler)
                 if len(cmds) > 0:
                     cmd_ns['commands'] += """<section>
                     <title>%s</title>
                     <screen><?db-font-size 60%% ?>%s</screen>
                     </section>""" % (title, '\n'.join(cmds) )
-
+                    pass
+                pass
+            pass
         # Finally, set the vFiler options.
         # Some options require previous pieces of configuration to exist before they work.
         # eg: dns.enable on requires /etc/resolv.conf to exist.
-        if not filer.type == 'secondary':
-            cmds = '\n'.join( self.project.vfiler_set_options_commands(vfiler, ns) )
+        if filer.is_active_node:
+            cmds = '\n'.join( self.command_gen.vfiler_set_options_commands(vfiler, ns) )
             cmd_ns['commands'] += """<section>
             <title>vFiler Options</title>
             <screen>%s</screen>

@@ -80,7 +80,7 @@ class ExportTest(unittest.TestCase):
         self.aggr1.add_child(vol)
         self.failUnlessEqual(vol.name, "filer1_vftest01_fs_01")
 
-        self.project.setup_exports()
+        self.project.setup_exports(self.defaults)
         
         # check the exports are set up correctly
         for qtree in self.vfiler1.get_qtrees():
@@ -104,7 +104,7 @@ class ExportTest(unittest.TestCase):
 
         self.failUnlessEqual(vol.name, "filer1_vftest01_fs_02")
 
-        self.project.setup_exports()
+        self.project.setup_exports(self.defaults)
 
         # check the exports are set up correctly
         for qtree in self.vfiler1.get_qtrees():
@@ -127,7 +127,7 @@ class ExportTest(unittest.TestCase):
         self.aggr1.add_child(vol)
         self.failUnlessEqual(vol.name, "filer1_vftest01_fs_01")
 
-        self.project.setup_exports()
+        self.project.setup_exports(self.defaults)
 
         # check the exports are set up correctly
         for qtree in self.vfiler1.get_qtrees():

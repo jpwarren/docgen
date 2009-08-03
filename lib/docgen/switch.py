@@ -1,4 +1,4 @@
-## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
+## $Id$
 
 """
 Network switching devices

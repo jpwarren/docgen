@@ -1,4 +1,4 @@
-## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
+## $Id$
 
 """
 NetApp Filer object
@@ -22,6 +22,7 @@ class Filer(DynamicNamedXMLConfigurable):
 
     child_tags = [ 'vfiler',
                    'aggregate',
+                   'igroup',
                    ]
 
     mandatory_attribs = [
@@ -110,6 +111,13 @@ class Filer(DynamicNamedXMLConfigurable):
             pass
         return volumes
 
+    def get_luns(self):
+        luns = []
+        for vol in self.get_volumes():
+            luns.extend( vol.get_luns() )
+            pass
+        return luns
+
     def get_allowed_protocols(self):
         """
         Get all the protocols defined anywhere in the project
@@ -119,6 +127,16 @@ class Filer(DynamicNamedXMLConfigurable):
             protos.extend( vfiler.get_allowed_protocols() )
             pass
         return protos
+
+    def get_igroups(self):
+        """
+        Get all the iGroups defined in myself or my vFilers
+        """
+        igroups = self.children['igroup']
+        for vfiler in self.get_vfilers():
+            igroups.extend( vfiler.get_igroups() )
+            pass
+        return igroups
 
     def setup_exports(self):
         """

@@ -18,7 +18,7 @@ import logging
 import debug
 log = logging.getLogger('docgen')
 
-__version__ = '$Revision: 165 $'
+__version__ = '$Revision$'
 
 class XMLConfigurable:
     implements(IXMLConfigurable)
@@ -166,6 +166,10 @@ class DynamicNaming:
         and add any extra bits to be found at this
         level to the namespace.
         """
+        if self.parent is not None:
+            log.debug("my parent is: %s", self.parent)
+            ns = self.parent.populate_namespace(ns)
+            pass
         return ns
 
 class DynamicNamedXMLConfigurable(XMLConfigurable, DynamicNaming):
@@ -530,13 +534,14 @@ ${abstract}
             sys.stdout.write(book)
             pass
         else:
-            if versioned:
-                outfile = self.version_filename(outfile, self.conf)
-                pass
-            outf = open(outfile, "w")
-            outf.write(book)
-            outf.close()
-            pass
+            outfile.write(book)
+#             if versioned:
+#                 outfile = self.version_filename(outfile, self.conf)
+#                 pass
+#             outf = open(outfile, "w")
+#             outf.write(book)
+#             outf.close()
+#             pass
 
     def build_book(self, ns={}):
         """

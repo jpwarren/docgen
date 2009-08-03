@@ -1,4 +1,4 @@
-#
+ #
 # $Id$
 #
 """
@@ -61,7 +61,7 @@ class SnapVaultSetTest(unittest.TestCase):
         Test a snapvaultset with an id
         """
         xmldata = """
-<snapvaultset id="default" />
+<snapvaultset name="default" />
 """
         node = etree.fromstring(xmldata)
         sr = SnapVaultSet()
@@ -72,7 +72,7 @@ class SnapVaultSetTest(unittest.TestCase):
         Test a snapvaultset with targetfiler, but no targetaggregate
         """
         xmldata = """
-<snapvaultset id="default" targetfiler="filer01" />
+<snapvaultset name="default" targetfiler="filer01" />
 """
         node = etree.fromstring(xmldata)
         sr = SnapVaultSet()
@@ -83,13 +83,13 @@ class SnapVaultSetTest(unittest.TestCase):
         Test a snapvaultset with targetfiler and targetaggregate
         """
         xmldata = """
-<snapvaultset id="default" targetfiler="filer01" targetaggregate="aggr02"/>
+<snapvaultset name="default" targetfiler="filer01" targetaggregate="aggr02"/>
 """
         node = etree.fromstring(xmldata)
         sr = SnapVaultSet()
         sr.configure_from_node(node, self.defaults, self.project)
 
-        self.failUnlessEqual( sr.id, 'default')
+        self.failUnlessEqual( sr.name, 'default')
         self.failUnlessEqual( sr.targetfiler, 'filer01')
         self.failUnlessEqual( sr.targetaggregate, 'aggr02')
         self.failUnlessEqual( sr.targetvolume, None)
@@ -99,14 +99,30 @@ class SnapVaultSetTest(unittest.TestCase):
         Test a snapvaultset with targetfiler and targetvolume
         """
         xmldata = """
-<snapvaultset id="default" targetfiler="filer01" targetvolume="testvol03"/>
+<snapvaultset name="default" targetfiler="filer01" targetvolume="testvol03"/>
 """
         node = etree.fromstring(xmldata)
         sr = SnapVaultSet()
         sr.configure_from_node(node, self.defaults, self.project)
 
-        self.failUnlessEqual( sr.id, 'default')
+        self.failUnlessEqual( sr.name, 'default')
         self.failUnlessEqual( sr.targetfiler, 'filer01')
         self.failUnlessEqual( sr.targetaggregate, None)
         self.failUnlessEqual( sr.targetvolume, 'testvol03')
         
+    def test_snapvaultset_multiplier(self):
+        """
+        Test setting a custom multipler for the snapvaultset
+        """
+        xmldata = """
+<snapvaultset name="default"
+              targetfiler="filer01"
+              targetaggregate="aggr02"
+              multiplier="3.4"/>
+"""
+        node = etree.fromstring(xmldata)
+        sr = SnapVaultSet()
+        sr.configure_from_node(node, self.defaults, self.project)
+
+        self.failUnlessEqual( sr.name, 'default')
+        self.failUnlessEqual( sr.multiplier, 3.4)

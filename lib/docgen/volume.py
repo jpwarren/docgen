@@ -1,4 +1,4 @@
-## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
+## $Id$
 
 """
 NetApp Volumes
@@ -164,6 +164,8 @@ class Volume(DynamicNamedXMLConfigurable):
         self.autosize = None
         self.autodelete = None
 
+        log.debug("volume usable is: %f", self.usable)
+
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
         
@@ -303,13 +305,16 @@ class Volume(DynamicNamedXMLConfigurable):
         The short path for the volume, eg: /vol/myproj_vol03
         """
         return '/vol/%s' % self.name
+
+    def full_path(self):
+        return self.shortpath()
     
     def namepath(self):
         """
         The name path to the filer/volume, eg: exip-nas-02:/vol/myproj_vol03
         """
         return '%s:%s' % ( self.parent.get_filer().name, self.shortpath() )
-    
+
     def _ippath(self):
         """
         Similar to the name path, but using the storage IP of the filer as the target.

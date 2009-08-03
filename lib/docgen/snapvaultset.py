@@ -53,6 +53,8 @@ class SnapVaultSet(DynamicNamedXMLConfigurable):
             except (NoSectionError, NoOptionError):
                 self.multiplier = 2.5
             pass
+        else:
+            self.multiplier = float(self.multiplier)
 
         # Convert targetusable from text to a float 
         if self.targetusable is not None:

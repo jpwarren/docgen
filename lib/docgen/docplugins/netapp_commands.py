@@ -130,7 +130,7 @@ class NetAppCommandsGenerator(CommandGenerator):
             commands.extend( self.vfiler_create_commands(filer, vfiler) )
 
         # Don't add volumes on secondary filers
-        if not filer.type == 'secondary':
+        if filer.is_active_node:
             commands.append("\n# vFiler Volume Addition\n")
             commands.extend( self.vfiler_add_volume_commands(filer, vfiler) )
 
@@ -139,7 +139,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         commands.extend( self.vfiler_add_storage_interface_commands(filer, vfiler) )
 
         # Configure secureadmin
-        if not filer.type == 'secondary':
+        if filer.is_active_node:
             commands.append("\n# SecureAdmin Configuration\n")
             commands.extend( self.vfiler_setup_secureadmin_ssh_commands(vfiler) )
 
@@ -229,15 +229,16 @@ class NetAppCommandsGenerator(CommandGenerator):
 
         # NFS exports are only configured on primary filers.
         # NearStores are only exported temporarily for restore purposes.
-        if filer.type == 'primary':
-            cmdlist = self.project.vfiler_nfs_exports_commands(filer, vfiler)
+        # FIXME: defaults configurable?
+        if filer.is_active_node and filer.type == 'filer':
+            cmdlist = self.vfiler_nfs_exports_commands(filer, vfiler)
 
             # Only add the section if NFS commands exist
             if len(cmdlist) == 0:
                 log.debug("No NFS exports defined.")
             else:
                 commands.append("\n# NFS Exports Configuration\n")
-                commands.extend( self.project.vfiler_nfs_exports_commands(filer, vfiler, ns) )
+                commands.extend( self.vfiler_nfs_exports_commands(filer, vfiler) )
                 pass
             pass
 
@@ -276,7 +277,7 @@ class NetAppCommandsGenerator(CommandGenerator):
                 commands.extend( ['vfiler run %s cifs shares -delete C$' % vfiler.name] )
 
             # Set up CIFS shares
-            if filer.type in [ 'primary', ]:
+            if filer.is_active_node and filer.type == 'filer':
                 commands.append("\n# CIFS Share Configuration")
                 commands.extend( self.project.vfiler_cifs_shares_commands(vfiler) )
 
@@ -284,7 +285,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         # iSCSI commands
         #
         if 'iscsi' in vfiler.get_allowed_protocols():
-            if filer.type in [ 'filer', ]:
+            if filer.is_active_node and filer.type == 'filer':
 
                 # iSCSI CHAP configuration
                 title, cmds = self.project.vfiler_iscsi_chap_enable_commands(filer, vfiler, prefix=ns['iscsi_prefix'])

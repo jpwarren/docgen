@@ -1,4 +1,4 @@
-## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
+## $Id$
 
 """
 Role Based Access Control and storage exports related design objects

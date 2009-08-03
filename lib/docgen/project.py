@@ -19,6 +19,7 @@ from volume import Volume
 from aggregate import Aggregate
 from snapmirror import SnapMirror
 from snapvault import SnapVault
+from igroup import iGroup
 
 import debug
 import logging
@@ -128,13 +129,15 @@ class Project(DynamicNamedXMLConfigurable):
         #
         # Once the project is configured, set up some other bits and pieces
         #
-        self.setup_exports()
+        self.setup_exports(defaults)
+
+        self.setup_igroups(defaults)
 
         self.setup_snapmirrors(defaults)
 
         self.setup_snapvaults(defaults)
-        
-    def setup_exports(self):
+
+    def setup_exports(self, defaults):
         """
         Set up all the exports for my sites using either manually
         configured exports, or appropriate defaults.
@@ -142,7 +145,98 @@ class Project(DynamicNamedXMLConfigurable):
         for site in self.get_sites():
             site.setup_exports()
             pass
-        
+
+    def setup_igroups(self, defaults):
+        """
+        Set up iGroups for all filers/vfilers.
+        If an iGroup has been manually defined, link to the host
+        objects that the iGroup refers to as members.
+        """
+        igroups = []
+        igroups.extend( self.setup_auto_igroups(defaults) )
+        pass
+
+    def setup_auto_igroups(self, defaults):
+        """
+        Automatically create iGroups for LUNs that need them
+        This algorithm creates the minimum number of
+        iGroups based on the way in which the storage is
+        shared between servers. Servers that share the same
+        set of LUNs are made part of the same iGroup.
+        """
+        log.debug("No manually defined igroups exist. Auto-generating them...")
+        log.debug("There are %d luns to process", len(self.get_luns()) )
+
+        igroups = []
+        # Split the LUNs into per-site lists
+        for site in self.get_sites():
+            log.debug("siteluns: %d luns in %s: %s", len(site.get_luns()), site.type, site.get_luns())
+
+            site_igroups = []
+            for lun in site.get_luns():
+                log.debug("Building iGroups for LUN: %s", lun)
+                for ig in site_igroups:
+                    log.debug("checking match of exportlist: %s with %s", ig.get_exports(), lun.get_exports())
+                    pass
+
+                # Check to see if the exports in both lists are equivalent
+                # This means that all of the exports in the igroup exportlist
+                # are to the same host/ip, with the same permissions as the
+                # lun's exportlist.
+                matchedgroups = []
+                for ig in site_igroups:
+                    match = True
+                    for a, b in zip(ig.get_exports(), lun.get_exports()):
+                        if a != b:
+                            match = False
+                            pass
+                        pass
+                    if match is True:
+                        matchedgroups.append(ig)
+                    pass
+
+                #matchedgroups = [ ig for ig in site_igroups if [ a == b for a,b in zip(ig.exportlist, lun.exportlist)] ]
+                if len(matchedgroups) == 0:
+                    log.debug("exportlist %s has not had a group created for it yet", lun.get_exports())
+                    igroup_number = len(site_igroups)
+                    log.debug("site is: %s", site)
+                    ns = site.populate_namespace()
+                    ns['igroup_number'] = igroup_number
+                    igroup_name = defaults.get('igroup', 'igroup_name') % ns
+
+                    # Add a list of one LUN to a brand new iGroup with this LUN's exportlist
+                    # The iGroup type defaults the same as the first LUN type that it contains.
+                    xmldata = """<igroup name="%s"/>"""
+                    
+                    #group = iGroup(igroup_name, lun.qtree.volume.filer, lun.exportlist, [lun,], type=lun.ostype)
+                    group = iGroup()
+                    group.configure_from_node( etree.fromstring(xmldata), defaults, site)
+                    group.luns.append(lun)
+                    group.exports = lun.get_exports()
+                    lun.igroup = group
+                    site_igroups.append(group)
+
+                else:
+                    log.debug("Aha! An iGroup with this exportlist already exists!")
+                    if len(matchedgroups) > 1:
+                        log.warning("Multiple iGroups exist for the same exportlist! This is a bug!")
+                        log.warning("groups are: %s", matchedgroups)
+                    group = matchedgroups[0]
+                    log.debug("Appending LUN to iGroup %s", group.name)
+                    if group.type != lun.ostype:
+                        log.error("LUN type of '%s' is incompatible with iGroup type '%s'", lun.ostype, igroup.type)
+                    else:
+                        lun.igroup = group
+                        group.luns.append(lun)
+                    pass
+                pass
+            igroups.extend( site_igroups )
+            pass
+        return igroups
+
+    def setup_manual_igroups(self):
+        pass
+    
     def get_host_qtree_mountoptions(self, host, qtree):
         """
         Find the mountoptions for a host for a specific qtree.
@@ -345,7 +439,7 @@ class Project(DynamicNamedXMLConfigurable):
 
         # Create target volumes based on the snapvault definition
         for ref in srcvol.get_snapvault_setrefs():
-            log.debug("Found reference: %s", ref)
+            log.debug("Found reference: %s", ref.name)
             try:
                 log.debug("snapvaultsets: %s", [x.name for x in self.get_snapvaultsets()] )
                 setobj = [ x for x in self.get_snapvaultsets() if x.name == ref.name ][0]
@@ -384,6 +478,8 @@ class Project(DynamicNamedXMLConfigurable):
                     if srcvol.protocol == 'iscsi':
                         setobj.targetusable = srcvol.iscsi_usable * setobj.multiplier
                     else:
+                        log.debug("usable: %f", srcvol.usable)
+                        log.debug("multiplier: %f", setobj.multiplier)
                         setobj.targetusable = srcvol.usable * setobj.multiplier
                     pass
                 

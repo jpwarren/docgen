@@ -34,6 +34,7 @@ class VFiler(DynamicNamedXMLConfigurable):
         'nameserver',
         'winsserver',
         #'qtree',
+        'igroup',
         ]
 
     mandatory_attribs = [ 
@@ -333,7 +334,7 @@ class VFiler(DynamicNamedXMLConfigurable):
 
     def get_exports(self):
         """
-        Find all the export objects for this vFiler's volumes/qtrees
+        Find all the export objects for this vFiler's volumes/qtrees/luns
         """
         all_exports = []
         for vol in self.get_volumes():
@@ -341,6 +342,12 @@ class VFiler(DynamicNamedXMLConfigurable):
             for qtree in vol.get_qtrees():
                 log.debug("Finding exports")
                 exports = qtree.get_exports()
+                all_exports.extend( exports )
+                pass
+
+            for lun in vol.get_luns():
+                log.debug("Finding exports")
+                exports = lun.get_exports()
                 all_exports.extend( exports )
                 pass
             pass

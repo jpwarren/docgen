@@ -1,4 +1,4 @@
-## $Id: config.py 189 2009-01-14 23:42:53Z daedalus $
+## $Id$
 
 """
 Physical site and related design objects
@@ -75,13 +75,6 @@ class Site(DynamicNamedXMLConfigurable):
         ns['site_type'] = self.type
         return ns
 
-    def configure_from_node(self, node, defaults, parent):
-        """
-        A site can also use defaults for its location, based on its name
-        """
-        self.parent = parent
-        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
-
     def name_dynamically(self, defaults):
         if getattr(self, 'location', None) is None:
             self.location = defaults.get('site_%s' % self.name, 'location')
@@ -93,6 +86,13 @@ class Site(DynamicNamedXMLConfigurable):
             pass
         return volumes
 
+    def get_luns(self):
+        luns = []
+        for vol in self.get_volumes():
+            luns.extend( vol.get_luns() )
+            pass
+        return luns
+    
     def link_filer_clusters(self):
         """
         Once we've loaded all our children, link filer clusters

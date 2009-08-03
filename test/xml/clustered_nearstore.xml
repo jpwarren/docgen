@@ -498,12 +498,11 @@ file is well-formed and also a valid file.
 	     igroups are required automatically, but if you have specific
 	     igroup requirements, you can manually override the system here.
 	-->
-	<!--
+
 	    <igroup name='igroup_fred' number='5' prefix='myprefix' suffix='jpwsuffix'>
 	    <member name='primhost01'/>
 	    <member name='primhost02'/>
 	    </igroup>
-	-->
 
       </vfiler>
 
@@ -736,7 +735,7 @@ The site type is 'secondary' for the DR site.
        to define how much storage should be created on the target volume
        instead of the default (2.5, usually).
   -->
-  <snapvaultset name="custom-multiplier" multiplier='6'
+  <snapvaultset name="custom-multiplier" multiplier="6"
 		targetfiler="sitea-fasnst-01" targetaggregate="aggr09">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
@@ -747,7 +746,7 @@ The site type is 'secondary' for the DR site.
     </snapvault>
   </snapvaultset>
 
-  <snapvaultset name="custom-storage" targetusable='2244'
+  <snapvaultset name="custom-storage" targetusable="2244"
 		targetfiler="sitea-fasnst-01" targetaggregate="aggr09">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>

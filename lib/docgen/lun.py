@@ -8,6 +8,8 @@ like SnapVaultSet, SnapMirrorSet, etc.
 """
 from base import DynamicNamedXMLConfigurable
 
+import util
+
 import debug
 import logging
 log = logging.getLogger('docgen')
@@ -19,6 +21,7 @@ class Lun(DynamicNamedXMLConfigurable):
     xmltag = 'lun'
 
     child_tags = [ 
+        'export',
         ]
 
     mandatory_attribs = [
@@ -31,6 +34,9 @@ class Lun(DynamicNamedXMLConfigurable):
         'ostype',
         'restartnumbering',
         ]
+
+    def __init__(self):
+        self.igroup = None
 
     def configure_optional_attributes(self, node, defaults):
         """
@@ -50,7 +56,7 @@ class Lun(DynamicNamedXMLConfigurable):
             self.lunid = self.parent.get_next_lunid()
             
         try:
-            lunsize = float(self.size)
+            self.size = float(self.size)
         except TypeError:
             log.debug("No LUN size specified. Figuring it out...")
 
@@ -72,12 +78,21 @@ class Lun(DynamicNamedXMLConfigurable):
 
             log.debug("Available for allocation: %s", self.parent.get_iscsi_usable() - sized_total)
 
-            lunsize = float(self.parent.get_iscsi_usable() - sized_total) / nosize_luns
-            log.debug("calculated lun size of: %s", lunsize)
+            self.size = float(self.parent.get_iscsi_usable() - sized_total) / nosize_luns
+            log.debug("calculated lun size of: %s", self.size)
             pass
         
-        log.debug("Allocating %sg storage to LUN", lunsize)
-        self.parent.add_to_lun_total(lunsize)
+        log.debug("Allocating %sg storage to LUN", self.size)
+        self.parent.add_to_lun_total(self.size)
+
+    def full_path(self):
+        """
+        Return the full path string for LUN creation
+        """
+        return '%s/%s' % (self.parent.full_path(), self.name)
+
+    def get_create_size(self):
+        return util.get_create_size(self.size)
         
 def create_lun_from_node(node, defaults, parent):
 
