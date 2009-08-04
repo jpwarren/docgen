@@ -239,7 +239,7 @@ class DocBookGenerator(FileOutputMixin):
 <!ENTITY docgen.revision "$docgen_revision">
 
 <!-- The name of the project that will appear on the front page -->
-<!ENTITY project.name "$project_name">
+<!ENTITY project.title "$project_title">
 <!ENTITY project.code "$project_code">
 
 <!-- The vfiler name for the project -->
@@ -279,8 +279,8 @@ $book_content
     bookinfo = Template('''
   <bookinfo>
     <title>${title}</title>
-    <subtitle>&pmo.number; &project.name;</subtitle>
-    <biblioid>&pmo.number;</biblioid>
+    <subtitle>&project.code; &project.title;</subtitle>
+    <biblioid>&project.code;</biblioid>
     <author>
       <firstname>$doc_owner_firstname</firstname>
       <surname>$doc_owner_surname</surname>
@@ -308,6 +308,8 @@ ${abstract}
       <para>None of this information may be divulged to any person other than $copyright_holder
       employees, or individuals or organisations authorised by $copyright_holder to
       receive such information.</para>
+
+      <para><trademark class="registered">NetApp</trademark> is a registered trademark of NetApp Inc.</para>
     </legalnotice>
 ''')
                         
@@ -359,19 +361,19 @@ ${abstract}
 
            <row>
               <entry>
-                <para>Project</para>
+                <para>Project Title</para>
               </entry>
               <entry>
-                <para>&project.name;</para>
+                <para>&project.title;</para>
               </entry>
             </row>
 
            <row>
               <entry>
-                <para>PMO No.</para>
+                <para>Project Code</para>
               </entry>
               <entry>
-                <para>&pmo.number;</para>
+                <para>&project.code;</para>
               </entry>
             </row>
 
@@ -522,9 +524,9 @@ ${abstract}
         self.project = project
         self.defaults = defaults
 
-    def emit(self, outfile=None, versioned=False, ns={}):
+    def emit(self, outfile=None, ns={}):
         """
-        Write out the book XML to a File, defaulting to STDOUT.
+        Write out the book XML to a File object, defaulting to STDOUT.
         """
         ns['copyright_holder'] = self.defaults.get('global', 'copyright_holder')
         ns['iscsi_prefix'] = self.defaults.get('global', 'iscsi_prefix')
@@ -535,13 +537,6 @@ ${abstract}
             pass
         else:
             outfile.write(book)
-#             if versioned:
-#                 outfile = self.version_filename(outfile, self.conf)
-#                 pass
-#             outf = open(outfile, "w")
-#             outf.write(book)
-#             outf.close()
-#             pass
 
     def build_book(self, ns={}):
         """
@@ -551,7 +546,7 @@ ${abstract}
             ns['title'] = 'DocGen Automated Document'
             
         ns['docgen_revision'] = __version__
-        ns['project_name'] = getattr(self.project, 'title', '')
+        ns['project_title'] = getattr(self.project, 'title', '')
         ns['project_code'] = getattr(self.project, 'code', '')
         ns['vfiler_name'] = getattr(self.project, 'name', '')
 

@@ -2,13 +2,10 @@
 <!-- $Id: docgen.dtd 161 2008-09-28 01:20:15Z daedalus $ -->
 <!-- DocGen Document Type Definition for <project/> -->
 
-<!ELEMENT project (prefix, code, shortname, longname, background,
-revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backupscheduleset*, backupmedia*)>
-
-  <!ELEMENT prefix (#PCDATA)>
-  <!ELEMENT code (#PCDATA)>
-  <!ELEMENT shortname (#PCDATA)>
-  <!ELEMENT longname (#PCDATA)>
+<!ELEMENT project (background, revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backupscheduleset*, backupmedia*)>
+  <!ATTLIST project name CDATA #REQUIRED
+                    code CDATA #REQUIRED
+                    title CDATA #REQUIRED>
 
   <!-- <background/> element contains verbatim DocBook XML to be
     included in the background section of the document
@@ -23,11 +20,12 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
     <!ELEMENT listitem ANY>
 
   <!-- Revision History elements -->
-  <!ELEMENT revision (majornumber, minornumber, date, authorinitials, revremark, reviewer, reviewdate)>
+  <!ELEMENT revision EMPTY>
   <!ATTLIST revision majornumber CDATA #REQUIRED
                      minornumber CDATA #REQUIRED
                      date CDATA #REQUIRED
                      author CDATA #REQUIRED
+                     revremark CDATA #IMPLIED
                      reviewer CDATA #IMPLIED
                      reviewdate CDATA #IMPLIED
                      description CDATA #IMPLIED>
@@ -45,22 +43,24 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 
   <!ELEMENT site (vlan+, host*, filer+)>
     <!ATTLIST site name CDATA #IMPLIED
-                   type (filer|nearstore) 'filer'
-                   partner CDATA #IMPLIED
+                   type CDATA #IMPLIED
                    location CDATA #IMPLIED>
 
     <!ELEMENT filer (name?, vfiler?)>
-      <!ATTLIST filer type (primary | secondary | nearstore) #REQUIRED
-                      clustered (yes|no) #IMPLIED
+      <!ATTLIST filer type (filer | nearstore) 'filer'
+                      partner CDATA #IMPLIED
                       name ID #REQUIRED>
 
-      <!ELEMENT vfiler (name?, protocol*, primaryip?, aliasip*, vlanip*, testip?, aggregate*, igroup*)>
+      <!ELEMENT vfiler (name?, protocol*, ipaddress+, aggregate*, igroup*)>
         <!ATTLIST vfiler name CDATA #IMPLIED>
         <!ELEMENT protocol EMPTY>
-          <!ATTLIST protocol name ('nfs', 'cifs', 'iscsi') #REQUIRED
-        <!ELEMENT primaryip (ipaddr, netmask)>
-	  <!ELEMENT ipaddr (#PCDATA)>
-	  <!ELEMENT netmask (#PCDATA)>
+          <!ATTLIST protocol name (nfs | cifs | iscsi) #REQUIRED>
+
+        <!ELEMENT ipaddress EMPTY>
+	  <!ATTLIST ipaddress type (primary|alias|service|test) 'primary'
+                              ip CDATA #REQUIRED
+                              netmask CDATA #IMPLIED
+                              vlan_number CDATA #IMPLIED>
 
         <!ELEMENT aliasip (ipaddr, netmask)>
 
@@ -82,13 +82,15 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
                              type CDATA #IMPLIED>
 
 	<!-- The volume declaration -->
-	<!ELEMENT volume (usablestorage?, snapstorage?, autosize?, autodelete?, (qtree | lun | export | setref | exportalias)* )>
+	<!ELEMENT volume (autosize?, autodelete?, (qtree | lun | export | setref | exportalias)* )>
 	  <!ATTLIST volume type (oraconfig | oracm | oradata | oraindx | oraredo | oraundo | oraarch ) #IMPLIED
 	                   name ID #IMPLIED
+                           usable CDATA #IMPLIED
                            description CDATA #IMPLIED
 			   prefix CDATA #IMPLIED
 			   suffix CDATA #IMPLIED
 			   snapreserve CDATA #IMPLIED
+			   snapstorage CDATA #IMPLIED
 			   proto CDATA #IMPLIED
 			   oracle IDREF #IMPLIED
 			   restartnumbering CDATA #IMPLIED
@@ -132,13 +134,13 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
           <!ELEMENT exportalias (#PCDATA)>
 
 	  <!ELEMENT setref EMPTY>
-	    <!ATTLIST setref type (snap, snapvault, snapmirror, snapvaultmirror, snapmirrorvault) #REQUIRED
+	    <!ATTLIST setref type (snap | snapvault | snapmirror | snapvaultmirror | snapmirrorvault) #REQUIRED
                              name IDREF #REQUIRED>
 
 	  <!ELEMENT protectionref EMPTY>
             <!ATTLIST protectionref name IDREF #REQUIRED>
 
-  <!ELEMENT host (filesystem*, interface*, backup*, iscsi_initiator?, drhost*)>
+  <!ELEMENT host (filesystem*, netinterface*, backup*, iscsi_initiator?, drhost*)>
     <!ATTLIST host name ID #REQUIRED
                    platform CDATA #REQUIRED
                    operatingsystem CDATA #REQUIRED
@@ -152,8 +154,8 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
       <!ELEMENT storage (#PCDATA)>
         <!ATTLIST storage type (binary | data) #REQUIRED>
 
-    <!ELEMENT interface (vlan_number*, switchname?, switchport?, hostport?, ipaddr?)>
-      <!ATTLIST interface type CDATA #REQUIRED
+    <!ELEMENT netinterface (vlan_number*, switchname?, switchport?, hostport?, ipaddress?)>
+      <!ATTLIST netinterface type CDATA #REQUIRED
                 mode (active|passive|trunk) 'active'
 		mtu CDATA #IMPLIED>
       <!ELEMENT switchname (#PCDATA)>
@@ -177,34 +179,34 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
     <!ELEMENT drhost EMPTY>
       <!ATTLIST drhost name IDREF #REQUIRED>
 
-  <!ELEMENT snapvaultset (snapvault*)>
-    <!ATTLIST snapvaultset id ID #REQUIRED
+  <!ELEMENT snapvaultset (snapvaultdef*)>
+    <!ATTLIST snapvaultset name ID #REQUIRED
                            targetfiler IDREF #IMPLIED
                            targetvolume CDATA #IMPLIED
 			   targetaggregate CDATA #IMPLIED
 			   targetusable CDATA #IMPLIED
 			   multiplier CDATA #IMPLIED>
 
-    <!ELEMENT snapvault (snapschedule*, snapvaultschedule*)>
-      <!ATTLIST snapvault basename CDATA #REQUIRED>
-      <!ELEMENT snapschedule (#PCDATA)>
-      <!ELEMENT snapvaultschedule (#PCDATA)>
+    <!ELEMENT snapvaultdef EMPTY>
+      <!ATTLIST snapvaultdef basename CDATA #REQUIRED
+                             snapschedule CDATA #IMPLIED
+                             snapvaultschedule CDATA #IMPLIED>
 
-  <!ELEMENT snapmirrorset (snapmirror*)>
-    <!ATTLIST snapmirrorset id ID #REQUIRED
+  <!ELEMENT snapmirrorset (snapmirrordef*)>
+    <!ATTLIST snapmirrorset name ID #REQUIRED
                             targetfiler CDATA #IMPLIED
 			    targetaggregate CDATA #IMPLIED>
-    <!ELEMENT snapmirror (minute, hour, dayofmonth, dayofweek)>
-      <!ELEMENT minute (#PCDATA)>
-      <!ELEMENT hour (#PCDATA)>
-      <!ELEMENT dayofmonth (#PCDATA)>
-      <!ELEMENT dayofweek (#PCDATA)>
+    <!ELEMENT snapmirrordef EMPTY>
+      <!ATTLIST snapmirrordef minute CDATA #REQUIRED
+                              hour CDATA #REQUIRED
+                              dayofmonth CDATA #REQUIRED
+                              dayofweek CDATA #REQUIRED>
 
   <!--
       These elements are used for defining Protection Policies with
       NetApp Protection Manager.
     -->      
-  <!ELEMENT protectionpolicy>
+  <!ELEMENT protectionpolicy EMPTY>
     <!ATTLIST protectionpolicy name ID #REQUIRED
                                dfmserver CDATA #IMPLIED>
 
@@ -215,7 +217,7 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 
   <!--  backup schedule elements -->
   <!ELEMENT backupscheduleset (backupschedule+)>
-    <!ATTLIST backupscheduleset id ID #REQUIRED>
+    <!ATTLIST backupscheduleset name ID #REQUIRED>
 
     <!ELEMENT backupschedule (type, frequency, days?, starttime?, endtime?, duration?)>
     <!ELEMENT type (#PCDATA)>
@@ -227,7 +229,7 @@ revision+, database*, site+, snapvaultset*, snapmirrorset*, backuppolicy*, backu
 
   <!-- change scheduleset to idref -->
   <!ELEMENT backuppolicy (masterserver?, storageunit, advancedclient?)>
-    <!ATTLIST backuppolicy id ID #IMPLIED
+    <!ATTLIST backuppolicy name ID #IMPLIED
                            scheduleset IDREF #REQUIRED
                            type (Standard | SQLServer | Oracle | Windows-NT) #IMPLIED>
     <!ELEMENT masterserver (#PCDATA)>

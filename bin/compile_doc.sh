@@ -61,8 +61,8 @@ fi
 mv $fofile ${fofile}.tmp
 xmllint --format ${fofile}.tmp > $fofile
 
-OUTPUT_FORMATS="pdf rtf"
-#OUTPUT_FORMATS="pdf"
+#OUTPUT_FORMATS="pdf rtf"
+OUTPUT_FORMATS="pdf"
 for format in $OUTPUT_FORMATS; do
     outfile="$dirbase/$filebase.$format"
     echo "Converting $fofile to $outfile..."

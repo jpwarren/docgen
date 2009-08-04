@@ -106,8 +106,8 @@ class Filer(DynamicNamedXMLConfigurable):
         Get all volumes defined on me, and any vFilers I might have
         """
         volumes = []
-        for vfiler in self.get_vfilers():
-            volumes.extend(vfiler.get_volumes())
+        for aggr in self.get_aggregates():
+            volumes.extend(aggr.get_volumes())
             pass
         return volumes
 
@@ -117,6 +117,18 @@ class Filer(DynamicNamedXMLConfigurable):
             luns.extend( vol.get_luns() )
             pass
         return luns
+
+    def get_aggregates(self):
+        """
+        Aggregates are my own aggregates plus those of my
+        vfilers.
+        """
+        aggrlist = []
+        aggrlist.extend( self.children['aggregate'] )
+        for vfiler in self.get_vfilers():
+            aggrlist.extend( vfiler.get_aggregates() )
+            pass
+        return aggrlist
 
     def get_allowed_protocols(self):
         """

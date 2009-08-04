@@ -227,7 +227,9 @@ class VFiler(DynamicNamedXMLConfigurable):
 
     def add_service_ip(self, vlan, ipaddress):
         self.services_ips.append( (vlan, ipaddress) )
-    pass
+
+    def get_service_ips(self):
+        return self.services_ips
 
     def get_volumes(self):
         """

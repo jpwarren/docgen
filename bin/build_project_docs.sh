@@ -46,15 +46,15 @@ else
     $COMPILE_DOC_BIN $basedir/$project_name.$STORAGE_DESIGN_SUFFIX
 fi
 
-echo "Creating DocBook source for network design: $basedir/$project_name.$NETWORK_DESIGN_SUFFIX"
-$CREATE_DOC_BIN -d ipsan-network-design -o $basedir/$project_name.$NETWORK_DESIGN_SUFFIX $basedir/$filename
-if [ $? -ne 0 ]; then
-    echo "Failed to create network design."
-    exit 1
-else
-    echo "Compiling network design..."
-    $COMPILE_DOC_BIN $basedir/$project_name.$NETWORK_DESIGN_SUFFIX
-fi
+# echo "Creating DocBook source for network design: $basedir/$project_name.$NETWORK_DESIGN_SUFFIX"
+# $CREATE_DOC_BIN -d ipsan-network-design -o $basedir/$project_name.$NETWORK_DESIGN_SUFFIX $basedir/$filename
+# if [ $? -ne 0 ]; then
+#     echo "Failed to create network design."
+#     exit 1
+# else
+#     echo "Compiling network design..."
+#     $COMPILE_DOC_BIN $basedir/$project_name.$NETWORK_DESIGN_SUFFIX
+# fi
 
 echo "Creating storage provisioning commands file: $basedir/$project_name.$STORAGE_COMMANDS_SUFFIX"
-$CREATE_DOC_BIN -d ipsan-storage-commands -o $basedir/$project_name.$STORAGE_COMMANDS_SUFFIX $basedir/$filename
+$CREATE_DOC_BIN -d netapp-commands -o $basedir/$project_name.$STORAGE_COMMANDS_SUFFIX $basedir/$filename

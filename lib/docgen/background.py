@@ -28,7 +28,14 @@ class Background(XMLConfigurable, DynamicNaming):
         pass
 
     def get_docbook(self):
-        return etree.tostring(self.node, pretty_print=True)
+        """
+        Return the contents of the node children.
+        """
+        retstr = ''
+        for node in self.node.getchildren():
+            retstr += etree.tostring(node, pretty_print=True)
+            pass
+        return retstr
 
 def create_background_from_node(node, defaults, parent):
     background = Background()

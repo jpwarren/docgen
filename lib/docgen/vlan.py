@@ -44,7 +44,7 @@ class Vlan(DynamicNamedXMLConfigurable):
         #log.debug("Created vlan: %s", self)
 
     def __repr__(self):
-        return '<Vlan: %s, %s/%s>' % (self.number, self.site, self.type)
+        return '<Vlan: %s, %s, %s>' % (self.number, self.type, self.site)
 
     def configure_from_node(self, node, defaults, site):
         self.site = site

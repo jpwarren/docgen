@@ -32,7 +32,7 @@ class NetInterface(DynamicNamedXMLConfigurable):
         'mtu',
         ]
     
-    def ___init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):
+    def _depr__init__(self, type, mode, switchname=None, switchport=None, hostport=None, ipaddress=None, mtu=9000, vlans=[]):
 
         self.type = type
         self.mode = mode
@@ -58,28 +58,26 @@ class NetInterface(DynamicNamedXMLConfigurable):
             self.mode = 'passive'
             pass
 
-        if self.mtu is not None:
-            self.mtu = int(self.mtu)
-    
-    def configure_from_node(self, node, defaults, parent):
-        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
-
         # Figure out the VLANs this interface should be in.
         # If one isn't defined, put it in the first VLAN for
         # the site the parent is in with the same type
         vlan_nums = node.findall('vlan_number')
 
         if len(vlan_nums) == 0:
-            self.vlans = [ vlan for vlan in parent.get_site().get_vlans() if vlan.type == type ]
+            log.debug("site vlans: %s", self.parent.get_site().get_vlans())
+            log.debug("my type: %s", self.type)
+            self.vlans = [ vlan for vlan in self.parent.get_site().get_vlans() if vlan.type == 'project' ]
 
         else:
             self.vlans = []
             for vlan_num in vlan_nums:
-                self.vlans.extend([ vlan for vlan in parent.get_site().get_vlans() if vlan.number == int(vlan_num.text) ])
+                self.vlans.extend([ vlan for vlan in self.parent.get_site().get_vlans() if vlan.number == int(vlan_num.text) ])
                 pass
             pass
-
-        if self.mtu is None:
+        
+        if self.mtu is not None:
+            self.mtu = int(self.mtu)
+        else:
             # If the MTU isn't set on the interface, try to use
             # the mtu for the VLAN it's in, if one is defined
             try:
@@ -90,8 +88,16 @@ class NetInterface(DynamicNamedXMLConfigurable):
                 mtu = defaults.getint('vlan', 'default_mtu')
                 pass
             pass
-        pass
-
+            
+    def get_vlan(self):
+        """
+        Called to figure out which VLAN I should assign an
+        IP address to if it doesn't have one set manually.
+        We default to the first project vlan.
+        """
+        log.debug("my vlans: %s", self.vlans)
+        return [x for x in self.vlans if x.type == 'project'][0]
+    
 def create_netinterface_from_node(node, defaults, parent):
     """
     Create a network interface from an XML node

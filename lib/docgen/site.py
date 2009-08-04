@@ -4,7 +4,7 @@
 Physical site and related design objects
 """
 
-import ConfigParser
+from ConfigParser import NoSectionError
 
 from base import DynamicNamedXMLConfigurable
 
@@ -77,7 +77,10 @@ class Site(DynamicNamedXMLConfigurable):
 
     def name_dynamically(self, defaults):
         if getattr(self, 'location', None) is None:
-            self.location = defaults.get('site_%s' % self.name, 'location')
+            try:
+                self.location = defaults.get('site_%s' % self.name, 'location')
+            except NoSectionError:
+                self.location = ''
 
     def get_volumes(self):
         volumes = []

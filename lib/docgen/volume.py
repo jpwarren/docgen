@@ -56,8 +56,10 @@ class Volume(DynamicNamedXMLConfigurable):
     def __init__(self):
         self.current_lunid = 0
         self.lun_total = 0
+        self.snapvaults = []
+        self.snapmirrors = []
 
-    def __str__(self):
+    def __repr__(self):
         return '<Volume: %s:/vol/%s, %s, aggr: %s, size: %sg usable (%sg raw)>' % (self.parent.get_filer().name, self.name, self.type, self.parent.name, self.usable, self.raw)
 
     def _depr__init__(self, name, filer, aggr, usable, snapreserve=20,
@@ -362,7 +364,7 @@ class Volume(DynamicNamedXMLConfigurable):
             vol_export_allowed = False
             pass
 
-        if not vol_export_allowed and not self.type == 'root':
+        if not vol_export_allowed and not self.type in ['root', 'snapvaultdst', 'snapmirrordst' ]:
             log.debug("volume export not allowed. checking for qtrees...")
             if len(self.get_qtrees()) == 0:
                 log.debug("No qtrees.")

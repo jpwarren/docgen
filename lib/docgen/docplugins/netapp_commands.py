@@ -3,8 +3,9 @@
 # Dump activation commands out as as plain text
 #
 
-from zope.interface import implements
 import sys
+from zope.interface import implements
+from ConfigParser import NoSectionError, NoOptionError
 
 import logging
 from docgen import debug
@@ -29,7 +30,7 @@ class NetAppCommandsGenerator(CommandGenerator):
     on NetApp equipment.
     """
 
-    def emit(self, outfile=None, versioned=False, ns={}):
+    def emit(self, outfile=None, ns={}):
 
         ns['iscsi_prefix'] = self.defaults.get('global', 'iscsi_prefix')
 
@@ -43,12 +44,6 @@ class NetAppCommandsGenerator(CommandGenerator):
             sys.stdout.write(book)
         else:
             outfile.write(book)
-#             if versioned:
-#                 outfile = self.version_filename(outfile, self.project)
-#                 pass
-#             outf = open(outfile, "w")
-#             outf.write(book)
-#             outf.close()
             
     def build_activation_commands(self, ns):
         """
@@ -179,8 +174,9 @@ class NetAppCommandsGenerator(CommandGenerator):
             commands.extend( self.filer_snapvault_init_commands(filer) )
 
         # Set up the primary side of the snapvault configuration
-        if filer.is_active_node and filer.type == 'filer':
-            commands.append("\n# SnapVault Configuration\n")
+        # and any transfer schedules on the destination
+        if filer.is_active_node:
+            commands.append("\n# SnapVault Schedule Configuration\n")
             commands.extend( self.filer_snapvault_commands(filer) )
 
         # initialise the snapmirrors to the DR site
@@ -368,6 +364,7 @@ class NetAppCommandsGenerator(CommandGenerator):
         cmdset = []
         title = "Default Route"
         proj_vlan = self.project.get_project_vlan(filer.site)
+        log.debug("project vlan: %s", proj_vlan)
         cmdset.append("vfiler run %s route add default %s 1" % (vfiler.name, proj_vlan.get_networks()[0].gateway) )
         return title, cmdset
     
@@ -499,7 +496,7 @@ class NetAppCommandsGenerator(CommandGenerator):
                 pass
             else:
                 cmd = "ifconfig svif0-%s %s netmask %s mtusize 1500 up" % (vlan.number,
-                                                                           ipaddr,
+                                                                           ipaddr.ip,
                                                                            vlan.get_networks()[0].netmask)
                 pass
 
@@ -605,27 +602,40 @@ class NetAppCommandsGenerator(CommandGenerator):
         """
         cmdset = []
         donelist = []
+        log.debug("Initialising snapvaults...")
         for vol in filer.get_volumes():
+            log.debug("found volume: %s", vol)
             if len(vol.snapvaults) > 0:
+                log.debug("Setting up snapvault initialisation...")
                 for snap in vol.snapvaults:
                     # If the snapvault sourcevol == the volume, this is a source snapvault schedule
                     if snap.sourcevol == vol:
                         log.error("You cannot initialise the snapvaults from the source filer.")
                         
                     elif snap.targetvol == vol:
+                        # Grab the target address to use for the source
+                        try:
+                            source_patt = self.defaults.get('snapvault', 'source_name')
+                            ns = {}
+                            ns['filer_name'] = snap.sourcevol.get_filer().name
+                            source_name = source_patt % ns
+                        except (NoSectionError, NoOptionError):
+                            source_name = "%s" % snap.sourcevol.get_filer().name
+                        
                         if snap.sourcevol.name.endswith('root'):
                             if (snap.sourcevol.filer, snap.sourcevol, 'root') not in donelist:
-                                cmdset.append("snapvault start -S %s-svif0-2000:/vol/%s/- /vol/%s/%s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.name, snap.sourcevol.name ))
+                                cmdset.append("snapvault start -S %s:/vol/%s/- /vol/%s/%s" % (source_name, snap.sourcevol.name, snap.targetvol.name, snap.sourcevol.name ))
                                 
-                                donelist.append( (snap.sourcevol.filer, snap.sourcevol, 'root') )
+                                donelist.append( (snap.sourcevol.get_filer(), snap.sourcevol, 'root') )
 
                         # Snapvault relationships are done at the qtree level
-                        for qtree in snap.sourcevol.qtrees.values():
-                            if (snap.sourcevol.filer, snap.sourcevol, qtree) not in donelist:
-                                cmdset.append("snapvault start -S %s-svif0-2000:/vol/%s/%s /vol/%s/%s" % (snap.sourcevol.filer.name, snap.sourcevol.name, qtree.name, snap.targetvol.name, qtree.name ))
-                                donelist.append( (snap.sourcevol.filer, snap.sourcevol, qtree) )
+                        for qtree in snap.sourcevol.get_qtrees():
+                            if (snap.sourcevol.get_filer(), snap.sourcevol, qtree) not in donelist:
+                                log.debug("Not in donelist. Initialising %s:/vol/%s/%s", snap.sourcevol.get_filer().name, snap.sourcevol.name, qtree.name)
+                                cmdset.append("snapvault start -S %s:/vol/%s/%s /vol/%s/%s" % (source_name, snap.sourcevol.name, qtree.name, snap.targetvol.name, qtree.name ))
+                                donelist.append( (snap.sourcevol.get_filer(), snap.sourcevol, qtree) )
                             else:
-                                log.debug("Skipping duplicate snapvault initialisation for %s:/vol/%s/%s", snap.sourcevol.filer.name, snap.sourcevol.name, qtree.name)
+                                log.debug("Skipping duplicate snapvault initialisation for %s:/vol/%s/%s", snap.sourcevol.get_filer().name, snap.sourcevol.name, qtree.name)
                     else:
                         log.error("snapvault target and source are not for '%s'" % vol.name)
                         pass
@@ -901,6 +911,18 @@ class NetAppCommandsGenerator(CommandGenerator):
         cmdset = []
         #cmdset.append("vfiler context %s" % vfiler.name)
         log.debug("Finding NFS exports for filer: %s", filer.name)
+
+        try:
+            export_security = self.defaults.getboolean('nfs', 'export_security')
+        except (NoSectionError, NoOptionError):
+            export_security = True
+        
+        # Do we do exports to each IP, or to the entire subnet?
+        try:
+            subnet_exports = self.defaults.getboolean('nfs', 'subnet_exports')
+        except (NoSectionError, NoOptionError):
+            subnet_exports = False
+        
         for vol in [ x for x in filer.get_volumes() if x.protocol == 'nfs' ]:
             log.debug("Found volume: %s", vol)
             for qtree in vol.get_qtrees():
@@ -908,23 +930,35 @@ class NetAppCommandsGenerator(CommandGenerator):
 
                 # Find read/write exports
                 rw_export_to = []
-                for export in qtree.get_rw_exports():
-                    if export.toip is not None:
-                        rw_export_to.append( export.toip )
-                    else:
-                        rw_export_to.extend(export.tohost.get_storage_ips())
+                if export_security:
+                    for export in qtree.get_rw_exports():
+                        if export.toip is not None:
+                            rw_export_to.append( export.toip )
+                        else:
+                            if subnet_exports:
+                                raise NotImplementedError("Subnet exports not yet supported")
+                                pass
+                            else:
+                                rw_export_to.extend([x.ip for x in export.tohost.get_storage_ips()])
+                                pass
+                            pass
                         pass
                     pass
-
+                else:
+                    # Export to everything
+                    rw_export_to.append( '*' )
+                    pass
+                
                 # Find read-only exports
                 ro_export_to = []
-                for export in qtree.get_ro_exports():
-                    if export.toip is not None:
-                        ro_export_to.append( export.toip )
-                    else:
-                        ro_export_to.extend(export.tohost.get_storage_ips())
+                if export_security:
+                    for export in qtree.get_ro_exports():
+                        if export.toip is not None:
+                            ro_export_to.append( export.toip )
+                        else:
+                            ro_export_to.extend([x.ip for x in export.tohost.get_storage_ips()])
+                            pass
                         pass
-                    pass
                 
                 if len(ro_export_to) > 0:
                     #log.debug("Read only exports required!")

@@ -31,7 +31,6 @@ class Project(DynamicNamedXMLConfigurable):
     """
     xmltag = 'project'
     child_tags = [
-        'title',
         'background',
         'revision',
         'site',
@@ -41,6 +40,10 @@ class Project(DynamicNamedXMLConfigurable):
 
     mandatory_attribs = [ 'name', 'code' ]
 
+    optional_attribs = [
+        'title',
+        ]
+    
     def populate_namespace(self, ns={}):
         """
         Add my namespace pieces to the namespace
@@ -68,7 +71,7 @@ class Project(DynamicNamedXMLConfigurable):
             return host
         except IndexError:
             raise KeyError("Host '%s' is not specified in definition" % hostname)
-    
+
     def get_volumes(self):
         """
         Find all the project volumes
@@ -127,11 +130,15 @@ class Project(DynamicNamedXMLConfigurable):
         """
         Get all the protocols defined anywhere in the project
         """
-        protos = []
+        protolist = []
         for site in self.get_sites():
-            protos.extend( site.get_allowed_protocols() )
+            for proto in site.get_allowed_protocols():
+                if proto not in protolist:
+                    protolist.append(proto)
+                    pass
+                pass
             pass
-        return protos
+        return protolist
 
     def configure_from_node(self, node, defaults, parent):
         DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
@@ -520,28 +527,34 @@ class Project(DynamicNamedXMLConfigurable):
                                 0,
                                 srcvol.protocol,
                                 )
-
+        
             node = etree.fromstring(xmldata)
             targetvol = Volume()
             targetvol.configure_from_node(node, defaults, targetaggr)
             targetaggr.add_child(targetvol)
             # end determination of target volume
             log.debug("Created snapvault targetvol: %s", targetvol)
-            
+
             # If the target volume or aggregate are actually defined in
             # the XML, and use those settings for autosize and autodelete.
             #targetvol = self.set_volume_autosize(targetvol, targetvol.filer.name, targetvol.aggregate)
             #targetvol = self.set_volume_autodelete(targetvol, targetvol.filer.name, targetvol.aggregate)
-            
+
             # Add the snapvaults themselves
+            if len(setobj.get_snapvaultdefs()) == 0:
+                log.warn("No snapvault defininitions provided for snapvaultset")
+                pass
+            
+            log.debug("snapdefs: %s", setobj.get_snapvaultdefs() )
             for svdef in setobj.get_snapvaultdefs():
 
                 sv = SnapVault(srcvol, targetvol,
-                               setobj.basename,
+                               svdef.basename,
                                svdef.snapschedule,
                                svdef.snapvaultschedule,
                                )
-                self.snapvaults.append(sv)
+                #srcvol.snapvaults.append(sv)
+                #targetvol.snapvaults.append(sv)                
                 log.debug("Added snapvault: %s", sv)
 
             # Add snapmirrors of the snapvaults if the source volume has snapvaultmirrorrefs set
@@ -552,6 +565,7 @@ class Project(DynamicNamedXMLConfigurable):
         Given a name, find the target aggregate in the config,
         or create a reference object if we just have a name
         """
+        log.debug("Finding target aggregates...")
         try:
             targetaggr = [ x for x in targetfiler.get_aggregates() if x.name == aggrname ][0]
         except IndexError:
@@ -564,6 +578,9 @@ class Project(DynamicNamedXMLConfigurable):
             targetaggr.configure_from_node(node, defaults, targetfiler)
             targetfiler.add_child(targetaggr)
             pass
+
+        log.debug("Added a placeholder aggregate to project: %s", targetaggr)
+        log.debug("%s", targetfiler.get_aggregates())
         return targetaggr
             
     def get_snapvaults(self):

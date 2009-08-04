@@ -29,7 +29,7 @@ class IPSANStorageDesignGenerator(DocBookGenerator):
     introduction = Template('''
   <chapter>
     <title>Introduction</title>
-    <para>This document provides an IP-SAN design for the project &project.name;.</para>
+    <para>This document provides an IP-SAN design for the project &project.title;.</para>
     <section>
       <title>Background</title>
       $background_text
@@ -88,7 +88,7 @@ class IPSANStorageDesignGenerator(DocBookGenerator):
     scope = Template('''<section>
     <title>Scope</title>
     <para>This document is limited to the NFS, CIFS and iSCSI based storage
-    needs for the &project.name; project, and this document provides
+    needs for the &project.title; project, and this document provides
     the information in the following areas:
     </para>
     <para>
@@ -119,10 +119,10 @@ class IPSANStorageDesignGenerator(DocBookGenerator):
     <section>
       <title>How To Use This Document</title>
       <para>This document assumes the existence of an associated Customer Network Storage
-Design document for &project.name;. The network storage design document contains the IP-
+Design document for &project.title;. The network storage design document contains the IP-
 SAN configuration details for this project.</para>
 
-<para>In addition to the storage design for &project.name;, this document contains the necessary
+<para>In addition to the storage design for &project.title;, this document contains the necessary
 activation instructions to configure the storage on the storage appliances and
 present the storage to the project hosts.</para>
 
@@ -321,7 +321,7 @@ the host activation guides.
 
         for location, storage_ips, host in hostlist:
 
-            iplist = ''.join([ '<para>%s</para>' % ip for ip in storage_ips ])
+            iplist = ''.join([ '<para>%s</para>' % ipaddr.ip for ipaddr in storage_ips ])
             
             row = '''
             <row>
@@ -357,7 +357,7 @@ the host activation guides.
             <itemizedlist>
               <listitem>
                 <para><emphasis role="bold">Project IP-SAN Storage VLANs</emphasis> - One storage
-                VLAN will be provided to deliver the storage to the &project.name; environment.
+                VLAN will be provided to deliver the storage to the &project.title; environment.
                 </para>
               </listitem>
 
@@ -557,7 +557,7 @@ the host activation guides.
 
           <section>
             <title>Exceptions</title>
-            <para>The following exceptions exist for the storage design and implementation for &project.name;:
+            <para>The following exceptions exist for the storage design and implementation for &project.title;:
             </para>
 
           <itemizedlist>
@@ -673,6 +673,10 @@ the host activation guides.
 
         vfiler_sections = []
         for sitetype, site in sites:
+
+            filer_ns = {}
+            filer_ns['sitetype'] = sitetype.capitalize()
+            
             vfiler_config_tables = []
             log.debug("Filers found: %s", site.get_filers())
 
@@ -697,7 +701,7 @@ the host activation guides.
 
                     # Add storage interfaces and IPs
                     vfiler_attributes.append( ('Primary Storage Interface', 'svif0-%s' % vfiler.vlan.number, '') )
-                    vfiler_attributes.append( ('Primary Storage IP', vfiler.get_primary_ipaddr(), '') )
+                    vfiler_attributes.append( ('Primary Storage IP', vfiler.get_primary_ipaddr().ip, '') )
                     for ipaddr in vfiler.get_alias_ipaddrs():
                         vfiler_attributes.append( ('Alias Storage IP', ipaddr.ip, '') )
                         pass
@@ -726,11 +730,11 @@ the host activation guides.
 
                     # Add services VLAN information
                     services_rows = []
-                    for vlan,ipaddr in vfiler.services_ips:
-                        for network in vlan.networks:
-                            entries = "<entry><para>%s</para></entry>\n" % vlan.number
-                            entries += "<entry><para>svif0-%s</para></entry>\n" % vlan.number
-                            entries += "<entry><para>%s</para></entry>\n" % ipaddr
+                    for ipaddr in vfiler.get_service_ips():
+                        for network in ipaddr.vlan.networks:
+                            entries = "<entry><para>%s</para></entry>\n" % ipaddr.vlan.number
+                            entries += "<entry><para>svif0-%s</para></entry>\n" % ipaddr.vlan.number
+                            entries += "<entry><para>%s</para></entry>\n" % ipaddr.ip
                             entries += "<entry><para>%s</para></entry>\n" % network.netmask
                             entries += "<entry><para>%s</para></entry>\n" % network.gateway
                             row = "<row>%s</row>" % entries
@@ -748,8 +752,8 @@ the host activation guides.
                     pass
                 pass
         
-            ns['vfiler_configuration_tables'] = '\n'.join(vfiler_config_tables)
-            vfiler_sections.append( vfiler_section_template.safe_substitute(ns) )
+            filer_ns['vfiler_configuration_tables'] = '\n'.join(vfiler_config_tables)
+            vfiler_sections.append( vfiler_section_template.safe_substitute(filer_ns) )
             pass
 
         ns['vfiler_section'] = '\n'.join( vfiler_sections )
@@ -833,22 +837,24 @@ the host activation guides.
         </section>
         """)
 
-        volumes_table_template = Template("""
+        volume_allocation_template = Template("""
           <section>
-            <title>$sitetype Site $filer_type Volume Allocation</title>
+            <title>$filer_name Volume Allocation</title>
 
+            $volume_allocation_table
+""")
+
+        volume_allocation_table_template = Template("""
             <informaltable tabstyle="techtable-01">
-              <tgroup cols="7" align="left">
-                <colspec colnum="1" colname="c1" align="center" colwidth="0.5*"/>
-                <colspec colnum="2" colname="c2" align="center" colwidth="0.5*"/>
-                <colspec colnum="3" colname="c3" align="center" colwidth="0.75*"/>
-                <colspec colnum="4" colname="c4" align="center" colwidth="0.5*"/>
+              <tgroup cols="6" align="left">
+                <colspec colnum="1" colname="c1" align="center" colwidth="0.3*"/>
+                <colspec colnum="2" colname="c2" align="center" colwidth="1.5*"/>
+                <colspec colnum="3" colname="c3" align="center" colwidth="0.5*"/>
+                <colspec colnum="4" colname="c4" colwidth="0.3*"/>
                 <colspec colnum="5" colname="c5" colwidth="0.3*"/>
                 <colspec colnum="6" colname="c6" colwidth="0.3*"/>
-                <colspec colnum="7" colname="c7" colwidth="0.3*"/>
                 <thead>
                   <row valign="middle">
-                    <entry><para>Device</para></entry>
                     <entry><para>Aggregate</para></entry>
                     <entry><para>Volume</para></entry>
                     <entry><para>Type</para></entry>
@@ -874,13 +880,14 @@ the host activation guides.
         # Create a separate table for each Filer, in case we have
         # projects that span multiple Filers/NearStores.
         
-        vol_alloc_tables = []
+        vol_allocations = []
         
         for site in self.project.get_sites():
             # Find all volumes on Filers first, then NearStores
             for filer in site.get_filers():
                 tblns = {}
                 tblns['sitetype'] = site.type.capitalize()
+                tblns['filer_name'] = filer.name
                 if filer.type == 'filer':
                     tblns['filer_type'] = 'Filer'
                 elif filer.type == 'nearstore':
@@ -897,16 +904,17 @@ the host activation guides.
 
                     tblns['volume_totals'] = """
                       <row>
-                        <entry namest="c1" nameend="c5" align="right"><para>Total:</para></entry>
+                        <entry namest="c1" nameend="c4" align="right"><para>Total:</para></entry>
                         <entry><para>%.1f</para></entry>
                         <entry><para>%.1f</para></entry>
                       </row>""" % (total_raw, total_usable)
 
-                    vol_alloc_tables.append( volumes_table_template.safe_substitute(tblns) )
+                    tblns['volume_allocation_table'] = volume_allocation_table_template.safe_substitute(tblns)
+                    vol_allocations.append( volume_allocation_template.safe_substitute(tblns) )
                     pass
                 pass
             pass
-        ns['filer_volume_allocations'] = '\n'.join( vol_alloc_tables )
+        ns['filer_volume_allocations'] = '\n'.join( vol_allocations )
         
         # Then do the configuration subsections
         ns['volume_config_subsection'] = self.build_volume_config_section(ns)
@@ -922,7 +930,6 @@ the host activation guides.
         volume_rows = []
         for vol in vol_list:
             entries = ''
-            entries += "<entry><para>%s</para></entry>" % vol.get_filer().name
             entries += "<entry><para>%s</para></entry>" % vol.parent.name
             for attr in [ 'name', 'type' ]:
                 entries += "<entry><para>%s</para></entry>" % getattr(vol, attr)
@@ -960,14 +967,12 @@ the host activation guides.
 
             <table tabstyle="techtable-01">
               <title>Volume Configuration for $filer_name</title>
-              <tgroup cols="4" align="left">
-                <colspec colnum="1" colwidth="0.75*"/>
+              <tgroup cols="3" align="left">
+                <colspec colnum="1" colwidth="2*"/>
                 <colspec colnum="2" colwidth="0.75*"/>
-                <colspec colnum="3" colwidth="0.75*"/>
-                <colspec colnum="4" colwidth="1.5*"/>                
+                <colspec colnum="3" colwidth="1*"/>                
                   <thead>
                     <row valign="middle">
-                      <entry><para>Filer</para></entry>
                       <entry><para>Volume</para></entry>
                       <entry><para>Space Guarantee</para></entry>
                       <entry><para>Options</para></entry>
@@ -1005,8 +1010,7 @@ the host activation guides.
         """
         rows = []
         for volume in filer.get_volumes():
-            row_detail = "<entry><para>%s</para></entry>\n" % filer.name
-            row_detail += "<entry><para>%s</para></entry>\n" % volume.name
+            row_detail = "<entry><para>%s</para></entry>\n" % volume.name
             row_detail += "<entry><para>%s</para></entry>\n" % volume.space_guarantee
             option_str = ''
             for key,value in volume.get_options().items():
@@ -1140,7 +1144,7 @@ the host activation guides.
         section = Template("""
         <section>
           <title>NFS Storage Configuration</title>
-          <para>This section provides the NFS configuration for &project.name;.</para>
+          <para>This section provides the NFS configuration for &project.title;.</para>
 
           <section>
             <title>Default NFS Mount Options</title>
@@ -1296,13 +1300,13 @@ the host activation guides.
         section = Template("""
         <section>
           <title>iSCSI Storage Configuration</title>
-          <para>This section provides the iSCSI configuration for &project.name;.</para>
+          <para>This section provides the iSCSI configuration for &project.title;.</para>
 
           <section>
             <title>Initiator and CHAP Configuration</title>
 
             <table tabstyle="techtable-01">
-              <title>Project Global iSCSI CHAP Configuration for &project.name;</title>
+              <title>Project Global iSCSI CHAP Configuration for &project.title;</title>
               <tgroup cols="2">
                 <colspec colnum="1" align="center" colwidth="2*"/>
                 <colspec colnum="2" align="center" colwidth="2*"/>
@@ -1409,7 +1413,7 @@ the host activation guides.
             </table>
             """)
 
-        ns['iscsi_chap_username'] = self.project.name
+        ns['iscsi_chap_username'] = self.project.title
         ns['iscsi_chap_password'] = self.project.get_iscsi_chap_password(ns['iscsi_prefix'])
 
         if len(self.project.get_luns()) > 0:
@@ -1509,7 +1513,7 @@ the host activation guides.
         <section>
           <title>CIFS Active Directory Configuration</title>
           <para>The following table provides the CIFS active directory
-          configuration for the &project.name; project.</para>
+          configuration for the &project.title; project.</para>
 
           $cifs_ad_filer_tables
 
@@ -1742,7 +1746,7 @@ the host activation guides.
         section = Template("""
         <section>
           <title>SnapVault Configuration</title>
-          <para>The following SnapVault configuration will be configured for &project.name;:
+          <para>The following SnapVault configuration will be configured for &project.title;:
           </para>
 
             <table tabstyle="techtable-01">
@@ -1808,7 +1812,7 @@ the host activation guides.
         section = Template("""
         <section>
           <title>SnapMirror Configuration</title>
-          <para>The following SnapMirror configuration will be configured for &project.name;:
+          <para>The following SnapMirror configuration will be configured for &project.title;:
           </para>
 
             <table tabstyle="techtable-01">
@@ -1886,35 +1890,40 @@ the host activation guides.
 
         activation_commands = ''
 
+        for filer in self.project.get_filers():
+            for vfiler in filer.get_vfilers():
+                log.debug("Building activation commands for %s:%s", filer, vfiler)
+                activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+                
         # Build the commands for all primary filers
-        for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'primary' ]:
-            # FIXME: Only supports one vFiler per Filer.
-            vfiler = filer.get_vfilers()[0]
-            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+#         for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'primary' ]:
+#             # FIXME: Only supports one vFiler per Filer.
+#             vfiler = filer.get_vfilers()[0]
+#             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'secondary' ]:
-            # My vfiler is the vfiler from the primary
-            # FIXME: This is broken and won't work.
-            vfiler = filer.secondary_for.vfilers.values()[0]
-            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+#         for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'secondary' ]:
+#             # My vfiler is the vfiler from the primary
+#             # FIXME: This is broken and won't work.
+#             vfiler = filer.secondary_for.vfilers.values()[0]
+#             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'nearstore' ]:
-            vfiler = filer.get_vfilers()[0]
-            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+#         for filer in [ x for x in self.project.get_filers() if x.site.type == 'primary' and x.type == 'nearstore' ]:
+#             vfiler = filer.get_vfilers()[0]
+#             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        # Build the commands for all secondary filers
-        for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'primary' ]:
-            vfiler = filer.get_vfilers()[0]
-            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+#         # Build the commands for all secondary filers
+#         for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'primary' ]:
+#             vfiler = filer.get_vfilers()[0]
+#             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'secondary' ]:
-            # My vfiler is the vfiler from the primary
-            vfiler = filer.secondary_for.get_vfilers()[0]
-            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+#         for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'secondary' ]:
+#             # My vfiler is the vfiler from the primary
+#             vfiler = filer.secondary_for.get_vfilers()[0]
+#             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
-        for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
-            vfiler = filer.get_vfilers()[0]
-            activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
+#         for filer in [ x for x in self.project.get_filers() if x.site.type == 'secondary' and x.type == 'nearstore' ]:
+#             vfiler = filer.get_vfilers()[0]
+#             activation_commands += self.build_filer_activation_commands(filer, vfiler, ns)
 
         return activation_commands
 
@@ -1974,7 +1983,7 @@ the host activation guides.
 
         # Don't add volumes on secondary filers
         if filer.is_active_node:
-            cmds = '\n'.join( self.command_gen.vfiler_add_volume_commands(filer, ns) )
+            cmds = '\n'.join( self.command_gen.vfiler_add_volume_commands(filer, vfiler) )
             if len(cmds) > 0:
                 cmd_ns['commands'] += """<section>
                 <title>vFiler Volume Addition</title>
@@ -2051,8 +2060,10 @@ the host activation guides.
             <title>SnapVault Initialisation</title>
             <screen><?db-font-size 60%% ?>%s</screen>
             </section>""" % cmds
-
-        if filer.is_active_node and filer.type == 'filer':
+            pass
+        
+        # Set up the snapvault schedules
+        if filer.is_active_node:
             cmds = '\n'.join( self.command_gen.filer_snapvault_commands(filer) )
             cmd_ns['commands'] += """<section>
             <title>SnapVault Configuration</title>
@@ -2132,7 +2143,7 @@ the host activation guides.
         # NFS exports are only configured on primary filers
         # FIXME: defaults configurable
         if filer.is_active_node and filer.type == 'filer':
-            cmdlist = self.command_gen.vfiler_nfs_exports_commands(filer, vfiler, ns)
+            cmdlist = self.command_gen.vfiler_nfs_exports_commands(filer, vfiler)
 
             # Only add the section if NFS commands exist
             if len(cmdlist) == 0:

@@ -30,7 +30,7 @@ class SnapVault:
         self.sourcevol.snapvaults.append(self)
         self.targetvol.snapvaults.append(self)
 
-    def __str__(self):
+    def __repr__(self):
         return '<SnapVault: %s -> %s, %s, %s, %s>' % (self.sourcevol.namepath(),
                                                       self.targetvol.namepath(),
                                                       self.basename,

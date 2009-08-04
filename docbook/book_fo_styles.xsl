@@ -340,7 +340,7 @@
           <fo:table-row>
             <fo:table-cell column-number="1">
               <fo:block text-align="center"
-			padding-top="20pc">
+			padding-top="18pc">
 		<fo:table inline-progression-dimension="100%" table-layout="fixed"
 			  border-left-style="solid"
 			  border-right-style="solid"
@@ -573,7 +573,21 @@
       <!-- position can be left, center, right -->
       <xsl:choose>
 
-	<xsl:when test="$position = 'left' or $position = 'right'">
+	<xsl:when test="$position = 'left'">
+	  <xsl:if test="$corp.logo.top.left">
+	    <fo:block text-align="center">
+	      <fo:external-graphic width="auto" height="auto">
+		<xsl:attribute name="src">
+		  <xsl:text>url(</xsl:text>
+		  <xsl:value-of select="$corp.logo.top.left" />
+		  <xsl:text>)</xsl:text>
+		</xsl:attribute>
+	      </fo:external-graphic>
+	    </fo:block>
+	  </xsl:if>
+	</xsl:when>
+
+	<xsl:when test="$position = 'right'">
 	  <xsl:if test="$corp.logo.top.right">
 	    <fo:block text-align="center">
 	      <fo:external-graphic width="auto" height="auto">

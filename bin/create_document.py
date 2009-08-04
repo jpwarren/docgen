@@ -55,7 +55,11 @@ if __name__ == '__main__':
         pass
 
     # Use the '-d' option to determine which document to generate
-    docgen = doc_plugins[optparser.options.doctype](proj)
+    docgen = doc_plugins[optparser.options.doctype](proj, defaults)
     #raise NotImplementedError("DocType of '%s' is not handled yet." % optparser.options.doctype)
-
-    docgen.emit(defaults, optparser.options.outfile, optparser.options.versioned, ns=ns)
+    if optparser.options.outfile is not None:
+        outf = open(optparser.options.outfile, "w")
+        docgen.emit(outf, ns=ns)
+        outf.close()
+    else:
+        docgen.emit(ns=ns)

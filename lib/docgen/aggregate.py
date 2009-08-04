@@ -33,8 +33,8 @@ class Aggregate(DynamicNamedXMLConfigurable):
     # if it's not manually defined.
     known_types = [ 'root', 'data' ]
 
-    def __init__(self):
-        self.name = None
+    def __repr__(self):
+        return "<Aggregate: %s/%s>" % (self.parent.name, self.name)
 
     def configure_optional_attributes(self, node, defaults):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)

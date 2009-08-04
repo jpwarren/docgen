@@ -1,26 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- This is an example project definition file for the DocGen.
-Use this file as a reference for how you might configure a project.
-It contains examples of how to configure various features of a project,
-though not all of them will be present in every project.
+<!-- 
+     This example definition files contains a project with multiple
+     networks configured within a single VLAN. This is for multi-homed
+     hosts and storage, such as those used for VMWare ESX server farms.
+  -->
 
--->
-
-<!-- The DOCTYPE for the project contains a computer readable Document Type Definition
-that can be used by programs such as 'xmllint' to verify that your defintion
-file is well-formed and also a valid file.
--->
 <!DOCTYPE project SYSTEM "http://docgen.eigenmagic.com/docgen.dtd">
 
-<!-- All projects contain one, and only one, 'project' tag -->
-<project name="eigenmagic" code="001" title="">
+<project name="eigenmagic" code="001" title="My Project">
 
-  <!-- The background tag contains verbatim DocBook XML markup that is inserted
-       into the Background section of the design document. Use this to insert some
-       explanatory background text about the project, of required.
-  -->
   <background>
-    <para>The environment consists of Solaris servers at the primary site.
+    <para>The environment consists of Solaris servers.
     </para>
 
     <itemizedlist>
@@ -33,14 +23,13 @@ file is well-formed and also a valid file.
 
   </background>
 
-  <!-- Design revision history -->
   <!-- Every time you modify the design, you should add a revision, to track
        who makes changes, a summary of what they were, and when they were made.
     -->
   <revision majornumber="1"
             minornumber="0"
             date="31 July 2007"
-            authorinitials="JPW"
+            author="JPW"
             reviewer="Someone"
             reviewdate="3 August 2008">
     <revremark>
@@ -51,7 +40,7 @@ file is well-formed and also a valid file.
   <revision majornumber="2"
             minornumber="0"
             date="10 July 2009"
-            authorinitials="JPW"
+            author="JPW"
             reviewer="Someone else"
             reviewdate="9 August 2009">
     <revremark>
@@ -59,39 +48,34 @@ file is well-formed and also a valid file.
     </revremark>
   </revision>
 
-  <!-- Every project host that needs shared storage should be defined here. 
-       The 'name' attribute for the tag is a unique name for the host that
-       can be used elsewhere in the definition to refer specifically to this host.
-  -->
-
-
   <!-- Databases can be defined to ease the defininion of exports.
-       Define a database by specifying its 'id' and 'type'. The id
-       attribute is the database SID (for Oracle) or equivalent unique
-       name for other databases.
-       
-       Each database may exist on one or more hosts, which is defined
-       using the <onhost/> tag. It has one attribute: 'name', which
-       is the unique hostname that the database exists on. This is used
-       to look up the host, defined above.
-       
-       By using this mechanism, you can define all the volumes for a database,
-       and the volumes will be exported rw to all the hosts listed in
-       <onhost/> tags for the database. This will also be combined with the
-       host's <drhost/> tags to automatically export to the appropriate
-       hosts at DR for snapmirrored volumes.
-       
-       This will likely be used with automated backup designs in the future.
-  -->
+	     Define a database by specifying its 'id' and 'type'. The id
+	     attribute is the database SID (for Oracle) or equivalent unique
+	     name for other databases.
+	     
+	     Each database may exist on one or more hosts, which is defined
+	     using the <onhost/> tag. It has one attribute: 'name', which
+	     is the unique hostname that the database exists on. This is used
+	     to look up the host, defined above.
+	     
+	     By using this mechanism, you can define all the volumes for a database,
+	     and the volumes will be exported rw to all the hosts listed in
+	     <onhost/> tags for the database. This will also be combined with the
+	     host's <drhost/> tags to automatically export to the appropriate
+	     hosts at DR for snapmirrored volumes.
+	     
+	     This will likely be used with automated backup designs in the future.
+	     -->
   <database id="MYDB01" type="Oracle">
     <onhost name="primhost01"/>
     <onhost name="primhost02"/>
   </database>
 
   <!-- Every project will have a 'primary' site. This is the site that
-       the storage is provided from.
+       the storage is provided from. Primary or DR could be the primary site
+       for a project, depending on where the main use of storage is.
        The 'secondary' site is always the SnapMirror destination site.
-  -->
+    -->
   <site name='sitea' type="primary" location="PrimarySite">
 
     <!-- Every site requires a VLAN for the project, at a minimum.
@@ -102,16 +86,17 @@ file is well-formed and also a valid file.
 	 'number': the VLAN number, assigned by networks.
 	 'gateway': the IP address for the VRF in the VLAN. This
 	 may not be used, but should always be assigned.
-    -->
-    <vlan type="project" number="3003">
-      <network number="10.240.4.0/26" gateway="10.240.4.254"/>
+      -->
+    <vlan type="project" number="3003" mtu='2447'>
+      <network number="10.240.4.0/24" gateway="10.240.4.254"/>
+      <network number="10.241.9.0" netmask="255.255.255.0" gateway="10.241.9.254"/>
     </vlan>
 
-    <vlan type="services" number="3544">
+    <vlan type="services" number="1544">
       <network number="10.10.10.0" netmask="255.255.255.0" gateway="10.459.11.336"/>
     </vlan>
 
-    <vlan type="services" number="3189">
+    <vlan type="services" number="1589">
       <network number="10.80.90.0" netmask="255.255.255.0" gateway="10.189.14.8"/>
     </vlan>
 
@@ -134,6 +119,10 @@ file is well-formed and also a valid file.
 	<hostport>PCI 1</hostport>
       </interface>
 
+      <interface type='storage' mode='active'>
+	<ipaddr>10.240.4.112</ipaddr>
+      </interface>
+
       <iscsi_initiator>an.iscsi.initname</iscsi_initiator>
       <drhost name='drtesthost01'/>
 
@@ -146,13 +135,14 @@ file is well-formed and also a valid file.
           location="Primary Site"
           description="Database server">
 
-      <interface type='storage' mode='active'>
+      <interface type='storage' mode='trunk' mtu='1500'>
+	<vlan_number>3778</vlan_number>
+	<vlan_number>3856</vlan_number>
 	<switchname>sitea-swtedg-0103</switchname>
 	<switchport>GigabitEthernet1/2</switchport>
 	<hostport>PCI 0</hostport>
 	<ipaddr>10.240.4.234</ipaddr>
       </interface>
-
 
       <drhost name="drtesthost01"/>
       <drhost name="drtesthost02"/>
@@ -180,12 +170,12 @@ file is well-formed and also a valid file.
           platform="Sun"
           operatingsystem="Solaris 10"
           location="Primary Site"
-          description="Database server">
+          description="Virtual host">
 
       <interface type='storage' mode='active'>
 	<!--      <switchname>sitea-swtedg-0103</switchname>
-	     <switchport>GigabitEthernet1/3</switchport>
-	     <hostport>PCI 0</hostport> -->
+		  <switchport>GigabitEthernet1/3</switchport>
+		  <hostport>PCI 0</hostport> -->
 	<ipaddr>10.240.4.238</ipaddr>
       </interface>
 
@@ -197,61 +187,56 @@ file is well-formed and also a valid file.
           platform="Sun"
           operatingsystem="Solaris 10"
           location="Primary Site"
-          description="Database server">
+          description="An example virtual host for sorting testing">
 
       <interface type='storage' mode='active'>
 	<!--      <switchname>sitea-swtedg-0103</switchname>
-	     <switchport>GigabitEthernet1/3</switchport>
-	     <hostport>PCI 0</hostport> -->
+		  <switchport>GigabitEthernet1/3</switchport>
+		  <hostport>PCI 0</hostport> -->
 	<ipaddr>10.240.4.201</ipaddr>
       </interface>
 
     </host>
+
 
     <!-- Now we have the filer definitions. There will need to be 3:
 	 - The 'primary' filer, which is used for providing the storage.
 	 - The 'secondary' filer, which is the cluster partner for the primary.
 	 - The 'nearstore' filer, which is used for backups.
 	 The 'name' parameter is the unique name of the filer device.
-    -->
-    <filer type="filer" name="sitea-fashda-01">
+      -->
+    <filer type="filer" name="sitea-fashda-01" partner="sitea-fashdb-01">
 
       <!-- A vfiler must be defined for the primary.
 	   - If no 'name' attribute is specified, it defaults to the same
 	   as the project shortname. This will be the case for 99% of
 	   designs, and the generator may break if you actually specify a name.
-	   - The 'rootaggr' attribute must be supplied. It defines which
-	   aggregate on the filer will be used for the vfiler root volume.
-      -->
+	-->
       <vfiler>
-        <aggregate name="aggr01" type="root"/>
+        <aggregate type="root" name="aggr01"/>
 
 	<!-- Each protocol supported by the vfiler should be specified here.
 	     Valid values are: NFS, CIFS, and iSCSI
 	     
 	     This will automatically add any protocols you may have missed, so
 	     this tag is optional.
-	-->
-<!--
-	<protocol name="nfs" />
-	<protocol name="cifs" />
--->
+	  -->
+	<protocol name="nfs"/>
+	<protocol name="cifs"/>
+
 	<!--
 	    Each filer must have a primary ipaddress. This is the IP address used to
 	    provide the storage to the hosts.
-	-->
+	  -->
         <ipaddress type="primary" ip="10.240.4.225"/>
+        <ipaddress type="alias" ip="10.240.4.224"/>
 
-	<!-- Define service ipaddress if you need a services VLAN.
-	     This IP address will be added to the vfiler on an interface
-	     in the services VLAN so you can access external services, such
-	     as ActiveDirectory for doing CIFS authentication.
-	-->
-	<ipaddress type="service" vlan_number="3544" ip="10.10.10.15"/>
+        <ipaddress type="service" vlan_number="1544" ip="10.10.10.15"/>
+        <ipaddress type="service" vlan_number="1589" ip="10.80.90.12"/>
 
 	<!-- volumes exist within aggregates, so for each aggregate you
 	     want to use, define an aggregate like this.
-	-->
+	  -->
 
 	<aggregate name="aggr02">
 
@@ -259,11 +244,6 @@ file is well-formed and also a valid file.
 	       need them. These are just the primary volumes, as any
 	       volumes that are created as a result of snapvaults or
 	       snapmirrors will be automatically created by the system.
-	       
-	       Volume names are defined automatically, based on the
-	       name of the vfiler and the order of the volumes in this
-	       file. A root volume will always be defined for a vfiler
-	       using the 'rootaggr' parameter above.
 	       
 	       Volumes can have a 'type' attribute that will enable
 	       additional processing for special volumes. This is
@@ -280,21 +260,18 @@ file is well-formed and also a valid file.
 	       defines the amount of usable storage required. It is combined
 	       with the setting for 'snapreserve' to determine the amount of
 	       raw storage required.
-	  -->
+	    -->
 
 	  <!-- An Oracle quorum volume. Every project with databases
-	       will need one of these. It isn't backed up or mirrored.
-	  -->
-	  <volume type="oracm" snapreserve="0">
-	    <usablestorage>1</usablestorage>
-	  </volume>
+       will need one of these. It isn't backed up or mirrored.
+    -->
+	  <volume type="oracm" snapreserve="0" usable="1"/>
 
 	  <!--
 	      The 'oraconfig' volume is defined second. There is only
 	      one of these per Oracle RAC project. It should be backed up.
-	  -->
-	  <volume type="oraconfig">
-	    <usablestorage>5</usablestorage>
+	    -->
+	  <volume type="oraconfig" usable="5">
 	    <snapvaultsetref name="default_primary"/>
 	  </volume>
 
@@ -309,50 +286,52 @@ file is well-formed and also a valid file.
 	       regard to the snap reserve setting, export options and the
 	       required mount options. These can be overridden manually,
 	       if required.
-	  -->
+	    -->
 
 	  <!-- MYDB01 database -->
-	  <volume oracle="MYDB01" type="oradata">
+	  <volume oracle="MYDB01" type="oradata" usable="60">
 	    <!-- The 'oradata' volume type is used for the Oracle data area -->
-	    <usablestorage>60</usablestorage>
 
-	    <!-- The 'snapvaultsetref' node is a reference to a snapvaultset
-		 defined elsewhere in the file (usually near the bottom). This
-		 reference says that the snapvaultset referred to should be used
-		 when creating a snapvault for this volume. More information on
-		 snapvaultsets can be found below.
+	    <!-- The autosize parameter allows the volume to automatically grow
+		 to a maximum size, growing by 'increment' each time.
+		 the size is a number, followed by a size indicator (300g, 2t, etc)
+		 and the increment is also a number with a size
 	    -->
+	    <autosize max="500g" increment="10g"/>
+
+	    <!-- autodelete defines the way in which volume snapshots will be
+		 automatically deleted if they start using too much space.
+		 This follows the syntax of the 'snap autodelete' command.
+		 It defaults to the following options:
+		    commitment = 'try'
+		    trigger = 'volume'
+		    target_free_space = '80' (%)
+		    delete_order = oldest_first
+		    defer_delete = none
+		    prefix = '' This isn't used unless defer_delete is set to 'prefix'
+	    -->
+	    <autodelete />
+
 	    <snapvaultsetref name="MYDB01-data"/>
-
-	    <!-- A 'snapmirrorsetref' is similar to a snapvaultsetref. It refers
-		 to a snapmirrorset definition later in the file, and is used to
-		 define the SnapMirror relationship between the primary volume
-		 and the DR site.
-	    -->
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
 
-	  <volume oracle="MYDB01" type="oraindx">
+	  <volume oracle="MYDB01" type="oraindx" usable="30">
 	    <!-- The 'oraindx' type is for an oracle index volume. -->
-	    <usablestorage>30</usablestorage>
 	    <snapvaultsetref name="MYDB01-data"/>
 	    <!--
 		A 'snapvaultmirrorsetref' is a reference to a snapmirror definition
 		that is used for creating a volume SnapMirror of the snapvault
 		for the volume that is created by the 'snapvaultsetref'. This is used
 		to define a remote site copy of the snapvault backups of this volume.
-	    -->
+	      -->
 	    <snapvaultmirrorsetref name="default_svm"/>
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
 
-	  <volume oracle="MYDB01" type="oraredo">
-	    <usablestorage>8</usablestorage>
-	  </volume>
+	  <volume oracle="MYDB01" type="oraredo" usable="8"/>
 
-	  <volume oracle="MYDB01" type="oraundo">
-	    <usablestorage>20</usablestorage>
-	  </volume>
+	  <volume oracle="MYDB01" type="oraundo" usable="20"/>
 
 	  <!-- The Oracle archivelogs volume for the database.
 	       Note that it has a different snapvaultsetref from the data
@@ -360,26 +339,21 @@ file is well-formed and also a valid file.
 	       so that the data volume snapvault completes before the archivelog
 	       snapvault is done, so that all in flight transactions during
 	       hot backup mode are captured in the archivelog backup.
-	  -->
-	  <volume oracle="MYDB01" type="oraarch">
-	    <usablestorage>23</usablestorage>
+	    -->
+	  <volume oracle="MYDB01" type="oraarch" usable="23">
 	    <snapmirrorsetref name="default_sm"/>
 	    <snapvaultsetref name="MYDB01-arch"/>
-
 	  </volume>
 
 	  <!-- This is a standard volume, which will default to being
 	       exported to all hosts via NFS.
-	  -->
-	  <volume>
-	    <usablestorage>58</usablestorage>
-
-	    <!-- Rather than specify a snapreserve as a percentage of
-		 the total volume size, you can specify the exact size
-		 of the snapshot space, and the system will calculate
-		 the corresponding snapreserve percentage for you.
-		-->
-	    <snapstorage>150</snapstorage>
+	    -->
+	  <!-- Rather than specify a snapreserve as a percentage of
+	       the total volume size, you can specify the exact size
+	       of the snapshot space, and the system will calculate
+	       the corresponding snapreserve percentage for you.
+	    -->
+	  <volume usable="58" snapstorage="150">
 	    <snapvaultsetref name="custom-multiplier"/>	      
 	  </volume>
 
@@ -389,15 +363,13 @@ file is well-formed and also a valid file.
 	       number as the production volume.
 	       This can also be used to number a volume arbitrarily, but
 	       have all the other automatic naming details used as normal.
-	  -->
-	  <volume restartnumbering="19">
-	    <usablestorage>50</usablestorage>
+	    -->
+	  <volume restartnumbering="19" usable="50">
 	    <snapvaultsetref name="custom-storage"/>
 	  </volume>
 
 	  <!-- This is a volume with some manual qtree definitions -->
-	  <volume oplocks='no'>
-	    <usablestorage>120</usablestorage>
+	  <volume oplocks='no' usable="120">
 	    <qtree name="my_first_qtree_01">
 	      <description>Demo Manual Qtree 1</description>
 	    </qtree>
@@ -408,24 +380,22 @@ file is well-formed and also a valid file.
 
 	  <!-- This is an iSCSI volume that contains a couple of LUNs -->
 
-	  <volume proto="iscsi">
-	    <usablestorage>100</usablestorage>
+	  <volume proto="iscsi" usable="100">
 	    <lun>
 	      <export to='primhost01'/>
 	    </lun>
 
 	    <!-- This is an example of how to manually define a LUN
 		 <lun>
-		 <mapto igroup='igroup_fred'/>
+		   <mapto igroup='igroup_fred'/>
 		 </lun>
-	    -->
+		 -->
 	    <snapvaultsetref name="MYDB01-arch"/>
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
 
 	  <!-- A volume with a specific qtree name, and a LUN automatically placed inside it. -->
-	  <volume proto="iscsi" name='iscsi_test'>
-	    <usablestorage>100</usablestorage>
+	  <volume proto="iscsi" name="iscsi_test" usable="100">
 	    <qtree name="my_custom_name">
 	      <description>A custom qtree with a LUN in it</description>
 	      <lun lunid='103'/>
@@ -446,10 +416,8 @@ file is well-formed and also a valid file.
 	       volumes, or iscsi volumes that do not have snapshots.
 	       The value is a percentage (eg: 25 == 25%) of the usablestorage value for
 	       the volume.
-	  -->
-	  <volume proto="iscsi" iscsi_snapspace='50'>
-	    <usablestorage>100</usablestorage>
-
+	    -->
+	  <volume proto="iscsi" iscsi_snapspace="50" usable="100">
 	    <qtree name="my_custom_name">
 	      <description>A custom qtree with a LUN in it</description>
 	    </qtree> <!-- this qtree will be ignored -->
@@ -467,40 +435,44 @@ file is well-formed and also a valid file.
 	    <snapvaultsetref name="MYDB01-arch"/>
 	  </volume>
 
-	  <volume proto="cifs">
-	    <usablestorage>50</usablestorage>
-	  </volume>
+	  <volume proto="cifs" usable="50"/>
 
 	</aggregate>
 
 	<!-- Here we can define some volumes on a different aggregate from the
 	     first one.
-	-->
+	  -->
 	<aggregate name="aggr03">
+	  <autosize max="500g" increment="10g"/>
 
 	  <volume name="wibble">
 	    <!-- Some custom export options -->
-	    <export to="primhost01">
+	    <!-- An export from an alias IP address on a vfiler -->
+	    <export to="primhost01" fromip="10.44.3.78">
 	      <mountoption>forcedirectio</mountoption>
 	      <mountoption>clownage=true</mountoption>
 	    </export>
-	    <export to="primhost03" ro="yes"/>
+
+	    <!-- An export to a second primary storage interface on a host -->
+	    <export to="primhost03" ro="yes" toip='10.240.4.112'/>
 
 	    <snapmirrorsetref name="default_sm"/>
 	  </volume>
+
+	  <volume name="wibble2"/>
 
 	</aggregate>
 
 	<!-- igroup definitions are optional. The system will work out what
 	     igroups are required automatically, but if you have specific
 	     igroup requirements, you can manually override the system here.
-	-->
+	  -->
 	<!--
 	    <igroup name='igroup_fred' number='5' prefix='myprefix' suffix='jpwsuffix'>
-	    <member name='primhost01'/>
-	    <member name='primhost02'/>
+	      <member name='primhost01'/>
+	      <member name='primhost02'/>
 	    </igroup>
-	-->
+	    -->
 
       </vfiler>
 
@@ -510,17 +482,24 @@ file is well-formed and also a valid file.
 	 Very little needs to be defined for the nearstore, as most of the
 	 definitions are contained in the primary volumes and their references
 	 to snapvaultsets.
-    -->
+      -->
     <filer type="nearstore" name="sitea-fasnst-01">
 
       <!-- A vFiler with a rootaggr is required, so we know where to create
 	   the root volume. The name of the vFiler will match that of the primary filer.
-      -->
+	-->
       <vfiler>
-        <aggregate name="aggr09" type="root"/>
-
+        <aggregate type="root" name="rootaggr"/>
 	<!-- The NearStore has its own IP address in the project VLAN -->
-        <ipaddress type="primary" ip="10.240.4.226" netmask="255.255.255.224"/>
+        <ipaddress type="primary" ip="10.240.4.226"/>
+        <ipaddress type="alias" ip="10.240.4.223"/>
+        <ipaddress type="service" vlan_number="1544" ip="10.10.10.16"/>
+
+	<aggregate name="aggr02">
+	  <autosize max="500g" increment="25g"/>
+	  <autodelete />
+	</aggregate>
+
       </vfiler>
     </filer>
 
@@ -528,24 +507,26 @@ file is well-formed and also a valid file.
 
   <!-- DR configuration
 
-If you have a DR setup for the project, define it here.
-The site type is 'secondary' for the DR site.
-  -->
+       If you have a DR setup for the project, define it here.
+       The site type is 'secondary' for the DR site.
+    -->
 
   <site name='siteb' type="secondary" location="DisasterRecoverySite">
 
     <!-- The DR site also has a vlan, and it may have a different vlan number
 	 to the primary site. Its IP network is likely to be different, also,
 	 so you will need to have a different gateway IP address.
-    -->
-    <vlan type="project" number="3113" network="10.140.8.15/27" gateway="10.241.XXX.XXX"/>
+      -->
+    <vlan type="project" number="3113">
+      <network number="10.240.8.15/27" gateway="10.241.XXX.XXX"/>
+    </vlan>
 
     <!-- Some hosts that are purportedly at DR -->
     <host name="drtesthost01"
           platform="Sun"
           operatingsystem="Solaris 10"
-          location="Secondary Site"
-          description="Database server">
+          location="DR Site"
+          description="Database host">
 
       <interface type='storage' mode='active'>
 	<switchname>siteb-swtedg-0101</switchname>
@@ -556,7 +537,7 @@ The site type is 'secondary' for the DR site.
 
       <!-- a demo of a host with multiple active storage IPs
 	   such as something using iSCSI MPIO on windows.
-      -->
+	-->
 
       <interface type='storage' mode='active'>
 	<switchname>siteb-swtedg-0101</switchname>
@@ -573,8 +554,8 @@ The site type is 'secondary' for the DR site.
     <host name="drtesthost02"
           platform="Sun"
           operatingsystem="Solaris 10"
-          location="Secondary Site"
-          description="Database server">
+          location="DR Site"
+          description="Database host">
 
       <interface type='storage' mode='active'>
 	<switchname>siteb-swtedg-0101</switchname>
@@ -585,25 +566,43 @@ The site type is 'secondary' for the DR site.
 
     </host>
 
-
     <!-- The filer definitions are done in the same way as the primary site,
-	 The major difference is that you don't need to define any volumes
-	 as a general rule. All the volumes are automatically worked out
-	 as a result of the primary volume definitions and the snapvault/snapmirror
-	 relationships defined for them.
-    -->
+     The major difference is that you don't need to define any volumes
+     as a general rule. All the volumes are automatically worked out
+     as a result of the primary volume definitions and the snapvault/snapmirror
+     relationships defined for them.
+  -->
     <filer type="filer" name="siteb-fashda-01" partner="siteb-fashdb-01">
       <vfiler>
-        <aggregate name="aggr02" type="root"/>
-        <ipaddress type="primary" ip="10.240.XXX.1" netmask="255.255.255.224"/>
+        <aggregate type="root" name="aggr02"/>
+        <ipaddress type="primary" ip="10.240.XXX.1"/>
+
+	<aggregate name="aggr17">
+
+	  <volume name="custom_snapvault_test" usable="146">
+	    <snapvaultsetref name="specific"/>
+	  </volume>
+
+	</aggregate>
+
       </vfiler>
 
     </filer>
 
     <filer type="nearstore" name="siteb-fasnst-01">
       <vfiler>
-        <aggregate name="aggr09" type="root"/>
-        <ipaddress type="primary" ip="10.241.XXX.XXX" netmask="255.255.255.224"/>
+        <aggregate type="root" name="aggr09"/>
+        <ipaddress type="primary" ip="10.241.XXX.XXX"/>
+
+	<aggregate name="aggr02">
+	  <autodelete />
+
+	  <volume name="mycustomvolume" space_guarantee="volume">
+
+	  </volume>
+
+	</aggregate>
+
       </vfiler>
     </filer>
 
@@ -614,13 +613,13 @@ The site type is 'secondary' for the DR site.
       how the backups and DR copies are actually done. The volumes you defined
       above refer to these 'snapvaultset' and 'snapmirrorset' nodes by
       referring to their 'id' attribute.
-  -->
+    -->
 
   <!-- default snapvaults -->
   <!-- You will need to define 1 snapvaultset as a minimum, with the id 'default_primary'.
        This is the snapvaultset used to back up the root volume on the primary filer.
        You can use the same snapvaultset to back up data volumes as well, if you wish.
-  -->
+    -->
 
   <!-- 
        A snapvaultset has 3 attributes:
@@ -660,20 +659,20 @@ The site type is 'secondary' for the DR site.
        eg: To back up a primary volume every day to a secondary, and to take a weekly
        snapshot locally on the secondary, you would configure a snapvault set like this:
 
-<snapvaultset id="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
-<snapvault basename="sv_daily">
-<snapschedule>1@3</snapschedule>
-<snapvaultschedule>14@4</snapvaultschedule>
-</snapvault>
-<snapvault basename="sv_weekly">
-<snapvaultschedule>4@sun@5</snapvaultschedule>
-</snapvault>
-</snapvaultset>
+       <snapvaultset name="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+	 <snapvault basename="sv_daily">
+	   <snapschedule>1@3</snapschedule>
+	   <snapvaultschedule>14@4</snapvaultschedule>
+	 </snapvault>
+	 <snapvault basename="sv_weekly">
+	   <snapvaultschedule>4@sun@5</snapvaultschedule>
+	 </snapvault>
+       </snapvaultset>
 
-  -->
+       -->
 
   <!-- primary site -->
-  <snapvaultset id="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset name="default_primary" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -687,8 +686,8 @@ The site type is 'secondary' for the DR site.
   <!-- The 'default_secondary' snapvaultset is used by the secondary site for the
        backup snapvaults of the priamry filer at the secondary site. Note how the
        targetfiler is the NearStore at the same site as the DR primary.
-  -->
-  <snapvaultset id="default_secondary" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
+    -->
+  <snapvaultset name="default_secondary" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -706,8 +705,8 @@ The site type is 'secondary' for the DR site.
        archivelogs.
        In general, the <snapschedule/> for the data snapvaults should be an hour
        before the one used for the archivelogs.
-  -->
-  <snapvaultset id="MYDB01-data" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+    -->
+  <snapvaultset name="MYDB01-data" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -718,7 +717,7 @@ The site type is 'secondary' for the DR site.
   </snapvaultset>
 
   <!-- This is the corresponding archivelog snapvaultset for the data snapvaultset above -->
-  <snapvaultset id="MYDB01-arch" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
+  <snapvaultset name="MYDB01-arch" targetfiler="sitea-fasnst-01" targetaggregate="aggr02">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
       <snapvaultschedule>8@2</snapvaultschedule>
@@ -731,8 +730,8 @@ The site type is 'secondary' for the DR site.
   <!-- This is a custom snapvault relationship that uses specific multiplier
        to define how much storage should be created on the target volume
        instead of the default (2.5, usually).
-  -->
-  <snapvaultset id="custom-multiplier" multiplier='6'
+    -->
+  <snapvaultset name="custom-multiplier" multiplier='6'
 		targetfiler="sitea-fasnst-01" targetaggregate="aggr09">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
@@ -743,7 +742,7 @@ The site type is 'secondary' for the DR site.
     </snapvault>
   </snapvaultset>
 
-  <snapvaultset id="custom-storage" targetusable='2244'
+  <snapvaultset name="custom-storage" targetusable='2244'
 		targetfiler="sitea-fasnst-01" targetaggregate="aggr09">
     <snapvault basename="sv_daily">
       <snapschedule>1@1</snapschedule>
@@ -754,7 +753,15 @@ The site type is 'secondary' for the DR site.
     </snapvault>
   </snapvaultset>
 
-
+  <snapvaultset name="specific" targetfiler='siteb-fasnst-01' targetvolume='mycustomvolume'>
+    <snapvault basename="custom_daily">
+      <snapschedule>1@1</snapschedule>
+      <snapvaultschedule>8@2</snapvaultschedule>
+    </snapvault>
+    <snapvault basename="custom_weekly">
+      <snapvaultschedule>3@sun@3</snapvaultschedule>
+    </snapvault>
+  </snapvaultset>
   <!--
       SnapMirrors
       
@@ -774,10 +781,10 @@ The site type is 'secondary' for the DR site.
       
       If any of the parameters are omitted, it will default to '*', ie: all/any
 
-  -->
+      -->
 
   <!-- snapmirrors -->
-  <snapmirrorset id="default_sm" targetfiler="siteb-fashda-01" targetaggregate="aggr02">
+  <snapmirrorset name="default_sm" targetfiler="siteb-fashda-01" targetaggregate="aggr02">
     <snapmirror>
       <minute>0</minute>
       <hour>6</hour>
@@ -790,8 +797,8 @@ The site type is 'secondary' for the DR site.
   <!-- SnapVault snapmirrors are defined the same as regular snapmirrors.
        It is the way they are referenced by a volume that alters the way they
        are set up.
-  -->
-  <snapmirrorset id="default_svm" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
+    -->
+  <snapmirrorset name="default_svm" targetfiler="siteb-fasnst-01" targetaggregate="aggr02">
     <snapmirror>
       <minute>0</minute>
       <hour>6</hour>
