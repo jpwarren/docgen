@@ -1,0 +1,16 @@
+<project name="testproj" code="01">
+  <site name="sitea" type="primary" location="testlab">
+    <filer name="filer1" type="filer">
+      <vfiler name="vftest01">
+        <aggregate type="root" name="aggr0"/>
+        <aggregate name="aggr01">
+          <volume name="testvol">
+            <qtree>
+              <lun/>
+            </qtree>
+          </volume>
+        </aggregate>
+      </vfiler>
+    </filer>
+  </site>
+</project>
