@@ -8,7 +8,7 @@ import sys
 import os.path
 from string import Template
 from datetime import datetime
-from ConfigParser import NoOptionError
+from ConfigParser import NoSectionError, NoOptionError
 from zope.interface import implements
 
 from docgen.interfaces import IXMLConfigurable, IDocumentGenerator
@@ -172,6 +172,25 @@ class DynamicNaming:
             pass
         return ns
 
+    def name_dynamically(self, defaults):
+        """
+        Do any dynamic naming that may need to be done.
+        """
+        if getattr(self, 'name', None) is None:
+            # Set up a namespace for use in naming
+            ns = self.populate_namespace()
+            try:
+                name_convention = defaults.get(self.xmltag, '%s_name' % self.xmltag)
+            except (NoSectionError, NoOptionError):
+                raise KeyError("No naming convention set for %s objects in config file" % self.xmltag)
+                
+            try:
+                self.name = name_convention % ns
+            except KeyError, e:
+                raise KeyError("Unknown variable %s for %s naming convention" % (e, self.xmltag))
+
+        pass
+    
 class DynamicNamedXMLConfigurable(XMLConfigurable, DynamicNaming):
     """
     A combined class that is XMLConfigurable, and can do DynamicNaming
@@ -193,11 +212,6 @@ class DynamicNamedXMLConfigurable(XMLConfigurable, DynamicNaming):
         
         self.configure_children(node, defaults, parent)
 
-    def name_dynamically(self, defaults):
-        """
-        Do any dynamic naming that may need to be done.
-        """
-        pass
 
 class FileOutputMixin:
     """
@@ -644,3 +658,37 @@ ${abstract}
 
         return self.doc_control.safe_substitute(ns)
     
+class LunNumbering:
+    """
+    A Mixin class that is used to implement an upwards cascade of
+    LUN numbering grouping, so that LUNs can be numbered sequentially
+    within a whole project, or by site, filer, aggregate, or volume.
+    """
+    def get_next_lunid(self, defaults):
+        """
+        Get the next available lunid for the volume
+        """
+        try:
+            numberby = defaults.get('lun', 'lun_numbering')
+            log.debug("numbering LUNs by: %s", numberby)
+            if numberby == self.xmltag:
+                value = self.current_lunid
+                self.current_lunid += 1
+                return value
+            else:
+                return self.parent.get_next_lunid(defaults)
+            
+        except (NoSectionError, NoOptionError):
+            return self.parent.get_next_lunid(defaults)
+                
+    def set_current_lunid(self, value, defaults):
+        try:
+            numberby = defaults.get('lun', 'lun_numbering')
+            if numberby == self.xmltag:
+                self.current_lunid = value
+            else:
+                self.parent.set_current_lunid(value, defaults)
+                pass
+        except (NoSectionError, NoOptionError):
+            return self.parent.get_next_lunid(defaults)
+

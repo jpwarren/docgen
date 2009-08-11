@@ -391,7 +391,7 @@ file is well-formed and also a valid file.
 
 	  <!-- A volume with a specific qtree name, and a LUN automatically placed inside it. -->
 	  <volume proto="iscsi" name="iscsi_test" usable="100">
-	    <qtree name="my_custom_name"
+	    <qtree name="my_custom_name_01"
                    description="A custom qtree with a LUN in it">
 	      <lun lunid='103'/>
 	    </qtree>
@@ -414,7 +414,7 @@ file is well-formed and also a valid file.
 	  -->
 	  <volume proto="iscsi" iscsi_snapspace="50" usable="100">
 
-	    <qtree name="my_custom_name"
+	    <qtree name="my_custom_name_02"
                    description="A custom qtree with a LUN in it"/>
 	  
 	    <qtree name="lun_inside"

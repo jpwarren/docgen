@@ -3,13 +3,13 @@
 """
 SnapMirrorSchedule object
 """
-from docgen.base import DynamicNamedXMLConfigurable
+from docgen.base import XMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class SnapMirrorSchedule(DynamicNamedXMLConfigurable):
+class SnapMirrorSchedule(XMLConfigurable):
     """
     A definition of a snapmirror schedule
     """

@@ -9,7 +9,7 @@ and is used to dynamically configure and build the project
 definition.
 """
 from ConfigParser import NoSectionError, NoOptionError
-from base import DynamicNamedXMLConfigurable
+from base import DynamicNamedXMLConfigurable, LunNumbering
 
 from lxml import etree
 
@@ -25,7 +25,7 @@ import debug
 import logging
 log = logging.getLogger('docgen')
 
-class Project(DynamicNamedXMLConfigurable):
+class Project(DynamicNamedXMLConfigurable, LunNumbering):
     """
     The core of the DocGen system: the Project
     """
@@ -43,7 +43,10 @@ class Project(DynamicNamedXMLConfigurable):
     optional_attribs = [
         'title',
         ]
-    
+
+    def __init__(self):
+        self.current_lunid = 0
+
     def populate_namespace(self, ns={}):
         """
         Add my namespace pieces to the namespace
@@ -52,6 +55,14 @@ class Project(DynamicNamedXMLConfigurable):
         ns['project_code'] = self.code
         return ns
 
+    def get_next_lunid(self, defaults):
+        value = self.current_lunid
+        self.current_lunid += 1
+        return value
+
+    def set_current_lunid(self, value, defaults):
+        self.current_lunid = value        
+    
     def get_hosts(self):
         """
         Find all the project hosts
@@ -237,7 +248,7 @@ class Project(DynamicNamedXMLConfigurable):
 
                     # Add a list of one LUN to a brand new iGroup with this LUN's exportlist
                     # The iGroup type defaults the same as the first LUN type that it contains.
-                    xmldata = """<igroup name="%s"/>"""
+                    xmldata = """<igroup name="%s"/>""" % igroup_name
                     
                     #group = iGroup(igroup_name, lun.qtree.volume.filer, lun.exportlist, [lun,], type=lun.ostype)
                     group = iGroup()

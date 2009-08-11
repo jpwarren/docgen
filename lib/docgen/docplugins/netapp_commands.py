@@ -663,9 +663,17 @@ class NetAppCommandsGenerator(CommandGenerator):
                         log.error("You cannot initialise the snapmirror from the source filer.")
                         
                     elif snap.targetvol == vol:
+                        try:
+                            source_patt = self.defaults.get('snapmirror', 'source_name')
+                            ns = {}
+                            ns['filer_name'] = snap.sourcevol.get_filer().name
+                            source_name = source_patt % ns
+                        except (NoSectionError, NoOptionError):
+                            source_name = "%s" % snap.sourcevol.get_filer().name
+
                         if (snap.sourcevol, snap.targetvol) not in donelist:
                             cmdset.append("vol restrict %s" % snap.targetvol.name)
-                            cmdset.append("snapmirror initialize -S %s-svif0-2000:%s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.name))
+                            cmdset.append("snapmirror initialize -S %s:%s %s" % (source_name, snap.sourcevol.name, snap.targetvol.name))
                                 
                             donelist.append( (snap.sourcevol, snap.targetvol) )
                     else:
@@ -691,8 +699,16 @@ class NetAppCommandsGenerator(CommandGenerator):
                     log.warn("/etc/snapmirror not used on the source filer.")
                         
                 elif snap.targetvol == vol:
+                    try:
+                        source_patt = self.defaults.get('snapmirror', 'source_name')
+                        ns = {}
+                        ns['filer_name'] = snap.sourcevol.get_filer().name
+                        source_name = source_patt % ns
+                    except (NoSectionError, NoOptionError):
+                        source_name = "%s" % snap.sourcevol.get_filer().name
+                    
                     # Use a transfer schedule
-                    cmdset.append("%s-svif0-2000:%s %s:%s %s %s" % (snap.sourcevol.filer.name, snap.sourcevol.name, snap.targetvol.filer.name, snap.targetvol.name, snap.arguments, snap.etc_snapmirror_conf_schedule()))
+                    cmdset.append("%s:%s %s:%s %s %s" % (source_name, snap.sourcevol.name, snap.targetvol.get_filer().name, snap.targetvol.name, snap.arguments, snap.etc_snapmirror_conf_schedule()))
                 else:
                     log.error("snapmirror target and source are not for '%s'" % vol.name)
                     pass
@@ -701,7 +717,7 @@ class NetAppCommandsGenerator(CommandGenerator):
 
         if len(cmdset) > 0:
             cmdset.insert(0, "#")
-            cmdset.insert(0, "# %s" % self.shortname)
+            cmdset.insert(0, "# %s" % self.project.name)
             cmdset.insert(0, "#")
 
         #log.debug('\n'.join(cmdset))

@@ -113,17 +113,17 @@ class Qtree(DynamicNamedXMLConfigurable):
             pass
         return retstr
 
-    def get_next_lunid(self):
+    def get_next_lunid(self, defaults):
         """
         Get the next available lunid for the volume
         """
-        return self.parent.get_next_lunid()
+        return self.parent.get_next_lunid(defaults)
     
     def get_iscsi_usable(self):
         return self.parent.get_iscsi_usable()
 
-    def set_current_lunid(self, value):
-        return self.parent.set_current_lunid(value)
+    def set_current_lunid(self, value, defaults):
+        return self.parent.set_current_lunid(value, defaults)
     
     def add_to_lun_total(self, amount):
         return self.parent.add_to_lun_total(amount)

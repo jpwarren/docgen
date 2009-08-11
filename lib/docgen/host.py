@@ -137,9 +137,9 @@ class Host(DynamicNamedXMLConfigurable):
 ##             raise ValueError("Host '%s' has no storage IP addresses defined." % self.name)
 
     def populate_namespace(self, ns={}):
-        ns = self.site.populate_namespace(ns)
+        ns = self.parent.populate_namespace(ns)
         ns['host_name'] = self.name
-        ns['host_os'] = self.os
+        ns['host_os'] = self.operatingsystem
         ns['host_platform'] = self.platform
         return ns
 

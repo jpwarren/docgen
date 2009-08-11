@@ -3,13 +3,13 @@
 """
 NetApp Filer object
 """
-from base import DynamicNamedXMLConfigurable
+from base import DynamicNamedXMLConfigurable, LunNumbering
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Filer(DynamicNamedXMLConfigurable):
+class Filer(DynamicNamedXMLConfigurable, LunNumbering):
     """
     A NetApp Filer
     """
@@ -45,6 +45,8 @@ class Filer(DynamicNamedXMLConfigurable):
         # FIXME: How to sanely cope with active/active on
         # both cluster nodes?
         self.is_active_node = True
+
+        self.current_lunid = 0
         
     def configure_from_node(self, node, defaults, site):
         self.site = site

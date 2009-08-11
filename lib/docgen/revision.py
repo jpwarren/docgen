@@ -4,13 +4,13 @@
 """
 DocGen project revisions object
 """
-from base import DynamicNamedXMLConfigurable
+from base import XMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class Revision(DynamicNamedXMLConfigurable):
+class Revision(XMLConfigurable):
     """
     A project revision
     """
@@ -33,7 +33,7 @@ class Revision(DynamicNamedXMLConfigurable):
         ]
 
     def configure_from_node(self, node, defaults, parent):
-        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
+        XMLConfigurable.configure_from_node(self, node, defaults, parent)
 
         comment = node.find('revremark')
         if comment is not None:

@@ -9,7 +9,7 @@ from ConfigParser import NoSectionError, NoOptionError
 
 from lxml import etree
 
-from base import DynamicNamedXMLConfigurable
+from base import DynamicNamedXMLConfigurable, LunNumbering
 # FIXME: Doing it this way means we can't override this in
 # a user defined plugin. Need the lookup table instead.
 from volume import Volume
@@ -20,7 +20,7 @@ import debug
 import logging
 log = logging.getLogger('docgen')
 
-class VFiler(DynamicNamedXMLConfigurable):
+class VFiler(DynamicNamedXMLConfigurable, LunNumbering):
     """
     A NetApp vFiler object
     """
@@ -62,6 +62,8 @@ class VFiler(DynamicNamedXMLConfigurable):
         # Which vlan I belong to, if any
         self.vlan = None
 
+        self.current_lunid = 0
+        
     def _depr__init__(self):
         self.name = ''
         self.children = {}

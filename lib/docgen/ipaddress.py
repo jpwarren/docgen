@@ -3,14 +3,14 @@
 """
 DocGen IPAddress object
 """
-from docgen.base import DynamicNamedXMLConfigurable
+from docgen.base import XMLConfigurable
 from docgen import network
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class IPAddress(DynamicNamedXMLConfigurable):
+class IPAddress(XMLConfigurable):
     """
     An IPAddress is just what it says on the tin
     """
@@ -41,7 +41,7 @@ class IPAddress(DynamicNamedXMLConfigurable):
         self.vlan = None
     
     def configure_from_node(self, node, defaults, parent):
-        DynamicNamedXMLConfigurable.configure_from_node(self, node, defaults, parent)
+        XMLConfigurable.configure_from_node(self, node, defaults, parent)
 
         # If I have a vlan_number set, my VLAN is the vlan
         # my parent has that has the same vlan number
@@ -74,10 +74,10 @@ class IPAddress(DynamicNamedXMLConfigurable):
             self.netmask = network.netmask
                 
     def configure_mandatory_attributes(self, node, defaults):
-        DynamicNamedXMLConfigurable.configure_mandatory_attributes(self, node, defaults)
+        XMLConfigurable.configure_mandatory_attributes(self, node, defaults)
 
     def configure_optional_attributes(self, node, defaults):
-        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        XMLConfigurable.configure_optional_attributes(self, node, defaults)
         if self.type is None:
             self.type = 'primary'
             pass

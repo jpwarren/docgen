@@ -6,13 +6,13 @@ Physical site and related design objects
 
 from ConfigParser import NoSectionError
 
-from base import DynamicNamedXMLConfigurable
+from base import DynamicNamedXMLConfigurable, LunNumbering
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Site(DynamicNamedXMLConfigurable):
+class Site(DynamicNamedXMLConfigurable, LunNumbering):
     """
     A site contains Filers, VLANS, etc.
     """
@@ -32,6 +32,9 @@ class Site(DynamicNamedXMLConfigurable):
     optional_attribs = [ 'location',
                          ]
 
+    def __init__(self):
+        self.current_lunid = 0
+    
     # Deprecated, as we use auto-config now.
     def _depr__init__(self, name, type, location='', nameservers=[], winsservers=[]):
         """

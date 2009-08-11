@@ -38,6 +38,9 @@ class Lun(DynamicNamedXMLConfigurable):
     def __init__(self):
         self.igroup = None
 
+    def __repr__(self):
+        return "<Lun: %s>" % self.name
+
     def configure_optional_attributes(self, node, defaults):
         """
         Configure optional Lun attributes
@@ -45,7 +48,7 @@ class Lun(DynamicNamedXMLConfigurable):
         DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)        
         # Check to see if we need to restart the lunid numbering
         if self.restartnumbering is not None:
-            self.parent.set_current_lunid( int(self.restartnumbering) )
+            self.parent.set_current_lunid( int(self.restartnumbering), defaults)
             pass
         
         # Check to see if the lunid is specified for this lun
@@ -53,7 +56,7 @@ class Lun(DynamicNamedXMLConfigurable):
             self.lunid = int(self.lunid)
             log.debug("lunid manually specified: %d", self.lunid)
         else:
-            self.lunid = self.parent.get_next_lunid()
+            self.lunid = self.parent.get_next_lunid(defaults)
             
         try:
             self.size = float(self.size)
@@ -69,10 +72,10 @@ class Lun(DynamicNamedXMLConfigurable):
             # Count the number of LUNs with no size specified. Available
             # usable storage will be divided evenly between them
             nosize_luns = len(node.xpath("parent::*/descendant-or-self::lun[not(@size)]"))
-
+            log.debug("unsized luns are: %s", nosize_luns)
             # total the number of sized luns
             sized_luns = node.xpath("parent::*/descendant-or-self::lun[(@size)]")
-            log.debug("sized luns are: %s", sized_luns)
+
             sized_total = sum([ int(lun.attrib['size']) for lun in sized_luns ])
             log.debug("sized total is: %s", sized_total)
 
@@ -85,6 +88,14 @@ class Lun(DynamicNamedXMLConfigurable):
         log.debug("Allocating %sg storage to LUN", self.size)
         self.parent.add_to_lun_total(self.size)
 
+    def populate_namespace(self, ns={}):
+        """
+        Add my own namespace pieces
+        """
+        ns = self.parent.populate_namespace(ns)
+        ns['lunid'] = self.lunid
+        return ns
+        
     def full_path(self):
         """
         Return the full path string for LUN creation
@@ -93,7 +104,7 @@ class Lun(DynamicNamedXMLConfigurable):
 
     def get_create_size(self):
         return util.get_create_size(self.size)
-        
+
 def create_lun_from_node(node, defaults, parent):
 
     lun = Lun()

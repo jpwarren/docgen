@@ -5,13 +5,13 @@ Storage export object
 """
 from ConfigParser import NoSectionError, NoOptionError
 
-from docgen.base import DynamicNamedXMLConfigurable
+from docgen.base import XMLConfigurable
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Export(DynamicNamedXMLConfigurable):
+class Export(XMLConfigurable):
     """
     An encapsulation of a storage export to a specific host/IP
     """
@@ -56,7 +56,7 @@ class Export(DynamicNamedXMLConfigurable):
         return '<Export: %s, to: %s[%s], from: %s>' % ( self.type, self.tohost, self.toip, self.fromip )
 
     def configure_optional_attributes(self, node, defaults):
-        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        XMLConfigurable.configure_optional_attributes(self, node, defaults)
 
         # Type defaults to 'rw' if a default isn't set and it isn't manually set
         if self.type is None:

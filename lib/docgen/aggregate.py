@@ -5,13 +5,13 @@
 Aggregate object definition
 
 """
-from docgen.base import DynamicNamedXMLConfigurable
+from docgen.base import DynamicNamedXMLConfigurable, LunNumbering
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class Aggregate(DynamicNamedXMLConfigurable):
+class Aggregate(DynamicNamedXMLConfigurable, LunNumbering):
     """
     A NetApp vFiler object
     """
@@ -32,6 +32,9 @@ class Aggregate(DynamicNamedXMLConfigurable):
     # A root aggregate tells us where to put the vfiler root volume
     # if it's not manually defined.
     known_types = [ 'root', 'data' ]
+
+    def __init__(self):
+        self.current_lunid = 0
 
     def __repr__(self):
         return "<Aggregate: %s/%s>" % (self.parent.name, self.name)

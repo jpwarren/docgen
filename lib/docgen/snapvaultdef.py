@@ -3,13 +3,13 @@
 """
 SnapVaultDef object
 """
-from base import DynamicNamedXMLConfigurable
+from base import XMLConfigurable
 
 import debug
 import logging
 log = logging.getLogger('docgen')
 
-class SnapVaultDef(DynamicNamedXMLConfigurable):
+class SnapVaultDef(XMLConfigurable):
     """
     A definition of a snapvault relationship
     """

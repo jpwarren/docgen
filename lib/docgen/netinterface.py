@@ -6,13 +6,13 @@ Network interface design objects
 These are found on hosts at the moment, though they may
 be found on other objects depending on how things go.
 """
-from docgen.base import DynamicNamedXMLConfigurable
+from docgen.base import XMLConfigurable
 
 import logging
 import debug
 log = logging.getLogger('docgen')
 
-class NetInterface(DynamicNamedXMLConfigurable):
+class NetInterface(XMLConfigurable):
 
     xmltag = 'netinterface'
 
@@ -52,7 +52,7 @@ class NetInterface(DynamicNamedXMLConfigurable):
         return self.vlans
 
     def configure_optional_attributes(self, node, defaults):
-        DynamicNamedXMLConfigurable.configure_optional_attributes(self, node, defaults)
+        XMLConfigurable.configure_optional_attributes(self, node, defaults)
 
         if self.mode is None:
             self.mode = 'passive'

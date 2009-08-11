@@ -6,7 +6,7 @@ NetApp Volumes
 from ConfigParser import NoSectionError, NoOptionError
 from lxml import etree
 
-from docgen.base import DynamicNamedXMLConfigurable
+from docgen.base import DynamicNamedXMLConfigurable, LunNumbering
 from docgen import util
 from docgen.qtree import Qtree
 
@@ -14,7 +14,7 @@ import logging
 import debug
 log = logging.getLogger('docgen')
 
-class Volume(DynamicNamedXMLConfigurable):
+class Volume(DynamicNamedXMLConfigurable, LunNumbering):
     """
     A NetApp volume object
     """
@@ -329,17 +329,6 @@ class Volume(DynamicNamedXMLConfigurable):
         """
         if len(self.snaps) > 0 or len(self.snapvaults) > 0 or len(self.snapmirrors) > 0:
             return True
-
-    def get_next_lunid(self):
-        """
-        Get the next available lunid for the volume
-        """
-        value = self.current_lunid
-        self.current_lunid += 1
-        return value
-
-    def set_current_lunid(self, value):
-        self.current_lunid = value
 
     def add_to_lun_total(self, amount):
         """
