@@ -9,8 +9,7 @@
 <xsl:param name="admon.textlabel" select="0"/>
 
 <xsl:param name="admon.graphics.path">/usr/share/xml/docbook/stylesheet/nwalsh/images/</xsl:param>
-<!--
+
 <xsl:param name="admon.graphics.extension">.svg</xsl:param>
--->
 
 </xsl:stylesheet>

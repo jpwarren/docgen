@@ -247,7 +247,7 @@ class DocBookGenerator(FileOutputMixin):
 [
 <!-- include standard entities -->
 
-<!ENTITY % entities SYSTEM "http://docgen.eigenmagic.com/entities.ent">
+<!ENTITY % entities SYSTEM "http://docgen.eigenmagic.com/docbook/entities.ent">
 %entities;
 
 <!ENTITY docgen.revision "$docgen_revision">

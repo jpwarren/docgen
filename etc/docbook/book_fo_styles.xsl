@@ -14,10 +14,10 @@
    xmlns:fo="http://www.w3.org/1999/XSL/Format"
    version="1.0">
 
-  <xsl:import href="http://docgen.eigenmagic.com/base_styles.xsl"/>
-  <xsl:import href="http://docgen.eigenmagic.com/admon_graphics.xsl" />
-  <xsl:import href="http://docgen.eigenmagic.com/titlepage.xsl"/>
-  <xsl:import href="http://docgen.eigenmagic.com/corp_styles.xsl"/>
+  <xsl:import href="http://docgen.eigenmagic.com/docbook/base_styles.xsl"/>
+  <xsl:import href="http://docgen.eigenmagic.com/docbook/admon_graphics.xsl" />
+  <xsl:import href="http://docgen.eigenmagic.com/docbook/titlepage.xsl"/>
+  <xsl:import href="http://docgen.eigenmagic.com/docbook/corp_styles.xsl"/>
 
   <!-- Enable PDF bookmarks to be generated -->
   <xsl:param name="fop1.extensions">1</xsl:param>
