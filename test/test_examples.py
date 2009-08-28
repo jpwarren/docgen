@@ -48,7 +48,7 @@ class ExampleTest(unittest.TestCase):
         tree = etree.parse(xmlfile)
         self.project.configure_from_node(tree.getroot(), self.defaults, None)        
 
-        def test_multi_network_example(self):
+    def test_multi_network_example(self):
         """
         Test the general example file
         """
